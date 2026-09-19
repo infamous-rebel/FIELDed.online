@@ -47,21 +47,36 @@ Phase 14A establishes the complete production communication infrastructure for F
 
 **Decision**: Use a PostgreSQL `outbox_events` table with a background worker. No Redis, Kafka, or external messaging infrastructure.
 
-**Flow**:
+**Canonical flow**:
 ```
-Domain Transaction (PostgreSQL)
-    ├── Domain change (e.g. booking → CONFIRMED)
-    └── INSERT outbox_events (BOOKING_CONFIRMED)
-    → COMMIT atomically
-
-Background Outbox Worker
-    → Notification/Communication Orchestrator
-    → Communication Policy
-    → Consent / Suppression / Frequency / Timing
-    → Business Brain
-    → Provider Adapter
-    → Email / SMS / WhatsApp / Push / In-App
+Operational Event
+        ↓
+Notification / Communication Request
+        ↓
+Recipient + Purpose + Channel
+        ↓
+Communication Policy
+  ┌───────────────────────────────────────┐
+  │ Operational Configuration              │
+  │ Consent / Suppression                  │
+  │ Timing / Frequency                     │
+  │ Business Brain Communication Rules     │
+  │ Authorization / Approval Requirements  │
+  └───────────────────────────────────────┘
+        ↓
+Authorized Communication
+        ↓
+Communication Service
+        ↓
+Provider Adapter
+        ↓
+External Provider
+        ↓
+Delivery Result
+        ↓
+Audit + Communication History
 ```
+Business Brain is part of the Communication Policy decision context — not a separate independent authority that runs sequentially after the policy engine. The Communication Policy combines business configuration, recipient eligibility, consent, suppression, timing, frequency, Brain rules, approval requirements, and authorization into one deterministic, traceable decision. No LLM is authoritative in this decision path.
 
 **Worker architecture**: Hybrid — core worker is a plain `async def process_outbox_events(session)` function. Phase 14A runs it as a FastAPI in-process background task. A standalone CLI entry point (`python -m app.workers.outbox`) invokes the same function for future independent deployment.
 
@@ -103,31 +118,70 @@ backend/app/adapters/
 │   └── twilio.py        # TwilioVoiceProvider (boundary, no agent)
 ```
 
-**Interface pattern** (consistent with existing):
-- ABC with `@abstractmethod async def send(...)`
-- Dataclass for request and result
-- `provider_name` property
-- Result includes `success: bool`, `error: str | None`, `retryable: bool`, `provider_message_id: str`
-- Provider SDK exceptions are caught and translated to the common result contract
+**Common provider result contract** (all adapters):
+```python
+@dataclass
+class ProviderResult:
+    success: bool
+    provider_reference: str | None   # Common external-provider identifier
+    error: str | None
+    retryable: bool
+```
+- `provider_reference` is the standardized external-provider identifier across ALL adapters. Do not use provider-specific names (e.g. `provider_message_id`) in the shared contract.
+- Provider-specific SDK responses and exceptions are caught and translated into this common contract inside the adapter boundary.
+
+**VoiceProvider contract** (first-class in 14A, Call Agent in 14B):
+```python
+@dataclass
+class VoiceCallRequest:
+    to: str
+    from_number: str
+    callback_url: str | None = None       # Webhook for call lifecycle events
+    callback_method: str = "POST"
+    metadata: dict | None = None          # Arbitrary metadata for tracking
+
+@dataclass
+class VoiceCallResult:
+    success: bool
+    provider_reference: str | None        # Twilio Call SID or equivalent
+    error: str | None
+    retryable: bool
+```
+Phase 14A includes real outbound voice-call initiation/provider integration capability where configured. Phase 14B builds the conversational agent behavior, conversation state, scripts, Business Brain instructions, tool use, recording/transcription, escalation, and voice webhook lifecycle on top of this boundary.
 
 **ProviderFactory** in `app/adapters/__init__.py` creates configured providers from settings. Domain services receive providers through dependency injection — never importing provider SDKs directly.
 
 ### 4. Communication Policy Engine
 
-**Decision**: Deterministic policy evaluation combining operational config + governed policy + consent state.
+**Decision**: Deterministic policy evaluation combining operational config + governed policy + consent state into one unified decision. Business Brain communication rules are evaluated as part of the Communication Policy decision context — not as a separate sequential authority.
 
 **Location**: `backend/app/domain/communication/policy.py`
 
-**Evaluation pipeline** (ordered):
-1. Channel enabled? → `business_communication_channels`
-2. Purpose enabled? → `business_communication_purposes`
-3. Customer consent? → `customer_communication_preferences`
-4. Suppression / DNC? → `customer_communication_preferences`
-5. Timing / calling hours? → `BrainVersion.communication_config`
-6. Frequency limits? → `BrainVersion.communication_config` + recent communications count
-7. Business Brain policy rules? → `communication_config` governed rules
-8. Approval required? → `BrainVersion.communication_config`
-9. → ALLOW / DENY / REQUIRE_APPROVAL / DEFER / ESCALATE
+**RecipientContext** (explicit recipient for every evaluation):
+```python
+@dataclass
+class RecipientContext:
+    recipient_type: str       # CUSTOMER | STAFF | EXTERNAL | OTHER
+    user_id: UUID | None
+    customer_id: UUID | None
+    address: str | None       # Resolved destination (email/phone/token)
+    channel: str
+    purpose: str
+```
+The policy layer supports recipients who are customers, business staff, external recipients, or other authorized recipients. `customer_id` may be null. Consent, suppression, eligibility, and recipient authorization are evaluated against the actual recipient context.
+
+**Evaluation** — the Communication Policy engine combines all of the following into one deterministic, traceable decision:
+1. Business communication configuration (channel enabled, purpose enabled)
+2. Recipient eligibility (recipient type, authorization)
+3. Consent / suppression / DNC (from `customer_communication_preferences`)
+4. Timing / calling hours (from `BrainVersion.communication_config`)
+5. Frequency limits (from `BrainVersion.communication_config` + recent communications count)
+6. Business Brain communication rules (governed rules from `communication_config`)
+7. Approval requirements (from `BrainVersion.communication_config`)
+8. Authorization (RBAC, tenant isolation)
+→ ALLOW / DENY / REQUIRE_APPROVAL / DEFER / ESCALATE
+
+No LLM is authoritative in this decision path. The decision is closed-world: only explicit ALLOW proceeds; all other outcomes block the communication.
 
 **PolicyDecision** (dataclass):
 - `decision: str` — ALLOW | DENY | REQUIRE_APPROVAL | DEFER | ESCALATE
@@ -138,8 +192,9 @@ backend/app/adapters/
 - `suppression_state: dict | None`
 - `frequency_state: dict | None`
 - `timing_state: dict | None`
+- `recipient_context: RecipientContext`
 
-**Properties**: `evaluate()` reads PostgreSQL state but the decision logic is deterministic and side-effect-free. No LLM involvement. Every decision is traceable and auditable.
+**Properties**: `evaluate()` reads PostgreSQL state but the decision logic is deterministic and side-effect-free. No LLM involvement. Every decision is traceable and auditable. Governance absence (no active BrainVersion) must not silently allow communication — treat as REQUIRE_APPROVAL.
 
 ### 5. Notification & Orchestration
 
@@ -149,25 +204,27 @@ backend/app/adapters/
 ```
 Outbox Event
     ↓
-1. Create Notification(s) based on event_type
+1. Create Notification(s) based on event_type (idempotent via idempotency_key)
     ↓
 2. For each eligible notification:
-   a. Determine target channel(s) from business config
-   b. Resolve template (channel + purpose + business)
-   c. Render template with event variables
-   d. Evaluate CommunicationPolicyService.evaluate(...)
-   e. If ALLOW → create Communication + CommunicationRecipient
-   f. Create CommunicationAttempt, call provider adapter
-   g. Persist attempt result, update communication status
-   h. Record audit event
+   a. Resolve RecipientContext (recipient_type, user_id, customer_id, address, channel, purpose)
+   b. Determine target channel(s) from business config
+   c. Resolve template (channel + purpose + business)
+   d. Render template with event variables
+   e. Evaluate CommunicationPolicyService.evaluate(recipient_context=...)
+   f. If ALLOW → create Communication + CommunicationRecipient
+   g. Create CommunicationAttempt, call provider adapter
+   h. Persist attempt result (provider_reference), update communication status
+   i. Record audit event
     ↓
-3. If DENY/DEFER/REQUIRE_APPROVAL/ESCALATE → record decision in audit
+3. If DENY/DEFER/REQUIRE_APPROVAL/ESCALATE → record decision in audit, no send
 ```
 
 **Idempotency**:
 - Outbox `idempotency_key` prevents duplicate event processing
+- Notification `idempotency_key` (unique DB constraint) prevents duplicate notifications when an outbox event is retried after a worker crash. The database constraint is the final enforcement mechanism; application-level checks alone are insufficient.
 - Communication `idempotency_key` = `f"{event_type}:{aggregate_type}:{aggregate_id}:{channel}:{purpose}"`
-- Provider message IDs alone cannot prevent duplicate sends (they exist only after success) — use persisted communication/attempt state + provider-supported idempotency for retries
+- Provider references alone cannot prevent duplicate sends (they exist only after success) — use persisted communication/attempt state + provider-supported idempotency for retries
 
 **Template rendering**: Simple variable substitution (`{{ customer_name }}`, `{{ booking_reference }}`). Variables extracted from outbox payload + entity lookups. No AI involvement.
 
@@ -190,7 +247,7 @@ Outbox Event
 
 **`communication_recipients`** — Per-communication recipients:
 - `id` (UUID PK), `communication_id` (FK), `user_id` (FK, nullable — external recipients supported)
-- `channel`, `address` (email/phone/device token), `status`
+- `recipient_type` (CUSTOMER | STAFF | EXTERNAL | OTHER), `channel`, `address` (email/phone/device token), `status`
 - Timestamps, soft-delete: yes
 
 **`communication_attempts`** — Provider delivery attempts:
@@ -241,6 +298,7 @@ Outbox Event
 **`notifications`**:
 - `id` (UUID PK), `business_id` (FK), `customer_id` (FK, nullable)
 - `notification_type`, `title`, `body`, `priority`
+- `idempotency_key` (unique constraint — prevents duplicate notifications on outbox retry)
 - `related_entity_type`, `related_entity_id`
 - `read_at` (nullable), `delivery_state` (nullable)
 - Timestamps, soft-delete: yes
@@ -429,29 +487,32 @@ outbox_lease_seconds: int = 300
 
 At the end of 14A, FIELDed has a functioning communication foundation:
 ```
-FIELDed Operational Event
-    ↓
+Operational Event
+        ↓
 Notification / Communication Request
-    ↓
-Purpose
-    ↓
-Consent + Eligibility
-    ↓
+        ↓
+Recipient + Purpose + Channel
+        ↓
 Communication Policy
-    ↓
-Business Brain
-    ↓
-Authorization
-    ↓
+  ┌───────────────────────────────────────┐
+  │ Operational Configuration              │
+  │ Consent / Suppression                  │
+  │ Timing / Frequency                     │
+  │ Business Brain Communication Rules     │
+  │ Authorization / Approval Requirements  │
+  └───────────────────────────────────────┘
+        ↓
+Authorized Communication
+        ↓
 Communication Service
-    ↓
+        ↓
 Provider Adapter
-    ↓
-Email / SMS / WhatsApp / Push / In-App
-    ↓
+        ↓
+Email / SMS / WhatsApp / Push / In-App / Voice
+        ↓
 Delivery Result
-    ↓
-Audit + History
+        ↓
+Audit + Communication History
 ```
 
-Voice is represented as a first-class provider/channel boundary, ready for the 14B Call Agent implementation.
+Voice is represented as a first-class provider/channel boundary with a defined `VoiceProvider` / `VoiceCallRequest` / `VoiceCallResult` contract, ready for the 14B Call Agent implementation.
