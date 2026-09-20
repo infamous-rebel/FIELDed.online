@@ -1,0 +1,47 @@
+# Cloud Build configuration for FIELDed backend
+# Usage: gcloud builds submit --config=cloudbuild.yaml
+
+steps:
+  # Build the container image
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${SHORT_SHA}"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:latest"
+      - "."
+
+  # Deploy to Cloud Run
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "${_SERVICE}"
+      - "--image"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:latest"
+      - "--region"
+      - "${_REGION}"
+      - "--platform"
+      - "managed"
+      - "--port"
+      - "8000"
+      - "--memory"
+      - "512Mi"
+      - "--cpu"
+      - "1"
+      - "--min-instances"
+      - "0"
+      - "--max-instances"
+      - "3"
+      - "--set-env-vars"
+      - "APP_ENV=production"
+      - "--no-allow-unauthenticated"
+
+substitutions:
+  _SERVICE: fielded-api
+  _REGION: us-central1
+  _REPOSITORY: fielded
+
+options:
+  logging: CLOUD_LOGGING_ONLY

@@ -13,15 +13,47 @@ from app.config import get_settings
 from app.domain.common.base_model import Base
 
 # Import all models so Alembic sees them
-from app.domain.identity.models import (
+from app.domain.identity.models import (  # noqa: F401
     User,
     CustomerProfile,
     Business,
     BusinessProfile,
     BusinessMember,
-)  # noqa: F401
+)
 from app.domain.business.models import BusinessBrain, BrainVersion, BusinessRule  # noqa: F401
 from app.domain.services.models import ServiceCategory, ServiceOffer  # noqa: F401
+from app.domain.enquiry.models import Enquiry, Conversation, Message  # noqa: F401
+from app.domain.communication.models import (  # noqa: F401
+    Communication,
+    CommunicationRecipient,
+    CommunicationAttempt,
+    CommunicationTemplate,
+    CommunicationTemplateVersion,
+    BusinessCommunicationChannel,
+    BusinessCommunicationPurpose,
+    CustomerCommunicationPreference,
+    CommunicationWebhook,
+    CommunicationAuditEvent,
+)
+from app.domain.quote.models import Quote  # noqa: F401
+from app.domain.booking.models import Booking  # noqa: F401
+from app.domain.service_execution.models import ServiceExecution  # noqa: F401
+from app.domain.invoice.models import Invoice, InvoiceLineItem  # noqa: F401
+from app.domain.ledger.models import ServiceLedgerEntry  # noqa: F401
+from app.domain.payment.models import Payment, PaymentAttempt  # noqa: F401
+from app.domain.notification.models import Notification  # noqa: F401
+from app.domain.outbox.models import OutboxEvent  # noqa: F401
+from app.domain.review.models import Review  # noqa: F401
+from app.domain.voice.models import (  # noqa: F401
+    VoiceCall,
+    VoiceCallParticipant,
+    VoiceCallAttempt,
+    VoiceCallSession,
+    VoiceCallEscalation,
+    CallAgentConfiguration,
+    CommunicationCampaign,
+    CampaignRecipient,
+)
 
 config = context.config
 

@@ -63,6 +63,7 @@ class Settings(BaseSettings):
     ai_provider: str = "mock"
     ai_api_key: str = ""
     ai_model: str = ""
+    ai_base_url: str = ""  # Optional: override for OpenAI-compatible providers (e.g. Groq)
 
     email_provider: str = "mock"
     email_api_key: str = ""

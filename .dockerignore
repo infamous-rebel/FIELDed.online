@@ -1,0 +1,55 @@
+# Version control
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.venv
+*.egg-info
+
+# Node / Frontend
+node_modules
+.next
+.turbo
+frontend
+
+# Testing / CI
+.pytest_cache
+.ruff_cache
+.github
+coverage
+htmlcov
+
+# Docker
+docker
+Dockerfile
+
+# Documentation
+docs
+*.md
+
+# Environment
+.env
+.env.*
+
+# Design assets
+*.png
+*.jpg
+*.svg
+
+# Misc
+turbo.json
+package.json
+package-lock.json
