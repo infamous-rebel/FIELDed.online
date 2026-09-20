@@ -1,0 +1,1 @@
+"""Calendar provider adapter package."""
