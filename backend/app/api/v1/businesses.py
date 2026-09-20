@@ -422,7 +422,16 @@ async def update_business(
         )
 
     await db.flush()
-    await db.refresh(business, attribute_names=["profile"])
+
+    # Re-fetch with an eager-loaded profile: the flush expired server-side
+    # fields (updated_at onupdate), and lazy loading is not permitted in
+    # async sessions (MissingGreenlet).
+    result = await db.execute(
+        select(Business)
+        .where(Business.id == business_id, Business.deleted_at.is_(None))
+        .options(selectinload(Business.profile))
+    )
+    business = result.scalar_one()
     return _business_to_read(business)
 
 
@@ -455,8 +464,6 @@ async def transition_business(
 
     previous = current.value
     business.status = target
-    await db.flush()
-    await db.refresh(business, attribute_names=["profile"])
 
     await _emit_business_outbox_event(
         db,
@@ -475,6 +482,15 @@ async def transition_business(
         ),
     )
 
+    # Re-fetch with an eager-loaded profile: the flush expired server-side
+    # fields (updated_at onupdate), and lazy loading is not permitted in
+    # async sessions (MissingGreenlet).
+    result = await db.execute(
+        select(Business)
+        .where(Business.id == business_id, Business.deleted_at.is_(None))
+        .options(selectinload(Business.profile))
+    )
+    business = result.scalar_one()
     return _business_to_read(business)
 
 
