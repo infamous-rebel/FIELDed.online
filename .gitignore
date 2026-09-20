@@ -56,3 +56,4 @@ logs/
 
 # Design mockups (not referenced in code)
 frontend/src/components/ui/*.png
+.env.cloudrun
