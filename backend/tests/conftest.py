@@ -13,6 +13,7 @@ the session is rolled back, keeping the database clean.
 
 from __future__ import annotations
 
+import os
 import uuid
 from collections.abc import AsyncGenerator
 from contextvars import ContextVar
@@ -88,8 +89,13 @@ from app.domain.voice.models import (  # noqa: F401
     VoiceCallSession,
 )
 
-# Test settings — use a dedicated test database
-TEST_DATABASE_URL = "postgresql+asyncpg://fielded:fielded@localhost:5433/fielded_test"
+# Test settings — use a dedicated test database. CI (and any other
+# environment) supplies DATABASE_URL for its postgres service; the default
+# matches docker/docker-compose.test.yml for local runs.
+TEST_DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    "postgresql+asyncpg://fielded:fielded@localhost:5433/fielded_test",
+)
 
 # ContextVar to share the current test session with the app dependency override
 _test_session_var: ContextVar[AsyncSession | None] = ContextVar("_test_session_var", default=None)
@@ -97,8 +103,6 @@ _test_session_var: ContextVar[AsyncSession | None] = ContextVar("_test_session_v
 
 def get_test_settings() -> Settings:
     """Create settings for the test environment."""
-    import os
-
     os.environ["APP_ENV"] = "development"
     os.environ["DATABASE_URL"] = TEST_DATABASE_URL
     settings = Settings()
