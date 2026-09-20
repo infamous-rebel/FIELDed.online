@@ -119,10 +119,39 @@ def ensure_version_table(connection) -> None:
 
 async def run_async_migrations() -> None:
     """Run migrations in async mode."""
+    from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+
+    section = config.get_section(config.config_ini_section, {})
+    url = section.get("sqlalchemy.url", "")
+
+    # Handle asyncpg SSL compatibility: strip sslmode/channel_binding from URL
+    # and pass via connect_args instead
+    connect_args: dict = {}
+    parsed = urlparse(url)
+    query_params = parse_qs(parsed.query)
+    sslmode = query_params.pop("sslmode", [None])[0]
+    query_params.pop("channel_binding", None)
+
+    if sslmode and sslmode != "disable":
+        connect_args["ssl"] = sslmode
+
+    new_query = urlencode(query_params, doseq=True)
+    clean_url = urlunparse((
+        parsed.scheme,
+        parsed.netloc,
+        parsed.path,
+        parsed.params,
+        new_query,
+        parsed.fragment,
+    ))
+
+    section["sqlalchemy.url"] = clean_url
+
     connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        section,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=connect_args,
     )
 
     async with connectable.connect() as connection:
