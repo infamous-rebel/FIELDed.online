@@ -15,8 +15,6 @@ Tests:
 - Cross-tenant isolation on public endpoints
 """
 
-import uuid
-
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
@@ -44,97 +42,115 @@ class TestPublicBusinessDirectory:
         db_session.add(biz_a)
         await db_session.flush()
         db_session.add(BusinessMember(user_id=test_user.id, business_id=biz_a.id, role="owner"))
-        db_session.add(BusinessProfile(
-            business_id=biz_a.id,
-            description="Trusted electrical services",
-            city="London",
-            country="UK",
-            public_status="active",
-            is_verified=True,
-            average_rating=4.5,
-            review_count=12,
-        ))
-        db_session.add(ServiceOffer(
-            business_id=biz_a.id,
-            name="Home Wiring",
-            slug="home-wiring-p16",
-            description="Residential wiring services",
-            category_id=electrical.id,
-            delivery_mode="on_site",
-            pricing_model="starting_at",
-            pricing_config={"starting_price": "150.00", "currency": "GBP"},
-            status="active",
-        ))
-        db_session.add(ServiceOffer(
-            business_id=biz_a.id,
-            name="Fuse Board Upgrade",
-            slug="fuse-board-p16",
-            description="Modern fuse board installation",
-            category_id=electrical.id,
-            delivery_mode="on_site",
-            pricing_model="fixed",
-            pricing_config={"fixed_price": "450.00", "currency": "GBP"},
-            status="active",
-        ))
+        db_session.add(
+            BusinessProfile(
+                business_id=biz_a.id,
+                description="Trusted electrical services",
+                city="London",
+                country="UK",
+                public_status="active",
+                is_verified=True,
+                average_rating=4.5,
+                review_count=12,
+            )
+        )
+        db_session.add(
+            ServiceOffer(
+                business_id=biz_a.id,
+                name="Home Wiring",
+                slug="home-wiring-p16",
+                description="Residential wiring services",
+                category_id=electrical.id,
+                delivery_mode="on_site",
+                pricing_model="starting_at",
+                pricing_config={"starting_price": "150.00", "currency": "GBP"},
+                status="active",
+            )
+        )
+        db_session.add(
+            ServiceOffer(
+                business_id=biz_a.id,
+                name="Fuse Board Upgrade",
+                slug="fuse-board-p16",
+                description="Modern fuse board installation",
+                category_id=electrical.id,
+                delivery_mode="on_site",
+                pricing_model="fixed",
+                pricing_config={"fixed_price": "450.00", "currency": "GBP"},
+                status="active",
+            )
+        )
 
         # Business B — active, public, with 1 active plumbing offer
         biz_b = Business(name="Aqua Plumbing", slug=f"aqua-plumb-{id(self)}", status="active")
         db_session.add(biz_b)
         await db_session.flush()
         db_session.add(BusinessMember(user_id=test_user.id, business_id=biz_b.id, role="owner"))
-        db_session.add(BusinessProfile(
-            business_id=biz_b.id,
-            description="Emergency plumbing services",
-            city="Manchester",
-            country="UK",
-            public_status="active",
-        ))
-        db_session.add(ServiceOffer(
-            business_id=biz_b.id,
-            name="Pipe Repair",
-            slug="pipe-repair-p16",
-            category_id=plumbing.id,
-            delivery_mode="on_site",
-            pricing_model="quote_required",
-            status="active",
-        ))
+        db_session.add(
+            BusinessProfile(
+                business_id=biz_b.id,
+                description="Emergency plumbing services",
+                city="Manchester",
+                country="UK",
+                public_status="active",
+            )
+        )
+        db_session.add(
+            ServiceOffer(
+                business_id=biz_b.id,
+                name="Pipe Repair",
+                slug="pipe-repair-p16",
+                category_id=plumbing.id,
+                delivery_mode="on_site",
+                pricing_model="quote_required",
+                status="active",
+            )
+        )
 
         # Business C — inactive public profile (should NOT appear in directory)
         biz_c = Business(name="Hidden Services", slug=f"hidden-svc-{id(self)}", status="active")
         db_session.add(biz_c)
         await db_session.flush()
         db_session.add(BusinessMember(user_id=test_user.id, business_id=biz_c.id, role="owner"))
-        db_session.add(BusinessProfile(
-            business_id=biz_c.id,
-            description="Should not appear",
-            public_status="incomplete",
-        ))
-        db_session.add(ServiceOffer(
-            business_id=biz_c.id,
-            name="Secret Work",
-            slug="secret-work-p16",
-            category_id=electrical.id,
-            status="active",
-        ))
+        db_session.add(
+            BusinessProfile(
+                business_id=biz_c.id,
+                description="Should not appear",
+                public_status="incomplete",
+            )
+        )
+        db_session.add(
+            ServiceOffer(
+                business_id=biz_c.id,
+                name="Secret Work",
+                slug="secret-work-p16",
+                category_id=electrical.id,
+                status="active",
+            )
+        )
 
         # Business D — active public, but only draft offers
         biz_d = Business(name="Draft Only Biz", slug=f"draft-only-{id(self)}", status="active")
         db_session.add(biz_d)
         await db_session.flush()
         db_session.add(BusinessMember(user_id=test_user.id, business_id=biz_d.id, role="owner"))
-        db_session.add(BusinessProfile(
-            business_id=biz_d.id,
-            description="Only draft offers",
-            city="London",
-            public_status="active",
-        ))
-        db_session.add(ServiceOffer(
-            business_id=biz_d.id,
-            name="Draft Service",
-            slug="draft-service-p16",
-            category_id=electrical.id,
-            status="draft",
-        ))
+        db_session.add(
+            BusinessProfile(
+                business_id=biz_d.id,
+                description="Only draft offers",
+                city="London",
+                public_status="active",
+            )
+        )
+        db_session.add(
+            ServiceOffer(
+                business_id=biz_d.id,
+                name="Draft Service",
+                slug="draft-service-p16",
+                category_id=electrical.id,
+                status="draft",
+            )
+        )
 
         await db_session.flush()
 
@@ -168,27 +184,21 @@ class TestPublicBusinessDirectory:
         slugs = [b["slug"] for b in data["businesses"]]
         assert seed_network_data["biz_c"].slug not in slugs
 
-    async def test_directory_filter_by_city(
-        self, client: AsyncClient, seed_network_data: dict
-    ):
+    async def test_directory_filter_by_city(self, client: AsyncClient, seed_network_data: dict):
         """Directory can be filtered by city."""
         response = await client.get("/api/v1/public/businesses?city=London")
         data = response.json()
         for biz in data["businesses"]:
             assert biz["city"] == "London"
 
-    async def test_directory_filter_by_category(
-        self, client: AsyncClient, seed_network_data: dict
-    ):
+    async def test_directory_filter_by_category(self, client: AsyncClient, seed_network_data: dict):
         """Directory can be filtered by service category slug."""
         response = await client.get("/api/v1/public/businesses?category=plumbing-p16")
         data = response.json()
         for biz in data["businesses"]:
             assert "Plumbing P16" in biz["top_categories"]
 
-    async def test_directory_pagination(
-        self, client: AsyncClient, seed_network_data: dict
-    ):
+    async def test_directory_pagination(self, client: AsyncClient, seed_network_data: dict):
         """Directory supports pagination."""
         response = await client.get("/api/v1/public/businesses?limit=1&offset=0")
         data = response.json()
@@ -208,9 +218,7 @@ class TestPublicBusinessDirectory:
         )
         assert biz_a_item["active_offer_count"] == 2
 
-    async def test_directory_no_auth_required(
-        self, client: AsyncClient, seed_network_data: dict
-    ):
+    async def test_directory_no_auth_required(self, client: AsyncClient, seed_network_data: dict):
         """Directory is accessible without authentication."""
         response = await client.get("/api/v1/public/businesses")
         assert response.status_code == 200
@@ -231,12 +239,14 @@ class TestPublicServiceDetail:
         db_session.add(biz)
         await db_session.flush()
         db_session.add(BusinessMember(user_id=test_user.id, business_id=biz.id, role="owner"))
-        db_session.add(BusinessProfile(
-            business_id=biz.id,
-            description="Test business for service detail",
-            public_status="active",
-            is_verified=True,
-        ))
+        db_session.add(
+            BusinessProfile(
+                business_id=biz.id,
+                description="Test business for service detail",
+                public_status="active",
+                is_verified=True,
+            )
+        )
 
         # Active offer with pricing
         active_offer = ServiceOffer(
@@ -277,9 +287,7 @@ class TestPublicServiceDetail:
         """Public service detail returns an active offer with full detail."""
         biz = seed_service_data["biz"]
         offer = seed_service_data["active_offer"]
-        response = await client.get(
-            f"/api/v1/public/business/{biz.slug}/services/{offer.slug}"
-        )
+        response = await client.get(f"/api/v1/public/business/{biz.slug}/services/{offer.slug}")
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "Active Test Service"
@@ -295,9 +303,7 @@ class TestPublicServiceDetail:
         """Draft offers are NOT accessible via public detail."""
         biz = seed_service_data["biz"]
         draft = seed_service_data["draft_offer"]
-        response = await client.get(
-            f"/api/v1/public/business/{biz.slug}/services/{draft.slug}"
-        )
+        response = await client.get(f"/api/v1/public/business/{biz.slug}/services/{draft.slug}")
         assert response.status_code == 404
 
     async def test_service_detail_no_private_data(
@@ -306,9 +312,7 @@ class TestPublicServiceDetail:
         """Public service detail does not expose raw pricing_config."""
         biz = seed_service_data["biz"]
         offer = seed_service_data["active_offer"]
-        response = await client.get(
-            f"/api/v1/public/business/{biz.slug}/services/{offer.slug}"
-        )
+        response = await client.get(f"/api/v1/public/business/{biz.slug}/services/{offer.slug}")
         data = response.json()
         # Should not expose raw config
         assert "pricing_config" not in data
@@ -321,9 +325,7 @@ class TestPublicServiceDetail:
         self, client: AsyncClient, seed_service_data: dict
     ):
         """Nonexistent business returns 404."""
-        response = await client.get(
-            "/api/v1/public/business/nonexistent-biz/services/some-service"
-        )
+        response = await client.get("/api/v1/public/business/nonexistent-biz/services/some-service")
         assert response.status_code == 404
 
     async def test_service_detail_no_auth_required(
@@ -332,9 +334,7 @@ class TestPublicServiceDetail:
         """Service detail is accessible without authentication."""
         biz = seed_service_data["biz"]
         offer = seed_service_data["active_offer"]
-        response = await client.get(
-            f"/api/v1/public/business/{biz.slug}/services/{offer.slug}"
-        )
+        response = await client.get(f"/api/v1/public/business/{biz.slug}/services/{offer.slug}")
         assert response.status_code == 200
 
 
@@ -349,38 +349,46 @@ class TestPublicProfileEnhancements:
         db_session.add(biz)
         await db_session.flush()
         db_session.add(BusinessMember(user_id=test_user.id, business_id=biz.id, role="owner"))
-        db_session.add(BusinessProfile(
-            business_id=biz.id,
-            description="Enhanced profile test",
-            public_status="active",
-            average_rating=4.8,
-            review_count=25,
-            is_verified=True,
-        ))
+        db_session.add(
+            BusinessProfile(
+                business_id=biz.id,
+                description="Enhanced profile test",
+                public_status="active",
+                average_rating=4.8,
+                review_count=25,
+                is_verified=True,
+            )
+        )
         cat = ServiceCategory(name="Cat P16", slug="cat-p16")
         db_session.add(cat)
         await db_session.flush()
-        db_session.add(ServiceOffer(
-            business_id=biz.id,
-            name="Offer One",
-            slug="offer-one-p16",
-            category_id=cat.id,
-            status="active",
-        ))
-        db_session.add(ServiceOffer(
-            business_id=biz.id,
-            name="Offer Two",
-            slug="offer-two-p16",
-            category_id=cat.id,
-            status="active",
-        ))
-        db_session.add(ServiceOffer(
-            business_id=biz.id,
-            name="Draft Offer",
-            slug="draft-offer-p16",
-            category_id=cat.id,
-            status="draft",
-        ))
+        db_session.add(
+            ServiceOffer(
+                business_id=biz.id,
+                name="Offer One",
+                slug="offer-one-p16",
+                category_id=cat.id,
+                status="active",
+            )
+        )
+        db_session.add(
+            ServiceOffer(
+                business_id=biz.id,
+                name="Offer Two",
+                slug="offer-two-p16",
+                category_id=cat.id,
+                status="active",
+            )
+        )
+        db_session.add(
+            ServiceOffer(
+                business_id=biz.id,
+                name="Draft Offer",
+                slug="draft-offer-p16",
+                category_id=cat.id,
+                status="draft",
+            )
+        )
         await db_session.flush()
         return {"biz": biz}
 

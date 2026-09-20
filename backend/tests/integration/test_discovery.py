@@ -13,8 +13,6 @@ Tests:
 - Public/private data exposure
 """
 
-import uuid
-
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
@@ -175,9 +173,7 @@ class TestDiscoveryMatching:
             "biz_e": biz_e,
         }
 
-    async def test_natural_language_search_finds_match(
-        self, client: AsyncClient, seed_data: dict
-    ):
+    async def test_natural_language_search_finds_match(self, client: AsyncClient, seed_data: dict):
         """Natural-language search returns matching businesses."""
         response = await client.post(
             "/api/v1/discovery/search",
@@ -190,9 +186,7 @@ class TestDiscoveryMatching:
         biz_names = [m["business_name"] for m in data["matches"]]
         assert "Sparky Electric" in biz_names
 
-    async def test_structured_search_by_category(
-        self, client: AsyncClient, seed_data: dict
-    ):
+    async def test_structured_search_by_category(self, client: AsyncClient, seed_data: dict):
         """Structured search by category returns matching offers."""
         response = await client.post(
             "/api/v1/discovery/structured",
@@ -204,9 +198,7 @@ class TestDiscoveryMatching:
         biz_names = [m["business_name"] for m in data["matches"]]
         assert "Pipe Perfect" in biz_names
 
-    async def test_inactive_public_profile_not_matched(
-        self, client: AsyncClient, seed_data: dict
-    ):
+    async def test_inactive_public_profile_not_matched(self, client: AsyncClient, seed_data: dict):
         """Business with incomplete public_status is NOT in results."""
         response = await client.post(
             "/api/v1/discovery/search",
@@ -218,9 +210,7 @@ class TestDiscoveryMatching:
         hidden_slug = seed_data["biz_c"].slug
         assert hidden_slug not in biz_slugs
 
-    async def test_draft_offer_not_matched(
-        self, client: AsyncClient, seed_data: dict
-    ):
+    async def test_draft_offer_not_matched(self, client: AsyncClient, seed_data: dict):
         """Business with only DRAFT offers is NOT in results."""
         response = await client.post(
             "/api/v1/discovery/structured",
@@ -231,9 +221,7 @@ class TestDiscoveryMatching:
         draft_slug = seed_data["biz_d"].slug
         assert draft_slug not in biz_slugs
 
-    async def test_paused_offer_not_matched(
-        self, client: AsyncClient, seed_data: dict
-    ):
+    async def test_paused_offer_not_matched(self, client: AsyncClient, seed_data: dict):
         """Business with only PAUSED offers is NOT in results."""
         response = await client.post(
             "/api/v1/discovery/structured",
@@ -257,9 +245,7 @@ class TestDiscoveryMatching:
         assert data["total_matches"] == 0
         assert data["matches"] == []
 
-    async def test_no_private_data_exposed(
-        self, client: AsyncClient, seed_data: dict
-    ):
+    async def test_no_private_data_exposed(self, client: AsyncClient, seed_data: dict):
         """Discovery results only contain public data."""
         response = await client.post(
             "/api/v1/discovery/search",
@@ -289,9 +275,7 @@ class TestDiscoveryMatching:
         biz_names = [m["business_name"] for m in data["matches"]]
         assert "Fake Business Inc" not in biz_names
 
-    async def test_unauthenticated_search_works(
-        self, client: AsyncClient, seed_data: dict
-    ):
+    async def test_unauthenticated_search_works(self, client: AsyncClient, seed_data: dict):
         """Discovery is available without authentication."""
         response = await client.post(
             "/api/v1/discovery/search",
@@ -300,9 +284,7 @@ class TestDiscoveryMatching:
         # Should succeed without auth headers
         assert response.status_code == 200
 
-    async def test_empty_query_returns_error(
-        self, client: AsyncClient, seed_data: dict
-    ):
+    async def test_empty_query_returns_error(self, client: AsyncClient, seed_data: dict):
         """Empty query returns validation error."""
         response = await client.post(
             "/api/v1/discovery/search",
@@ -310,9 +292,7 @@ class TestDiscoveryMatching:
         )
         assert response.status_code == 422
 
-    async def test_multiple_matches_returned(
-        self, client: AsyncClient, seed_data: dict
-    ):
+    async def test_multiple_matches_returned(self, client: AsyncClient, seed_data: dict):
         """Search matching multiple businesses returns all of them."""
         response = await client.post(
             "/api/v1/discovery/structured",

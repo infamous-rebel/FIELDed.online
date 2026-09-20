@@ -13,37 +13,35 @@ Tests cover:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.booking.models import Booking
-from app.domain.booking.service import BookingService
-from app.domain.business.models import BusinessBrain, BrainVersion
 from app.domain.common.enums import (
+    SERVICE_EXECUTION_TRANSITIONS,
     BookingStatus,
     InvoicePaymentStatus,
     InvoiceStatus,
-    SERVICE_EXECUTION_TRANSITIONS,
     ServiceExecutionStatus,
 )
-from app.domain.identity.models import Business, BusinessMember, BusinessProfile, CustomerProfile, User
+from app.domain.identity.models import (
+    CustomerProfile,
+    User,
+)
 from app.domain.invoice.models import Invoice, InvoiceLineItem
 from app.domain.invoice.service import InvoiceService
 from app.domain.ledger.models import ServiceLedgerEntry
 from app.domain.ledger.service import LedgerService
 from app.domain.quote.models import Quote
-from app.domain.service_execution.models import ServiceExecution
 from app.domain.service_execution.service import ServiceExecutionService
-from app.domain.services.models import ServiceCategory, ServiceOffer
+from app.domain.services.models import ServiceOffer
 from app.exceptions import (
     AuthorizationError,
     ConflictError,
-    NotFoundError,
     StateTransitionError,
     ValidationError,
 )
@@ -51,11 +49,8 @@ from app.security.password import hash_password
 from tests.factories import (
     business_factory,
     business_member_factory,
-    business_profile_factory,
     service_category_factory,
-    service_offer_factory,
 )
-
 
 # ─── Fixtures ───────────────────────────────────────────────────────────────
 
@@ -63,7 +58,7 @@ from tests.factories import (
 @pytest_asyncio.fixture
 async def business_owner(db_session: AsyncSession) -> User:
     """Create a user who owns a business."""
-    from app.domain.identity.models import User, CustomerProfile, Business, BusinessMember
+    from app.domain.identity.models import User
 
     user = User(
         email=f"owner-{uuid.uuid4().hex[:8]}@example.com",
@@ -117,6 +112,7 @@ async def confirmed_booking(
 
     # Create enquiry
     from app.domain.enquiry.models import Enquiry
+
     enquiry = Enquiry(
         reference=f"ENQ-{uuid.uuid4().hex[:8]}",
         customer_id=test_user.id,
@@ -151,7 +147,7 @@ async def confirmed_booking(
         quote_id=quote.id,
         enquiry_id=enquiry.id,
         service_offer_id=offer.id,
-        requested_at=datetime.now(timezone.utc) + timedelta(days=1),
+        requested_at=datetime.now(UTC) + timedelta(days=1),
         currency="GBP",
         status=BookingStatus.CONFIRMED,
     )
@@ -222,6 +218,7 @@ class TestServiceExecutionLifecycle:
         await db_session.flush()
 
         from app.domain.quote.models import Quote
+
         quote = Quote(
             reference=f"QUO-{uuid.uuid4().hex[:8]}",
             customer_id=business_owner.id,
@@ -242,7 +239,7 @@ class TestServiceExecutionLifecycle:
             quote_id=quote.id,
             enquiry_id=enquiry.id,
             service_offer_id=offer.id,
-            requested_at=datetime.now(timezone.utc),
+            requested_at=datetime.now(UTC),
             currency="GBP",
             status=BookingStatus.REQUESTED,
         )
@@ -370,9 +367,12 @@ class TestCompletionIdempotency:
         assert execution.status == ServiceExecutionStatus.COMPLETED
 
         # Verify only one invoice exists
-        from sqlalchemy import select, func
+        from sqlalchemy import func, select
+
         result = await db_session.execute(
-            select(func.count()).select_from(Invoice).where(
+            select(func.count())
+            .select_from(Invoice)
+            .where(
                 Invoice.service_execution_id == execution.id,
                 Invoice.deleted_at.is_(None),
             )
@@ -382,7 +382,9 @@ class TestCompletionIdempotency:
 
         # Verify only one primary ledger entry exists
         result = await db_session.execute(
-            select(func.count()).select_from(ServiceLedgerEntry).where(
+            select(func.count())
+            .select_from(ServiceLedgerEntry)
+            .where(
                 ServiceLedgerEntry.service_execution_id == execution.id,
                 ServiceLedgerEntry.is_primary.is_(True),
                 ServiceLedgerEntry.deleted_at.is_(None),
@@ -412,6 +414,7 @@ class TestCompletionIntegrity:
 
         # Verify invoice was created
         from sqlalchemy import select
+
         result = await db_session.execute(
             select(Invoice).where(
                 Invoice.service_execution_id == execution.id,
@@ -506,11 +509,13 @@ class TestInvoiceService:
 
         # Get the invoice
         invoice = await inv_service.get_business_invoice(
-            (await db_session.execute(
-                __import__("sqlalchemy").select(Invoice.id).where(
-                    Invoice.service_execution_id == execution.id
+            (
+                await db_session.execute(
+                    __import__("sqlalchemy")
+                    .select(Invoice.id)
+                    .where(Invoice.service_execution_id == execution.id)
                 )
-            )).scalar_one(),
+            ).scalar_one(),
             biz.id,
         )
 
@@ -536,6 +541,7 @@ class TestInvoiceService:
         execution = await exec_service.complete_service(execution, actor_id=business_owner.id)
 
         from sqlalchemy import select
+
         result = await db_session.execute(
             select(Invoice.id).where(Invoice.service_execution_id == execution.id)
         )
@@ -632,6 +638,7 @@ class TestInvoicePDF:
         execution = await exec_service.complete_service(execution, actor_id=business_owner.id)
 
         from sqlalchemy import select
+
         result = await db_session.execute(
             select(Invoice.id).where(Invoice.service_execution_id == execution.id)
         )

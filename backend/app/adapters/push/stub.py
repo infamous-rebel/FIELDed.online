@@ -24,8 +24,7 @@ class StubPushProvider(PushProvider):
     async def send(self, message: PushMessage) -> ProviderResult:
         """Log the push attempt and return failure."""
         logger.warning(
-            "Push provider is not configured. "
-            "Notification to device %s was not delivered.",
+            "Push provider is not configured. Notification to device %s was not delivered.",
             message.device_token[:16] + "...",
         )
         return ProviderResult.failure(

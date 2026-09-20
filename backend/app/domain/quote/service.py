@@ -14,25 +14,25 @@ The quote creation flow:
 from __future__ import annotations
 
 import uuid
+from datetime import UTC
 from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.business.evaluator import BrainEvaluator, DecisionContext
-from app.domain.business.models import BrainVersion, BusinessBrain
-from app.domain.business.repository import BusinessBrainRepository, BrainVersionRepository
+from app.domain.business.evaluator import DecisionContext
+from app.domain.business.models import BrainVersion
+from app.domain.business.repository import BrainVersionRepository, BusinessBrainRepository
 from app.domain.common.enums import (
+    QUOTE_TRANSITIONS,
     EnquiryStatus,
     QuoteStatus,
-    QUOTE_TRANSITIONS,
-    ServiceOfferStatus,
 )
 from app.domain.enquiry.models import Enquiry
 from app.domain.enquiry.repository import EnquiryRepository
 from app.domain.identity.models import Business
 from app.domain.outbox.models import OutboxEvent
 from app.domain.quote.models import Quote
-from app.domain.quote.pricing import PricingEngine, PricingResult
+from app.domain.quote.pricing import PricingEngine
 from app.domain.quote.repository import QuoteRepository
 from app.domain.services.models import ServiceOffer
 from app.exceptions import (
@@ -128,10 +128,12 @@ class QuoteService:
                 business_currency=business.currency,
             )
         except ValueError as exc:
-            raise ValidationError(f"Pricing calculation failed: {exc}")
+            raise ValidationError(f"Pricing calculation failed: {exc}") from exc
 
         # 8. Handle quote_required pricing model
-        if service_offer.pricing_model == "quote_required" and pricing_result.amount == Decimal("0"):
+        if service_offer.pricing_model == "quote_required" and pricing_result.amount == Decimal(
+            "0"
+        ):
             raise ValidationError(
                 "This service requires a manual quote. "
                 "Please set a custom amount in the pricing configuration."
@@ -197,17 +199,12 @@ class QuoteService:
 
         # Actor-specific authority
         if actor == "customer" and target_status not in {
-            QuoteStatus.ACCEPTED, QuoteStatus.DECLINED
+            QuoteStatus.ACCEPTED,
+            QuoteStatus.DECLINED,
         }:
-            raise AuthorizationError(
-                "Customers can only accept or decline quotes"
-            )
-        if actor == "business" and target_status not in {
-            QuoteStatus.ISSUED, QuoteStatus.EXPIRED
-        }:
-            raise AuthorizationError(
-                "Business can only issue or expire quotes"
-            )
+            raise AuthorizationError("Customers can only accept or decline quotes")
+        if actor == "business" and target_status not in {QuoteStatus.ISSUED, QuoteStatus.EXPIRED}:
+            raise AuthorizationError("Business can only issue or expire quotes")
 
         old_status = quote.status
         quote.status = target_status
@@ -246,18 +243,14 @@ class QuoteService:
             raise NotFoundError("Quote not found")
         return quote
 
-    async def get_customer_quote(
-        self, quote_id: uuid.UUID, customer_id: uuid.UUID
-    ) -> Quote:
+    async def get_customer_quote(self, quote_id: uuid.UUID, customer_id: uuid.UUID) -> Quote:
         """Get a quote, verifying customer ownership."""
         quote = await self.get_quote(quote_id)
         if quote.customer_id != customer_id:
             raise AuthorizationError("Not your quote")
         return quote
 
-    async def get_business_quote(
-        self, quote_id: uuid.UUID, business_id: uuid.UUID
-    ) -> Quote:
+    async def get_business_quote(self, quote_id: uuid.UUID, business_id: uuid.UUID) -> Quote:
         """Get a quote, verifying it belongs to the business."""
         quote = await self.get_quote(quote_id)
         if quote.business_id != business_id:
@@ -292,9 +285,7 @@ class QuoteService:
 
     # --- Internal helpers ---
 
-    async def _resolve_enquiry(
-        self, enquiry_id: uuid.UUID, business_id: uuid.UUID
-    ) -> Enquiry:
+    async def _resolve_enquiry(self, enquiry_id: uuid.UUID, business_id: uuid.UUID) -> Enquiry:
         """Resolve and validate an enquiry for quote creation."""
         enquiry = await self.enquiry_repo.get_by_id(enquiry_id)
         if enquiry is None:
@@ -303,11 +294,10 @@ class QuoteService:
             raise AuthorizationError("Enquiry does not belong to this business")
         return enquiry
 
-    async def _resolve_service_offer(
-        self, service_offer_id: uuid.UUID
-    ) -> ServiceOffer:
+    async def _resolve_service_offer(self, service_offer_id: uuid.UUID) -> ServiceOffer:
         """Resolve a service offer."""
         from sqlalchemy import select
+
         result = await self.session.execute(
             select(ServiceOffer).where(
                 ServiceOffer.id == service_offer_id,
@@ -322,6 +312,7 @@ class QuoteService:
     async def _resolve_business(self, business_id: uuid.UUID) -> Business:
         """Resolve a business entity."""
         from sqlalchemy import select
+
         result = await self.session.execute(
             select(Business).where(
                 Business.id == business_id,
@@ -333,9 +324,7 @@ class QuoteService:
             raise NotFoundError("Business not found")
         return business
 
-    async def _resolve_active_brain_version(
-        self, business_id: uuid.UUID
-    ) -> BrainVersion | None:
+    async def _resolve_active_brain_version(self, business_id: uuid.UUID) -> BrainVersion | None:
         """Resolve the active BrainVersion for a business."""
         brain_repo = BusinessBrainRepository(self.session)
         brain = await brain_repo.get_by_business_id(business_id)
@@ -354,7 +343,7 @@ class QuoteService:
         payload: dict,
     ) -> None:
         """Create an outbox event in the same transaction."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         event = OutboxEvent(
             business_id=business_id,
@@ -364,7 +353,7 @@ class QuoteService:
             payload=payload,
             idempotency_key=f"{event_type}:quote:{aggregate_id}",
             status="PENDING",
-            available_at=datetime.now(timezone.utc),
+            available_at=datetime.now(UTC),
         )
         self.session.add(event)
         await self.session.flush()

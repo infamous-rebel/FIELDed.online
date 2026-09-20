@@ -6,8 +6,9 @@ resources beyond their authorization level.
 
 from __future__ import annotations
 
+from datetime import UTC
+
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
 
 
@@ -69,9 +70,7 @@ class TestPrivilegeEscalation:
         assert response.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_cannot_remove_self(
-        self, client: AsyncClient, test_user, auth_headers
-    ):
+    async def test_cannot_remove_self(self, client: AsyncClient, test_user, auth_headers):
         """Owner cannot remove themselves from a business."""
         create_resp = await client.post(
             "/api/v1/businesses",
@@ -99,7 +98,9 @@ class TestSessionSecurity:
     """Test session and token security."""
 
     @pytest.mark.asyncio
-    async def test_logout_invalidates_refresh_token(self, client: AsyncClient, test_user, auth_headers):
+    async def test_logout_invalidates_refresh_token(
+        self, client: AsyncClient, test_user, auth_headers
+    ):
         """After logout, the refresh token is revoked."""
         # Login to get tokens
         login_resp = await client.post(
@@ -188,12 +189,12 @@ class TestEmailVerification:
         assert reg_resp.json()["is_verified"] is False
 
         # Get the verification token from the database
-        from app.domain.identity.token_models import EmailVerification
         from sqlalchemy import select
+
+        from app.domain.identity.token_models import EmailVerification
+
         result = await db_session.execute(
-            select(EmailVerification).where(
-                EmailVerification.user_id == reg_resp.json()["id"]
-            )
+            select(EmailVerification).where(EmailVerification.user_id == reg_resp.json()["id"])
         )
         verification = result.scalar_one()
 
@@ -246,15 +247,19 @@ class TestPasswordRecovery:
         assert resp2.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_reset_password_with_valid_token(self, client: AsyncClient, db_session, test_user):
+    async def test_reset_password_with_valid_token(
+        self, client: AsyncClient, db_session, test_user
+    ):
         """Password reset with valid token succeeds."""
         # Create a reset token
+        from datetime import datetime, timedelta
+
         from app.domain.identity.token_models import PasswordResetToken
-        from datetime import datetime, timedelta, timezone
+
         reset_token = PasswordResetToken(
             user_id=test_user.id,
             token="test-reset-token-123",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         db_session.add(reset_token)
         await db_session.flush()
@@ -292,12 +297,14 @@ class TestPasswordRecovery:
     @pytest.mark.asyncio
     async def test_reset_password_single_use(self, client: AsyncClient, db_session, test_user):
         """Reset token can only be used once."""
+        from datetime import datetime, timedelta
+
         from app.domain.identity.token_models import PasswordResetToken
-        from datetime import datetime, timedelta, timezone
+
         reset_token = PasswordResetToken(
             user_id=test_user.id,
             token="single-use-token",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         db_session.add(reset_token)
         await db_session.flush()

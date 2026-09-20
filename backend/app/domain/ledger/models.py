@@ -24,7 +24,6 @@ from app.domain.common.base_model import BaseModel
 if TYPE_CHECKING:
     from app.domain.identity.models import Business, User
     from app.domain.invoice.models import Invoice
-    from app.domain.quote.models import Quote
     from app.domain.service_execution.models import ServiceExecution
     from app.domain.services.models import ServiceOffer
 
@@ -85,28 +84,18 @@ class ServiceLedgerEntry(BaseModel):
     )
 
     # Completion date (the date the service was completed)
-    completion_date: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    completion_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     # Financial amounts (from the invoice/quote at completion time)
-    gross_amount: Mapped[str] = mapped_column(
-        Numeric(precision=12, scale=2), nullable=False
-    )
+    gross_amount: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False)
     discount: Mapped[str] = mapped_column(
         Numeric(precision=12, scale=2), nullable=False, default="0.00"
     )
-    tax: Mapped[str] = mapped_column(
-        Numeric(precision=12, scale=2), nullable=False, default="0.00"
-    )
-    net_amount: Mapped[str] = mapped_column(
-        Numeric(precision=12, scale=2), nullable=False
-    )
+    tax: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False, default="0.00")
+    net_amount: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False)
 
     # Currency (ISO 4217)
-    currency: Mapped[str] = mapped_column(
-        String(3), nullable=False, default="GBP"
-    )
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GBP")
 
     # Payment status (synced from invoice)
     payment_status: Mapped[str] = mapped_column(
@@ -132,13 +121,13 @@ class ServiceLedgerEntry(BaseModel):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
-    business: Mapped["Business"] = relationship(foreign_keys=[business_id])
-    customer: Mapped["User"] = relationship(foreign_keys=[customer_id])
-    service_execution: Mapped["ServiceExecution"] = relationship(
+    business: Mapped[Business] = relationship(foreign_keys=[business_id])
+    customer: Mapped[User] = relationship(foreign_keys=[customer_id])
+    service_execution: Mapped[ServiceExecution] = relationship(
         back_populates="ledger_entries", foreign_keys=[service_execution_id]
     )
-    invoice: Mapped["Invoice | None"] = relationship(foreign_keys=[invoice_id])
-    service_offer: Mapped["ServiceOffer"] = relationship(foreign_keys=[service_offer_id])
-    adjusts_entry: Mapped["ServiceLedgerEntry | None"] = relationship(
+    invoice: Mapped[Invoice | None] = relationship(foreign_keys=[invoice_id])
+    service_offer: Mapped[ServiceOffer] = relationship(foreign_keys=[service_offer_id])
+    adjusts_entry: Mapped[ServiceLedgerEntry | None] = relationship(
         foreign_keys=[adjusts_entry_id], remote_side="ServiceLedgerEntry.id"
     )

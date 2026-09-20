@@ -9,7 +9,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.identity.models import Business, BusinessMember, BusinessProfile, User
-from app.domain.services.models import ServiceCategory, ServiceOffer
+from app.domain.services.models import ServiceCategory
 
 
 @pytest.mark.integration
@@ -23,9 +23,7 @@ class TestServiceOfferAPI:
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=test_user.id, business_id=business.id, role="owner"
-        )
+        member = BusinessMember(user_id=test_user.id, business_id=business.id, role="owner")
         db_session.add(member)
 
         profile = BusinessProfile(business_id=business.id)
@@ -44,9 +42,7 @@ class TestServiceOfferAPI:
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=second_user.id, business_id=business.id, role="staff"
-        )
+        member = BusinessMember(user_id=second_user.id, business_id=business.id, role="staff")
         db_session.add(member)
 
         profile = BusinessProfile(business_id=business.id)

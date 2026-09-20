@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -15,6 +14,7 @@ from app.security.jwt import create_access_token, create_refresh_token, decode_t
 def _get_test_settings() -> Settings:
     """Get settings for JWT tests."""
     import os
+
     os.environ["APP_ENV"] = "development"
     return Settings()
 

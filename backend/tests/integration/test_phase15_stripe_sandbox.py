@@ -22,14 +22,11 @@ import hashlib
 import hmac
 import json
 import uuid
-from collections.abc import Mapping
-from datetime import datetime, timedelta, timezone
-from decimal import Decimal
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import patch
 from urllib.parse import parse_qs
 
-import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,18 +35,16 @@ from app.adapters.payment.stripe_provider import StripePaymentProvider
 from app.domain.booking.models import Booking
 from app.domain.common.enums import BookingStatus
 from app.domain.enquiry.models import Enquiry
-from app.domain.identity.models import Business, BusinessMember, CustomerProfile, User
+from app.domain.identity.models import Business, CustomerProfile, User
 from app.domain.invoice.models import Invoice, InvoiceLineItem
-from app.domain.payment.models import Payment
 from app.domain.quote.models import Quote
-from app.domain.services.models import ServiceCategory, ServiceOffer
+from app.domain.services.models import ServiceOffer
 from app.security.password import hash_password
 from tests.factories import (
     business_factory,
     business_member_factory,
     service_category_factory,
 )
-
 
 # ---------------------------------------------------------------------------
 # Mock Stripe HTTP transport
@@ -93,7 +88,8 @@ class SandboxStripeHTTPClient:
             pi_id = f"pi_sandbox_{self._pi_counter:05d}"
             status = "succeeded" if self.auto_succeed else "requires_payment_method"
             pi = {
-                "id": pi_id, "object": "payment_intent",
+                "id": pi_id,
+                "object": "payment_intent",
                 "amount": params.get("amount", 0),
                 "currency": params.get("currency", "gbp"),
                 "status": status,
@@ -108,15 +104,21 @@ class SandboxStripeHTTPClient:
             pi = self._payment_intents.get(pi_id)
             if pi:
                 return json.dumps(pi), 200, {}
-            return json.dumps({"error": {"type": "invalid_request_error", "message": "Not found"}}), 404, {}
+            return (
+                json.dumps({"error": {"type": "invalid_request_error", "message": "Not found"}}),
+                404,
+                {},
+            )
 
         if "refunds" in url and method_lower == "post":
             self._re_counter += 1
             re_id = f"re_sandbox_{self._re_counter:05d}"
             refund = {
-                "id": re_id, "object": "refund",
+                "id": re_id,
+                "object": "refund",
                 "amount": params.get("amount", 0),
-                "currency": "gbp", "status": "succeeded",
+                "currency": "gbp",
+                "status": "succeeded",
                 "payment_intent": params.get("payment_intent", ""),
             }
             self._refunds[re_id] = refund
@@ -178,63 +180,103 @@ async def biz_with_member(db_session: AsyncSession) -> tuple[User, Business]:
 
 @pytest_asyncio.fixture
 async def invoice_for_stripe(
-    db_session: AsyncSession, test_user: User, biz_with_member: tuple[User, Business],
+    db_session: AsyncSession,
+    test_user: User,
+    biz_with_member: tuple[User, Business],
 ) -> Invoice:
     owner_user, biz = biz_with_member
     category = service_category_factory()
     db_session.add(category)
     await db_session.flush()
     offer = ServiceOffer(
-        business_id=biz.id, category_id=category.id,
-        name=f"Stripe Svc {uuid.uuid4().hex[:6]}", slug=f"stripe-svc-{uuid.uuid4().hex[:6]}",
-        pricing_model="fixed", delivery_mode="on_site", status="active",
+        business_id=biz.id,
+        category_id=category.id,
+        name=f"Stripe Svc {uuid.uuid4().hex[:6]}",
+        slug=f"stripe-svc-{uuid.uuid4().hex[:6]}",
+        pricing_model="fixed",
+        delivery_mode="on_site",
+        status="active",
     )
     db_session.add(offer)
     await db_session.flush()
     enquiry = Enquiry(
-        reference=f"ENQ-{uuid.uuid4().hex[:8]}", customer_id=test_user.id,
-        business_id=biz.id, service_offer_id=offer.id,
-        subject="Stripe test", message="Testing", status="completed",
+        reference=f"ENQ-{uuid.uuid4().hex[:8]}",
+        customer_id=test_user.id,
+        business_id=biz.id,
+        service_offer_id=offer.id,
+        subject="Stripe test",
+        message="Testing",
+        status="completed",
     )
     db_session.add(enquiry)
     await db_session.flush()
     quote = Quote(
-        reference=f"QUO-{uuid.uuid4().hex[:8]}", customer_id=test_user.id,
-        business_id=biz.id, enquiry_id=enquiry.id, service_offer_id=offer.id,
-        amount="200.00", currency="GBP", status="accepted",
+        reference=f"QUO-{uuid.uuid4().hex[:8]}",
+        customer_id=test_user.id,
+        business_id=biz.id,
+        enquiry_id=enquiry.id,
+        service_offer_id=offer.id,
+        amount="200.00",
+        currency="GBP",
+        status="accepted",
     )
     db_session.add(quote)
     await db_session.flush()
     booking = Booking(
-        reference=f"BKG-{uuid.uuid4().hex[:8]}", customer_id=test_user.id,
-        business_id=biz.id, quote_id=quote.id, enquiry_id=enquiry.id,
-        service_offer_id=offer.id, requested_at=datetime.now(timezone.utc) + timedelta(days=2),
-        currency="GBP", status=BookingStatus.COMPLETED,
+        reference=f"BKG-{uuid.uuid4().hex[:8]}",
+        customer_id=test_user.id,
+        business_id=biz.id,
+        quote_id=quote.id,
+        enquiry_id=enquiry.id,
+        service_offer_id=offer.id,
+        requested_at=datetime.now(UTC) + timedelta(days=2),
+        currency="GBP",
+        status=BookingStatus.COMPLETED,
     )
     db_session.add(booking)
     await db_session.flush()
     from app.domain.service_execution.models import ServiceExecution
+
     execution = ServiceExecution(
-        business_id=biz.id, customer_id=test_user.id, booking_id=booking.id,
-        service_offer_id=offer.id, quote_id=quote.id, status="completed",
-        completed_at=datetime.now(timezone.utc), completed_by=owner_user.id,
+        business_id=biz.id,
+        customer_id=test_user.id,
+        booking_id=booking.id,
+        service_offer_id=offer.id,
+        quote_id=quote.id,
+        status="completed",
+        completed_at=datetime.now(UTC),
+        completed_by=owner_user.id,
     )
     db_session.add(execution)
     await db_session.flush()
     invoice = Invoice(
-        business_id=biz.id, customer_id=test_user.id,
-        service_execution_id=execution.id, booking_id=booking.id, quote_id=quote.id,
+        business_id=biz.id,
+        customer_id=test_user.id,
+        service_execution_id=execution.id,
+        booking_id=booking.id,
+        quote_id=quote.id,
         invoice_number=f"INV-{uuid.uuid4().hex[:6].upper()}",
-        issue_date=datetime.now(timezone.utc), currency="GBP",
-        subtotal="200.00", discount="0.00", tax="0.00", total="200.00",
-        payment_status="unpaid", status="issued",
+        issue_date=datetime.now(UTC),
+        currency="GBP",
+        subtotal="200.00",
+        discount="0.00",
+        tax="0.00",
+        total="200.00",
+        payment_status="unpaid",
+        status="issued",
     )
     db_session.add(invoice)
     await db_session.flush()
     line_item = InvoiceLineItem(
-        invoice_id=invoice.id, description="Stripe test service",
-        quantity="1.00", unit_price="200.00", discount="0.00", tax="0.00",
-        line_total="200.00", currency="GBP", sort_order=0,
+        invoice_id=invoice.id,
+        description="Stripe test service",
+        quantity="1.00",
+        unit_price="200.00",
+        discount="0.00",
+        tax="0.00",
+        line_total="200.00",
+        currency="GBP",
+        sort_order=0,
     )
     db_session.add(line_item)
     await db_session.flush()
@@ -251,17 +293,24 @@ async def biz_auth_headers(client: AsyncClient, biz_with_member: tuple[User, Bus
     return {"Authorization": f"Bearer {tokens['access_token']}"}
 
 
-def _make_stripe_webhook(event_type, pi_id, status, amount=20000,
-                         secret="whsec_sandbox_secret", event_id=None):
+def _make_stripe_webhook(
+    event_type, pi_id, status, amount=20000, secret="whsec_sandbox_secret", event_id=None
+):
     """Create a signed Stripe webhook payload."""
     payload_dict = {
         "id": event_id or f"evt_{uuid.uuid4().hex[:24]}",
-        "object": "event", "type": event_type,
-        "data": {"object": {
-            "id": pi_id, "object": "payment_intent",
-            "amount": amount, "currency": "gbp",
-            "status": status, "metadata": {},
-        }},
+        "object": "event",
+        "type": event_type,
+        "data": {
+            "object": {
+                "id": pi_id,
+                "object": "payment_intent",
+                "amount": amount,
+                "currency": "gbp",
+                "status": status,
+                "metadata": {},
+            }
+        },
     }
     payload_bytes = json.dumps(payload_dict).encode()
     timestamp = "1234567890"
@@ -278,15 +327,22 @@ def _make_stripe_webhook(event_type, pi_id, status, amount=20000,
 
 class TestStripeSandboxPaymentCreation:
     async def test_create_payment_creates_stripe_payment_intent(
-        self, client, biz_with_member, invoice_for_stripe, biz_auth_headers, stripe_provider_with_mock,
+        self,
+        client,
+        biz_with_member,
+        invoice_for_stripe,
+        biz_auth_headers,
+        stripe_provider_with_mock,
     ):
         _, biz = biz_with_member
         with patch("app.api.v1.payments._payment_provider", return_value=stripe_provider_with_mock):
             response = await client.post(
                 f"/api/v1/businesses/{biz.id}/payments",
                 json={
-                    "invoice_id": str(invoice_for_stripe.id), "amount": "200.00",
-                    "currency": "GBP", "payment_method": "card",
+                    "invoice_id": str(invoice_for_stripe.id),
+                    "amount": "200.00",
+                    "currency": "GBP",
+                    "payment_method": "card",
                     "idempotency_key": f"stripe-e2e-{uuid.uuid4().hex[:16]}",
                 },
                 headers=biz_auth_headers,
@@ -298,7 +354,12 @@ class TestStripeSandboxPaymentCreation:
         assert data["provider_reference"].startswith("pi_")
 
     async def test_create_payment_idempotent_with_stripe(
-        self, client, biz_with_member, invoice_for_stripe, biz_auth_headers, stripe_provider_with_mock,
+        self,
+        client,
+        biz_with_member,
+        invoice_for_stripe,
+        biz_auth_headers,
+        stripe_provider_with_mock,
     ):
         _, biz = biz_with_member
         idem_key = f"stripe-idem-{uuid.uuid4().hex[:16]}"
@@ -306,8 +367,11 @@ class TestStripeSandboxPaymentCreation:
             resp1 = await client.post(
                 f"/api/v1/businesses/{biz.id}/payments",
                 json={
-                    "invoice_id": str(invoice_for_stripe.id), "amount": "200.00",
-                    "currency": "GBP", "payment_method": "card", "idempotency_key": idem_key,
+                    "invoice_id": str(invoice_for_stripe.id),
+                    "amount": "200.00",
+                    "currency": "GBP",
+                    "payment_method": "card",
+                    "idempotency_key": idem_key,
                 },
                 headers=biz_auth_headers,
             )
@@ -316,8 +380,11 @@ class TestStripeSandboxPaymentCreation:
             resp2 = await client.post(
                 f"/api/v1/businesses/{biz.id}/payments",
                 json={
-                    "invoice_id": str(invoice_for_stripe.id), "amount": "200.00",
-                    "currency": "GBP", "payment_method": "card", "idempotency_key": idem_key,
+                    "invoice_id": str(invoice_for_stripe.id),
+                    "amount": "200.00",
+                    "currency": "GBP",
+                    "payment_method": "card",
+                    "idempotency_key": idem_key,
                 },
                 headers=biz_auth_headers,
             )
@@ -327,7 +394,11 @@ class TestStripeSandboxPaymentCreation:
 
 class TestStripeSandboxWebhook:
     async def test_webhook_signature_rejection(
-        self, client, biz_with_member, stripe_provider_with_mock, webhook_secret_enabled,
+        self,
+        client,
+        biz_with_member,
+        stripe_provider_with_mock,
+        webhook_secret_enabled,
     ):
         payload = json.dumps({"type": "payment_intent.succeeded"}).encode()
         bad_sig = "t=1234567890,v1=" + "0" * 64
@@ -340,8 +411,14 @@ class TestStripeSandboxWebhook:
         assert response.status_code == 401
 
     async def test_valid_webhook_updates_payment(
-        self, client, biz_with_member, invoice_for_stripe, biz_auth_headers,
-        stripe_provider_with_mock, sandbox_http_client, webhook_secret_enabled,
+        self,
+        client,
+        biz_with_member,
+        invoice_for_stripe,
+        biz_auth_headers,
+        stripe_provider_with_mock,
+        sandbox_http_client,
+        webhook_secret_enabled,
     ):
         _, biz = biz_with_member
         sandbox_http_client.auto_succeed = False
@@ -349,8 +426,10 @@ class TestStripeSandboxWebhook:
             create_resp = await client.post(
                 f"/api/v1/businesses/{biz.id}/payments",
                 json={
-                    "invoice_id": str(invoice_for_stripe.id), "amount": "200.00",
-                    "currency": "GBP", "payment_method": "card",
+                    "invoice_id": str(invoice_for_stripe.id),
+                    "amount": "200.00",
+                    "currency": "GBP",
+                    "payment_method": "card",
                     "idempotency_key": f"webhook-e2e-{uuid.uuid4().hex[:16]}",
                 },
                 headers=biz_auth_headers,
@@ -358,7 +437,10 @@ class TestStripeSandboxWebhook:
             assert create_resp.status_code == 201
             pi_ref = create_resp.json()["provider_reference"]
             payload_bytes, sig_header = _make_stripe_webhook(
-                "payment_intent.succeeded", pi_ref, "succeeded", 20000,
+                "payment_intent.succeeded",
+                pi_ref,
+                "succeeded",
+                20000,
             )
             webhook_resp = await client.post(
                 "/api/v1/webhooks/payment/stripe",
@@ -369,8 +451,14 @@ class TestStripeSandboxWebhook:
         assert webhook_resp.json()["received"] is True
 
     async def test_duplicate_webhook_idempotent(
-        self, client, biz_with_member, invoice_for_stripe, biz_auth_headers,
-        stripe_provider_with_mock, sandbox_http_client, webhook_secret_enabled,
+        self,
+        client,
+        biz_with_member,
+        invoice_for_stripe,
+        biz_auth_headers,
+        stripe_provider_with_mock,
+        sandbox_http_client,
+        webhook_secret_enabled,
     ):
         _, biz = biz_with_member
         sandbox_http_client.auto_succeed = False
@@ -378,8 +466,10 @@ class TestStripeSandboxWebhook:
             create_resp = await client.post(
                 f"/api/v1/businesses/{biz.id}/payments",
                 json={
-                    "invoice_id": str(invoice_for_stripe.id), "amount": "200.00",
-                    "currency": "GBP", "payment_method": "card",
+                    "invoice_id": str(invoice_for_stripe.id),
+                    "amount": "200.00",
+                    "currency": "GBP",
+                    "payment_method": "card",
                     "idempotency_key": f"dup-wh-{uuid.uuid4().hex[:16]}",
                 },
                 headers=biz_auth_headers,
@@ -387,14 +477,20 @@ class TestStripeSandboxWebhook:
             pi_ref = create_resp.json()["provider_reference"]
             event_id = f"evt_dup_{uuid.uuid4().hex[:16]}"
             payload_bytes, sig_header = _make_stripe_webhook(
-                "payment_intent.succeeded", pi_ref, "succeeded", 20000, event_id=event_id,
+                "payment_intent.succeeded",
+                pi_ref,
+                "succeeded",
+                20000,
+                event_id=event_id,
             )
             resp1 = await client.post(
-                "/api/v1/webhooks/payment/stripe", content=payload_bytes,
+                "/api/v1/webhooks/payment/stripe",
+                content=payload_bytes,
                 headers={"Stripe-Signature": sig_header, "Content-Type": "application/json"},
             )
             resp2 = await client.post(
-                "/api/v1/webhooks/payment/stripe", content=payload_bytes,
+                "/api/v1/webhooks/payment/stripe",
+                content=payload_bytes,
                 headers={"Stripe-Signature": sig_header, "Content-Type": "application/json"},
             )
         assert resp1.status_code == 200
@@ -404,15 +500,22 @@ class TestStripeSandboxWebhook:
 
 class TestStripeSandboxRefund:
     async def test_full_refund_through_stripe(
-        self, client, biz_with_member, invoice_for_stripe, biz_auth_headers, stripe_provider_with_mock,
+        self,
+        client,
+        biz_with_member,
+        invoice_for_stripe,
+        biz_auth_headers,
+        stripe_provider_with_mock,
     ):
         _, biz = biz_with_member
         with patch("app.api.v1.payments._payment_provider", return_value=stripe_provider_with_mock):
             create_resp = await client.post(
                 f"/api/v1/businesses/{biz.id}/payments",
                 json={
-                    "invoice_id": str(invoice_for_stripe.id), "amount": "200.00",
-                    "currency": "GBP", "payment_method": "card",
+                    "invoice_id": str(invoice_for_stripe.id),
+                    "amount": "200.00",
+                    "currency": "GBP",
+                    "payment_method": "card",
                     "idempotency_key": f"refund-e2e-{uuid.uuid4().hex[:16]}",
                 },
                 headers=biz_auth_headers,
@@ -432,15 +535,22 @@ class TestStripeSandboxRefund:
 
 class TestStripeSandboxInvoiceConsistency:
     async def test_invoice_status_after_stripe_payment(
-        self, client, biz_with_member, invoice_for_stripe, biz_auth_headers, stripe_provider_with_mock,
+        self,
+        client,
+        biz_with_member,
+        invoice_for_stripe,
+        biz_auth_headers,
+        stripe_provider_with_mock,
     ):
         _, biz = biz_with_member
         with patch("app.api.v1.payments._payment_provider", return_value=stripe_provider_with_mock):
             await client.post(
                 f"/api/v1/businesses/{biz.id}/payments",
                 json={
-                    "invoice_id": str(invoice_for_stripe.id), "amount": "200.00",
-                    "currency": "GBP", "payment_method": "card",
+                    "invoice_id": str(invoice_for_stripe.id),
+                    "amount": "200.00",
+                    "currency": "GBP",
+                    "payment_method": "card",
                     "idempotency_key": f"inv-status-{uuid.uuid4().hex[:16]}",
                 },
                 headers=biz_auth_headers,
@@ -457,16 +567,23 @@ class TestStripeSandboxInvoiceConsistency:
 
 class TestStripeSandboxTenantIsolation:
     async def test_cross_tenant_payment_access_denied(
-        self, client, biz_with_member, invoice_for_stripe, biz_auth_headers,
-        second_user, stripe_provider_with_mock,
+        self,
+        client,
+        biz_with_member,
+        invoice_for_stripe,
+        biz_auth_headers,
+        second_user,
+        stripe_provider_with_mock,
     ):
         _, biz = biz_with_member
         with patch("app.api.v1.payments._payment_provider", return_value=stripe_provider_with_mock):
             create_resp = await client.post(
                 f"/api/v1/businesses/{biz.id}/payments",
                 json={
-                    "invoice_id": str(invoice_for_stripe.id), "amount": "200.00",
-                    "currency": "GBP", "payment_method": "card",
+                    "invoice_id": str(invoice_for_stripe.id),
+                    "amount": "200.00",
+                    "currency": "GBP",
+                    "payment_method": "card",
                     "idempotency_key": f"tenant-{uuid.uuid4().hex[:16]}",
                 },
                 headers=biz_auth_headers,
@@ -479,6 +596,7 @@ class TestStripeSandboxTenantIsolation:
         second_headers = {"Authorization": f"Bearer {second_resp.json()['access_token']}"}
         with patch("app.api.v1.payments._payment_provider", return_value=stripe_provider_with_mock):
             list_resp = await client.get(
-                f"/api/v1/businesses/{biz.id}/payments", headers=second_headers,
+                f"/api/v1/businesses/{biz.id}/payments",
+                headers=second_headers,
             )
         assert list_resp.status_code in (401, 403, 404)

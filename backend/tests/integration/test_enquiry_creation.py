@@ -9,7 +9,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.enquiry.models import Conversation, Enquiry
+from app.domain.enquiry.models import Conversation
 from app.domain.identity.models import Business, BusinessMember, BusinessProfile, User
 from app.domain.services.models import ServiceCategory, ServiceOffer
 
@@ -19,9 +19,7 @@ class TestEnquiryCreation:
     """Test enquiry creation and conversation atomicity."""
 
     @pytest_asyncio.fixture
-    async def active_business(
-        self, db_session: AsyncSession, second_user: User
-    ):
+    async def active_business(self, db_session: AsyncSession, second_user: User):
         """Create an active business with an active profile and an active service offer.
 
         second_user is the business owner.
@@ -30,9 +28,7 @@ class TestEnquiryCreation:
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=second_user.id, business_id=business.id, role="owner"
-        )
+        member = BusinessMember(user_id=second_user.id, business_id=business.id, role="owner")
         db_session.add(member)
 
         profile = BusinessProfile(
@@ -57,17 +53,13 @@ class TestEnquiryCreation:
         return business, offer
 
     @pytest_asyncio.fixture
-    async def inactive_business(
-        self, db_session: AsyncSession, second_user: User
-    ):
+    async def inactive_business(self, db_session: AsyncSession, second_user: User):
         """Create a business with inactive status."""
         business = Business(name="Inactive Biz", slug=f"inactive-biz-{id(self)}", status="pending")
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=second_user.id, business_id=business.id, role="owner"
-        )
+        member = BusinessMember(user_id=second_user.id, business_id=business.id, role="owner")
         db_session.add(member)
 
         profile = BusinessProfile(
@@ -145,6 +137,7 @@ class TestEnquiryCreation:
     ):
         """Creating an enquiry with a non-existent service offer fails."""
         import uuid
+
         business, _ = active_business
         response = await client.post(
             f"/api/v1/enquiries/{business.id}/enquiries",
@@ -169,9 +162,7 @@ class TestEnquiryCreation:
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=second_user.id, business_id=business.id, role="owner"
-        )
+        member = BusinessMember(user_id=second_user.id, business_id=business.id, role="owner")
         db_session.add(member)
 
         profile = BusinessProfile(

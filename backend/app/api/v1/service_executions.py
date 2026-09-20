@@ -25,7 +25,7 @@ from app.domain.service_execution.schemas import (
     ServiceExecutionTransitionRequest,
 )
 from app.domain.service_execution.service import ServiceExecutionService
-from app.security.authorization import get_current_user, require_business_member, require_customer
+from app.security.authorization import require_business_member, require_customer
 
 router = APIRouter()
 

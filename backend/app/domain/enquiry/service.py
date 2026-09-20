@@ -7,10 +7,18 @@ lifecycle transitions, message sending, and authorization enforcement.
 from __future__ import annotations
 
 import uuid
+from datetime import UTC
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.business.evaluator import (
+    BrainDecision,
+    BrainDecisionOutcome,
+    BrainEvaluator,
+    DecisionContext,
+)
+from app.domain.business.repository import BrainVersionRepository, BusinessBrainRepository
 from app.domain.common.enums import (
     ENQUIRY_TRANSITIONS,
     BusinessMemberRole,
@@ -24,13 +32,6 @@ from app.domain.enquiry.repository import (
     ConversationRepository,
     EnquiryRepository,
     MessageRepository,
-)
-from app.domain.business.repository import BusinessBrainRepository, BrainVersionRepository
-from app.domain.business.evaluator import (
-    BrainDecision,
-    BrainDecisionOutcome,
-    BrainEvaluator,
-    DecisionContext,
 )
 from app.domain.identity.models import Business, BusinessMember, BusinessProfile, User
 from app.domain.services.models import ServiceOffer
@@ -69,10 +70,27 @@ CUSTOMER_ALLOWED_TRANSITIONS: dict[EnquiryStatus, set[EnquiryStatus]] = {
 
 BUSINESS_ALLOWED_TRANSITIONS: dict[EnquiryStatus, set[EnquiryStatus]] = {
     EnquiryStatus.DRAFT: set(),  # Should not happen; enquiry starts at SUBMITTED
-    EnquiryStatus.SUBMITTED: {EnquiryStatus.RECEIVED, EnquiryStatus.DECLINED, EnquiryStatus.EXPIRED},
-    EnquiryStatus.RECEIVED: {EnquiryStatus.IN_REVIEW, EnquiryStatus.DECLINED, EnquiryStatus.EXPIRED},
-    EnquiryStatus.IN_REVIEW: {EnquiryStatus.NEEDS_INFORMATION, EnquiryStatus.QUOTED, EnquiryStatus.DECLINED, EnquiryStatus.EXPIRED},
-    EnquiryStatus.NEEDS_INFORMATION: {EnquiryStatus.IN_REVIEW, EnquiryStatus.DECLINED, EnquiryStatus.EXPIRED},
+    EnquiryStatus.SUBMITTED: {
+        EnquiryStatus.RECEIVED,
+        EnquiryStatus.DECLINED,
+        EnquiryStatus.EXPIRED,
+    },
+    EnquiryStatus.RECEIVED: {
+        EnquiryStatus.IN_REVIEW,
+        EnquiryStatus.DECLINED,
+        EnquiryStatus.EXPIRED,
+    },
+    EnquiryStatus.IN_REVIEW: {
+        EnquiryStatus.NEEDS_INFORMATION,
+        EnquiryStatus.QUOTED,
+        EnquiryStatus.DECLINED,
+        EnquiryStatus.EXPIRED,
+    },
+    EnquiryStatus.NEEDS_INFORMATION: {
+        EnquiryStatus.IN_REVIEW,
+        EnquiryStatus.DECLINED,
+        EnquiryStatus.EXPIRED,
+    },
     # Terminal states — no further transitions
     EnquiryStatus.DECLINED: set(),
     EnquiryStatus.CANCELLED: set(),
@@ -125,9 +143,7 @@ class EnquiryService:
         business = await self._validate_business_eligible(business_id)
 
         # 2. Validate service offer exists, belongs to business, and is active
-        offer = await self._validate_service_offer_eligible(
-            service_offer_id, business_id
-        )
+        offer = await self._validate_service_offer_eligible(service_offer_id, business_id)
 
         # 3. Evaluate the active Brain (if any) for qualification.
         decision = await self._evaluate_brain_for_enquiry(
@@ -145,7 +161,9 @@ class EnquiryService:
                 "enquiry_blocked_by_brain",
                 business_id=str(business_id),
                 customer_id=str(customer.id),
-                brain_version_id=str(decision.brain_version_id) if decision.brain_version_id else None,
+                brain_version_id=str(decision.brain_version_id)
+                if decision.brain_version_id
+                else None,
                 brain_decision=decision.decision.value,
                 reason=decision.reason,
             )
@@ -394,13 +412,11 @@ class EnquiryService:
         Only marks messages NOT sent by the reader.
         Returns the count of messages marked as read.
         """
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        messages = await self.message_repo.get_by_conversation(
-            conversation_id, limit=500
-        )
+        messages = await self.message_repo.get_by_conversation(conversation_id, limit=500)
         count = 0
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for msg in messages:
             if msg.sender_id != reader_id and msg.read_at is None:
                 msg.read_at = now
@@ -426,9 +442,7 @@ class EnquiryService:
     ) -> None:
         """Verify that an enquiry/conversation belongs to the business."""
         if enquiry_or_conversation.business_id != business_id:
-            raise AuthorizationError(
-                "Enquiry does not belong to this business"
-            )
+            raise AuthorizationError("Enquiry does not belong to this business")
 
     async def verify_business_membership(
         self,
@@ -450,9 +464,7 @@ class EnquiryService:
 
     # --- Internal validation ---
 
-    async def _validate_business_eligible(
-        self, business_id: uuid.UUID
-    ) -> Business:
+    async def _validate_business_eligible(self, business_id: uuid.UUID) -> Business:
         """Verify business exists, is active, and has an active public profile."""
         result = await self.session.execute(
             select(Business, BusinessProfile)
@@ -474,7 +486,10 @@ class EnquiryService:
         if BusinessStatus(business.status) != BusinessStatus.ACTIVE:
             raise ValidationError("Business is not currently active")
 
-        if profile is None or BusinessProfileStatus(profile.public_status) != BusinessProfileStatus.ACTIVE:
+        if (
+            profile is None
+            or BusinessProfileStatus(profile.public_status) != BusinessProfileStatus.ACTIVE
+        ):
             raise ValidationError("Business profile is not publicly available")
 
         return business
@@ -486,8 +501,7 @@ class EnquiryService:
     ) -> ServiceOffer:
         """Verify service offer exists, belongs to business, and is active."""
         result = await self.session.execute(
-            select(ServiceOffer)
-            .where(
+            select(ServiceOffer).where(
                 ServiceOffer.id == service_offer_id,
                 ServiceOffer.business_id == business_id,
                 ServiceOffer.deleted_at.is_(None),
@@ -498,15 +512,11 @@ class EnquiryService:
             raise NotFoundError("Service offer not found")
 
         if ServiceOfferStatus(offer.status) != ServiceOfferStatus.ACTIVE:
-            raise ValidationError(
-                "Service offer is not currently accepting enquiries"
-            )
+            raise ValidationError("Service offer is not currently accepting enquiries")
 
         return offer
 
-    async def _resolve_active_brain_version(
-        self, business_id: uuid.UUID
-    ) -> uuid.UUID | None:
+    async def _resolve_active_brain_version(self, business_id: uuid.UUID) -> uuid.UUID | None:
         """Resolve the active Brain version for historical reconstruction.
 
         Returns the brain_version_id if the business has an active Brain

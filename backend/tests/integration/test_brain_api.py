@@ -30,9 +30,7 @@ class TestBrainAPIAuthorization:
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=test_user.id, business_id=business.id, role="owner"
-        )
+        member = BusinessMember(user_id=test_user.id, business_id=business.id, role="owner")
         db_session.add(member)
 
         profile = BusinessProfile(business_id=business.id)
@@ -48,9 +46,7 @@ class TestBrainAPIAuthorization:
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=second_user.id, business_id=business.id, role="staff"
-        )
+        member = BusinessMember(user_id=second_user.id, business_id=business.id, role="staff")
         db_session.add(member)
 
         profile = BusinessProfile(business_id=business.id)
@@ -143,9 +139,7 @@ class TestBrainVersionLifecycle:
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=test_user.id, business_id=business.id, role="owner"
-        )
+        member = BusinessMember(user_id=test_user.id, business_id=business.id, role="owner")
         db_session.add(member)
 
         profile = BusinessProfile(business_id=business.id)
@@ -339,9 +333,7 @@ class TestBrainRules:
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=test_user.id, business_id=business.id, role="owner"
-        )
+        member = BusinessMember(user_id=test_user.id, business_id=business.id, role="owner")
         db_session.add(member)
 
         profile = BusinessProfile(business_id=business.id)
@@ -522,9 +514,7 @@ class TestBrainValidation:
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=test_user.id, business_id=business.id, role="owner"
-        )
+        member = BusinessMember(user_id=test_user.id, business_id=business.id, role="owner")
         db_session.add(member)
 
         profile = BusinessProfile(business_id=business.id)
@@ -599,9 +589,7 @@ class TestBrainApproval:
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=test_user.id, business_id=business.id, role="owner"
-        )
+        member = BusinessMember(user_id=test_user.id, business_id=business.id, role="owner")
         db_session.add(member)
 
         profile = BusinessProfile(business_id=business.id)
@@ -645,9 +633,7 @@ class TestBrainApproval:
     ):
         """Owner can approve a REVIEW version."""
         business = owner_business
-        version_id = await self._create_version_in_review(
-            client, auth_headers, business.id
-        )
+        version_id = await self._create_version_in_review(client, auth_headers, business.id)
 
         response = await client.post(
             f"/api/v1/businesses/{business.id}/brain/versions/{version_id}/approve",
@@ -671,9 +657,7 @@ class TestBrainApproval:
         business = owner_business
 
         # Make second_user a staff member of the same business
-        staff_member = BusinessMember(
-            user_id=second_user.id, business_id=business.id, role="staff"
-        )
+        staff_member = BusinessMember(user_id=second_user.id, business_id=business.id, role="staff")
         db_session.add(staff_member)
         await db_session.flush()
 
@@ -684,9 +668,7 @@ class TestBrainApproval:
         )
         staff_headers = {"Authorization": f"Bearer {login_resp.json()['access_token']}"}
 
-        version_id = await self._create_version_in_review(
-            client, auth_headers, business.id
-        )
+        version_id = await self._create_version_in_review(client, auth_headers, business.id)
 
         response = await client.post(
             f"/api/v1/businesses/{business.id}/brain/versions/{version_id}/approve",
@@ -707,9 +689,7 @@ class TestBrainActivation:
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=test_user.id, business_id=business.id, role="owner"
-        )
+        member = BusinessMember(user_id=test_user.id, business_id=business.id, role="owner")
         db_session.add(member)
 
         profile = BusinessProfile(business_id=business.id)
@@ -758,9 +738,7 @@ class TestBrainActivation:
     ):
         """Activating an APPROVED version succeeds."""
         business = owner_business
-        version_id = await self._create_approved_version(
-            client, auth_headers, business.id
-        )
+        version_id = await self._create_approved_version(client, auth_headers, business.id)
 
         response = await client.post(
             f"/api/v1/businesses/{business.id}/brain/versions/{version_id}/activate",
@@ -780,18 +758,14 @@ class TestBrainActivation:
         business = owner_business
 
         # Create and activate first version
-        v1_id = await self._create_approved_version(
-            client, auth_headers, business.id
-        )
+        v1_id = await self._create_approved_version(client, auth_headers, business.id)
         await client.post(
             f"/api/v1/businesses/{business.id}/brain/versions/{v1_id}/activate",
             headers=auth_headers,
         )
 
         # Create and approve second version
-        v2_id = await self._create_approved_version(
-            client, auth_headers, business.id
-        )
+        v2_id = await self._create_approved_version(client, auth_headers, business.id)
         response = await client.post(
             f"/api/v1/businesses/{business.id}/brain/versions/{v2_id}/activate",
             headers=auth_headers,
@@ -836,9 +810,7 @@ class TestBrainActivation:
     ):
         """An ACTIVE version cannot have its config modified."""
         business = owner_business
-        version_id = await self._create_approved_version(
-            client, auth_headers, business.id
-        )
+        version_id = await self._create_approved_version(client, auth_headers, business.id)
         await client.post(
             f"/api/v1/businesses/{business.id}/brain/versions/{version_id}/activate",
             headers=auth_headers,
@@ -859,9 +831,7 @@ class TestBrainActivation:
     ):
         """GET /brain returns the current ACTIVE version."""
         business = owner_business
-        version_id = await self._create_approved_version(
-            client, auth_headers, business.id
-        )
+        version_id = await self._create_approved_version(client, auth_headers, business.id)
         await client.post(
             f"/api/v1/businesses/{business.id}/brain/versions/{version_id}/activate",
             headers=auth_headers,
@@ -889,9 +859,7 @@ class TestBrainSecurity:
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=test_user.id, business_id=business.id, role="owner"
-        )
+        member = BusinessMember(user_id=test_user.id, business_id=business.id, role="owner")
         db_session.add(member)
 
         profile = BusinessProfile(business_id=business.id)
@@ -907,9 +875,7 @@ class TestBrainSecurity:
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=second_user.id, business_id=business.id, role="owner"
-        )
+        member = BusinessMember(user_id=second_user.id, business_id=business.id, role="owner")
         db_session.add(member)
 
         profile = BusinessProfile(business_id=business.id)
@@ -953,6 +919,7 @@ class TestBrainSecurity:
     ):
         """Business A cannot activate versions in Business B's brain."""
         import uuid
+
         fake_version_id = uuid.uuid4()
         response = await client.post(
             f"/api/v1/businesses/{business_b.id}/brain/versions/{fake_version_id}/activate",
@@ -972,9 +939,7 @@ class TestBrainProvenance:
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=test_user.id, business_id=business.id, role="owner"
-        )
+        member = BusinessMember(user_id=test_user.id, business_id=business.id, role="owner")
         db_session.add(member)
 
         profile = BusinessProfile(business_id=business.id)

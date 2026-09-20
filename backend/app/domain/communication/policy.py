@@ -24,17 +24,17 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.business.models import BrainVersion, BusinessBrain, BusinessRule
 from app.domain.communication.models import (
     BusinessCommunicationChannel,
     BusinessCommunicationPurpose,
     CustomerCommunicationPreference,
 )
-from app.domain.business.models import BusinessBrain, BrainVersion, BusinessRule
 
 logger = logging.getLogger(__name__)
 
@@ -117,12 +117,8 @@ class CommunicationPolicyService:
         6. Check Business Brain communication rules
         7. Return final decision with full evidence
         """
-        evidence: dict = {}
-
         # Step 1: Channel configuration
-        channel_config = await self._get_channel_config(
-            business_id, recipient.channel
-        )
+        channel_config = await self._get_channel_config(business_id, recipient.channel)
         if channel_config is None:
             return PolicyDecision(
                 decision="REQUIRE_APPROVAL",
@@ -137,9 +133,7 @@ class CommunicationPolicyService:
             )
 
         # Step 2: Purpose configuration
-        purpose_config = await self._get_purpose_config(
-            business_id, recipient.purpose
-        )
+        purpose_config = await self._get_purpose_config(business_id, recipient.purpose)
         if purpose_config is None:
             return PolicyDecision(
                 decision="REQUIRE_APPROVAL",
@@ -321,26 +315,34 @@ class CommunicationPolicyService:
         # Look up preferences: most specific first, then broader
         # 1. Exact match (channel + purpose)
         pref = await self._get_preference(
-            recipient.customer_id, business_id,
-            channel=recipient.channel, purpose=recipient.purpose,
+            recipient.customer_id,
+            business_id,
+            channel=recipient.channel,
+            purpose=recipient.purpose,
         )
         # 2. Channel-specific, any purpose
         if pref is None:
             pref = await self._get_preference(
-                recipient.customer_id, business_id,
-                channel=recipient.channel, purpose=None,
+                recipient.customer_id,
+                business_id,
+                channel=recipient.channel,
+                purpose=None,
             )
         # 3. Purpose-specific, any channel
         if pref is None:
             pref = await self._get_preference(
-                recipient.customer_id, business_id,
-                channel=None, purpose=recipient.purpose,
+                recipient.customer_id,
+                business_id,
+                channel=None,
+                purpose=recipient.purpose,
             )
         # 4. Global preference (no channel, no purpose)
         if pref is None:
             pref = await self._get_preference(
-                recipient.customer_id, business_id,
-                channel=None, purpose=None,
+                recipient.customer_id,
+                business_id,
+                channel=None,
+                purpose=None,
             )
 
         # No preference record at all
@@ -393,13 +395,10 @@ class CommunicationPolicyService:
         purpose: str | None,
     ) -> CustomerCommunicationPreference | None:
         """Get a specific preference record."""
-        stmt = (
-            select(CustomerCommunicationPreference)
-            .where(
-                CustomerCommunicationPreference.customer_id == customer_id,
-                CustomerCommunicationPreference.business_id == business_id,
-                CustomerCommunicationPreference.deleted_at.is_(None),
-            )
+        stmt = select(CustomerCommunicationPreference).where(
+            CustomerCommunicationPreference.customer_id == customer_id,
+            CustomerCommunicationPreference.business_id == business_id,
+            CustomerCommunicationPreference.deleted_at.is_(None),
         )
         if channel is None:
             stmt = stmt.where(CustomerCommunicationPreference.channel.is_(None))
@@ -437,7 +436,7 @@ class CommunicationPolicyService:
         # Check quiet hours
         quiet_hours = timing_rules.get("quiet_hours")
         if quiet_hours:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             hour = now.hour
             start = quiet_hours.get("start", 0)
             end = quiet_hours.get("end", 8)
@@ -483,7 +482,7 @@ class CommunicationPolicyService:
             from app.domain.communication.models import Communication
 
             # Count today's communications to this customer
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
             result = await self.session.execute(
@@ -530,12 +529,14 @@ class CommunicationPolicyService:
 
         # Get communication rules
         result = await self.session.execute(
-            select(BusinessRule).where(
+            select(BusinessRule)
+            .where(
                 BusinessRule.brain_version_id == brain_version.id,
                 BusinessRule.rule_type == "communication",
                 BusinessRule.is_active.is_(True),
                 BusinessRule.deleted_at.is_(None),
-            ).order_by(BusinessRule.priority.desc())
+            )
+            .order_by(BusinessRule.priority.desc())
         )
         rules = list(result.scalars().all())
 
@@ -555,12 +556,14 @@ class CommunicationPolicyService:
 
             # Rule matches — check its action
             action = rule_data.get("action", "").upper()
-            matched_rules.append({
-                "rule_id": str(rule.id),
-                "name": rule.name,
-                "action": action,
-                "reason": rule_data.get("reason", ""),
-            })
+            matched_rules.append(
+                {
+                    "rule_id": str(rule.id),
+                    "name": rule.name,
+                    "action": action,
+                    "reason": rule_data.get("reason", ""),
+                }
+            )
 
             if action == "DENY":
                 return {
@@ -591,9 +594,7 @@ class CommunicationPolicyService:
             "matched_rules": matched_rules,
         }
 
-    async def _get_active_brain_version(
-        self, business_id: uuid.UUID
-    ) -> BrainVersion | None:
+    async def _get_active_brain_version(self, business_id: uuid.UUID) -> BrainVersion | None:
         """Get the active BrainVersion for a business."""
         result = await self.session.execute(
             select(BrainVersion)

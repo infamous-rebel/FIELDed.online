@@ -10,8 +10,6 @@ Tests the Phase 05 enquiry transitions, verifying:
 
 from __future__ import annotations
 
-import pytest
-
 from app.domain.common.enums import (
     ENQUIRY_TRANSITIONS,
     EnquiryStatus,
@@ -106,7 +104,7 @@ class TestEnquiryPhase05Lifecycle:
 
     def test_reserved_states_unreachable(self):
         """Phase 05 early states (DRAFT, SUBMITTED, RECEIVED) cannot reach Phase 12 states.
-        
+
         IN_REVIEW can transition to QUOTED (Phase 12 quote flow).
         """
         phase12_states = {

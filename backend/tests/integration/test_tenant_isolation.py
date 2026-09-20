@@ -6,8 +6,6 @@ Verifies that the repository/authorization layer enforces tenant boundaries.
 from __future__ import annotations
 
 import pytest
-import pytest_asyncio
-from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,16 +41,10 @@ class TestTenantIsolation:
         assert len(second_memberships) == 0
 
     @pytest.mark.asyncio
-    async def test_users_have_separate_data(
-        self, db_session: AsyncSession, test_user, second_user
-    ):
+    async def test_users_have_separate_data(self, db_session: AsyncSession, test_user, second_user):
         """Each user has their own isolated data."""
-        result1 = await db_session.execute(
-            select(User).where(User.id == test_user.id)
-        )
-        result2 = await db_session.execute(
-            select(User).where(User.id == second_user.id)
-        )
+        result1 = await db_session.execute(select(User).where(User.id == test_user.id))
+        result2 = await db_session.execute(select(User).where(User.id == second_user.id))
 
         user1 = result1.scalar_one()
         user2 = result2.scalar_one()

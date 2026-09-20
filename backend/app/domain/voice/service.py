@@ -362,9 +362,7 @@ class VoiceCallLifecycleService:
             payload={
                 "call_id": str(call.id),
                 "purpose": call.purpose,
-                "customer_id": (
-                    str(call.customer_id) if call.customer_id else None
-                ),
+                "customer_id": (str(call.customer_id) if call.customer_id else None),
             },
         )
         return call
@@ -401,9 +399,7 @@ class VoiceCallLifecycleService:
                 "purpose": call.purpose,
                 "failure_code": call.failure_code,
                 "failure_reason": call.failure_reason,
-                "customer_id": (
-                    str(call.customer_id) if call.customer_id else None
-                ),
+                "customer_id": (str(call.customer_id) if call.customer_id else None),
             },
         )
         return call
@@ -544,9 +540,7 @@ class VoiceCallLifecycleService:
                 "call_id": str(call.id),
                 "escalation_id": str(escalation.id),
                 "escalation_reason": escalation.escalation_reason,
-                "customer_id": (
-                    str(call.customer_id) if call.customer_id else None
-                ),
+                "customer_id": (str(call.customer_id) if call.customer_id else None),
             },
         )
         return escalation

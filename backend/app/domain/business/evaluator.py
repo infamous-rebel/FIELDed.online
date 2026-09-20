@@ -47,8 +47,10 @@ logger = get_logger(__name__)
 # Decision types
 # ---------------------------------------------------------------------------
 
+
 class BrainDecisionOutcome(StrEnum):
     """Overall decision outcome."""
+
     ALLOW = "allow"
     DENY = "deny"
     REQUIRE_APPROVAL = "require_approval"
@@ -60,6 +62,7 @@ class BrainDecisionOutcome(StrEnum):
 @dataclass(frozen=True)
 class MatchedRule:
     """A rule whose conditions matched the transaction context."""
+
     rule_id: uuid.UUID
     rule_type: str
     name: str
@@ -72,6 +75,7 @@ class MatchedRule:
 @dataclass(frozen=True)
 class RuleConflict:
     """Two rules with contradictory outcomes for the same context."""
+
     rule_a_id: uuid.UUID
     rule_b_id: uuid.UUID
     rule_a_name: str
@@ -88,6 +92,7 @@ class BrainDecision:
     This is the decision contract between the Brain and the runtime.
     Every operational decision governed by the Brain carries this record.
     """
+
     decision: BrainDecisionOutcome
     brain_version_id: uuid.UUID | None
     matched_rules: list[MatchedRule] = field(default_factory=list)
@@ -158,6 +163,7 @@ class BrainDecision:
 # Transaction context
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class DecisionContext:
     """Transaction context for brain evaluation.
@@ -165,6 +171,7 @@ class DecisionContext:
     Provides the data that rules evaluate their conditions against.
     Keys are dot-separated paths (e.g. "service_offer.pricing_model").
     """
+
     business_id: uuid.UUID
     service_offer_id: uuid.UUID
     customer_id: uuid.UUID
@@ -186,6 +193,7 @@ class DecisionContext:
 # Condition evaluator
 # ---------------------------------------------------------------------------
 
+
 class ConditionEvaluator:
     """Evaluates rule conditions against a transaction context.
 
@@ -202,10 +210,7 @@ class ConditionEvaluator:
         if not conditions:
             return True
 
-        return all(
-            self._evaluate_single(cond, context)
-            for cond in conditions
-        )
+        return all(self._evaluate_single(cond, context) for cond in conditions)
 
     def get_required_fields(
         self,
@@ -254,13 +259,21 @@ class ConditionEvaluator:
         if operator == "not_equals":
             return actual != expected
         if operator == "greater_than":
-            return _to_float(actual, None) is not None and _to_float(actual, 0) > _to_float(expected, 0)
+            return _to_float(actual, None) is not None and _to_float(actual, 0) > _to_float(
+                expected, 0
+            )
         if operator == "less_than":
-            return _to_float(actual, None) is not None and _to_float(actual, 0) < _to_float(expected, 0)
+            return _to_float(actual, None) is not None and _to_float(actual, 0) < _to_float(
+                expected, 0
+            )
         if operator == "greater_than_or_equal":
-            return _to_float(actual, None) is not None and _to_float(actual, 0) >= _to_float(expected, 0)
+            return _to_float(actual, None) is not None and _to_float(actual, 0) >= _to_float(
+                expected, 0
+            )
         if operator == "less_than_or_equal":
-            return _to_float(actual, None) is not None and _to_float(actual, 0) <= _to_float(expected, 0)
+            return _to_float(actual, None) is not None and _to_float(actual, 0) <= _to_float(
+                expected, 0
+            )
         if operator == "in":
             if isinstance(expected, list):
                 return actual in expected
@@ -309,6 +322,7 @@ def _to_float(value: Any, default: float | None = 0) -> float | None:
 # ---------------------------------------------------------------------------
 # Brain evaluator
 # ---------------------------------------------------------------------------
+
 
 class BrainEvaluator:
     """Evaluates an active BrainVersion against a transaction context.
@@ -359,15 +373,17 @@ class BrainEvaluator:
                 # Evaluate conditions
                 if self._condition_eval.evaluate(conditions, context):
                     outcome = self._extract_outcome(actions)
-                    matched.append(MatchedRule(
-                        rule_id=rule.id,
-                        rule_type=rule.rule_type,
-                        name=rule.name,
-                        priority=getattr(rule, "priority", 0),
-                        outcome=outcome,
-                        actions=actions,
-                        reason=self._build_rule_reason(rule, outcome),
-                    ))
+                    matched.append(
+                        MatchedRule(
+                            rule_id=rule.id,
+                            rule_type=rule.rule_type,
+                            name=rule.name,
+                            priority=getattr(rule, "priority", 0),
+                            outcome=outcome,
+                            actions=actions,
+                            reason=self._build_rule_reason(rule, outcome),
+                        )
+                    )
             except Exception:
                 logger.exception(
                     "brain_rule_evaluation_error",
@@ -383,7 +399,10 @@ class BrainEvaluator:
 
         # Determine overall decision
         decision = self._build_decision(
-            version_id, matched, conflicts, all_required_info,
+            version_id,
+            matched,
+            conflicts,
+            all_required_info,
         )
 
         logger.info(
@@ -417,21 +436,23 @@ class BrainEvaluator:
             if len(rules) < 2:
                 continue
             for i, a in enumerate(rules):
-                for b in rules[i + 1:]:
+                for b in rules[i + 1 :]:
                     if self._outcomes_conflict(a.outcome, b.outcome):
-                        conflicts.append(RuleConflict(
-                            rule_a_id=a.rule_id,
-                            rule_b_id=b.rule_id,
-                            rule_a_name=a.name,
-                            rule_b_name=b.name,
-                            rule_a_outcome=a.outcome,
-                            rule_b_outcome=b.outcome,
-                            description=(
-                                f"Rules '{a.name}' ({a.outcome}) and "
-                                f"'{b.name}' ({b.outcome}) conflict "
-                                f"within {a.rule_type}"
-                            ),
-                        ))
+                        conflicts.append(
+                            RuleConflict(
+                                rule_a_id=a.rule_id,
+                                rule_b_id=b.rule_id,
+                                rule_a_name=a.name,
+                                rule_b_name=b.name,
+                                rule_a_outcome=a.outcome,
+                                rule_b_outcome=b.outcome,
+                                description=(
+                                    f"Rules '{a.name}' ({a.outcome}) and "
+                                    f"'{b.name}' ({b.outcome}) conflict "
+                                    f"within {a.rule_type}"
+                                ),
+                            )
+                        )
 
         return conflicts
 
@@ -516,6 +537,9 @@ class BrainEvaluator:
         # REQUIRE_APPROVAL
         if "require_approval" in outcomes:
             appr_rules = [m for m in matched if m.outcome == "require_approval"]
+            approval_reason = (
+                f"Approval required by rule(s): {', '.join(m.name for m in appr_rules)}"
+            )
             return BrainDecision(
                 decision=BrainDecisionOutcome.REQUIRE_APPROVAL,
                 brain_version_id=version_id,
@@ -523,11 +547,11 @@ class BrainEvaluator:
                 required_information=list(set(required_info)),
                 required_approval={
                     "required": True,
-                    "reason": f"Approval required by rule(s): {', '.join(m.name for m in appr_rules)}",
+                    "reason": approval_reason,
                     "approver_role": self._resolve_approver_role(appr_rules),
                 },
                 actions=[a for m in appr_rules for a in m.actions],
-                reason=f"Approval required by rule(s): {', '.join(m.name for m in appr_rules)}",
+                reason=approval_reason,
                 evidence={
                     "total_rules_evaluated": len(matched),
                     "approval_rules": [m.name for m in appr_rules],

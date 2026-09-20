@@ -9,7 +9,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.identity.models import Business, BusinessMember, BusinessProfile, User
-from app.domain.services.models import ServiceCategory, ServiceOffer
+from app.domain.services.models import ServiceOffer
 
 
 @pytest.mark.integration
@@ -23,9 +23,7 @@ class TestEnquiryConversation:
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=second_user.id, business_id=business.id, role="owner"
-        )
+        member = BusinessMember(user_id=second_user.id, business_id=business.id, role="owner")
         db_session.add(member)
 
         profile = BusinessProfile(
@@ -324,8 +322,8 @@ class TestEnquiryConversation:
         db_session.add(other_biz)
         await db_session.flush()
 
-        # test_user is not a member of other_biz, but second_user is the owner of the original business
-        # Let's test with test_user trying to access the business enquiry
+        # test_user is not a member of other_biz, but second_user is the owner
+        # of the original business. Test with test_user accessing the business enquiry.
         response = await client.get(
             f"/api/v1/businesses/{business.id}/enquiries/{enquiry_id}",
             headers=auth_headers,  # test_user is NOT a member of this business

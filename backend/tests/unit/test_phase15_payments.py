@@ -7,17 +7,17 @@ without requiring a database.
 
 from __future__ import annotations
 
-import pytest
 from decimal import Decimal
 
+import pytest
+
+from app.adapters.payment.base import PaymentRequest, RefundRequest
+from app.adapters.payment.stub import StubPaymentProvider
 from app.domain.common.enums import (
-    PaymentStatus,
     PAYMENT_TRANSITIONS,
     InvoicePaymentStatus,
+    PaymentStatus,
 )
-from app.adapters.payment.stub import StubPaymentProvider
-from app.adapters.payment.base import PaymentRequest, RefundRequest
-from app.adapters.common import ProviderResult
 
 
 class TestPaymentStateMachine:
@@ -124,22 +124,22 @@ class TestStubPaymentProvider:
     @pytest.mark.asyncio
     async def test_verify_webhook_signature(self):
         provider = StubPaymentProvider()
-        result = await provider.verify_webhook_signature(
-            b'{"test": true}', "any-sig", "any-secret"
-        )
+        result = await provider.verify_webhook_signature(b'{"test": true}', "any-sig", "any-secret")
         assert result is True
 
     @pytest.mark.asyncio
     async def test_parse_webhook_event(self):
         provider = StubPaymentProvider()
-        event = await provider.parse_webhook_event({
-            "type": "payment_intent.succeeded",
-            "id": "evt_test123",
-            "payment_intent": "pi_test123",
-            "amount": 10000,
-            "currency": "gbp",
-            "status": "succeeded",
-        })
+        event = await provider.parse_webhook_event(
+            {
+                "type": "payment_intent.succeeded",
+                "id": "evt_test123",
+                "payment_intent": "pi_test123",
+                "amount": 10000,
+                "currency": "gbp",
+                "status": "succeeded",
+            }
+        )
         assert event.event_type == "payment_intent.succeeded"
         assert event.provider_event_id == "evt_test123"
         assert event.provider_payment_reference == "pi_test123"
@@ -156,14 +156,17 @@ class TestPaymentMethodEnum:
 
     def test_card_exists(self):
         from app.domain.common.enums import PaymentMethod
+
         assert PaymentMethod.CARD == "card"
 
     def test_bank_transfer_exists(self):
         from app.domain.common.enums import PaymentMethod
+
         assert PaymentMethod.BANK_TRANSFER == "bank_transfer"
 
     def test_cash_exists(self):
         from app.domain.common.enums import PaymentMethod
+
         assert PaymentMethod.CASH == "cash"
 
 
@@ -185,10 +188,12 @@ class TestPaymentWebhookStatus:
 
     def test_received(self):
         from app.domain.common.enums import PaymentWebhookStatus
+
         assert PaymentWebhookStatus.RECEIVED == "RECEIVED"
 
     def test_processed(self):
         from app.domain.common.enums import PaymentWebhookStatus
+
         assert PaymentWebhookStatus.PROCESSED == "PROCESSED"
 
 
@@ -197,16 +202,20 @@ class TestPaymentAuditEvents:
 
     def test_payment_initiated(self):
         from app.domain.common.enums import AuditEventType
+
         assert AuditEventType.PAYMENT_INITIATED == "PAYMENT_INITIATED"
 
     def test_payment_succeeded(self):
         from app.domain.common.enums import AuditEventType
+
         assert AuditEventType.PAYMENT_SUCCEEDED == "PAYMENT_SUCCEEDED"
 
     def test_payment_refunded(self):
         from app.domain.common.enums import AuditEventType
+
         assert AuditEventType.PAYMENT_REFUNDED == "PAYMENT_REFUNDED"
 
     def test_invoice_balance_updated(self):
         from app.domain.common.enums import AuditEventType
+
         assert AuditEventType.INVOICE_BALANCE_UPDATED == "INVOICE_BALANCE_UPDATED"

@@ -15,6 +15,7 @@ from typing import Any
 @dataclass
 class CalendarEvent:
     """A calendar event."""
+
     title: str
     start: datetime
     end: datetime
@@ -27,6 +28,7 @@ class CalendarEvent:
 @dataclass
 class CalendarEventResult:
     """Result of a calendar operation."""
+
     event_id: str
     success: bool
     error: str | None = None
@@ -48,9 +50,7 @@ class CalendarProvider(ABC):
         ...
 
     @abstractmethod
-    async def update_event(
-        self, event_id: str, event: CalendarEvent
-    ) -> CalendarEventResult:
+    async def update_event(self, event_id: str, event: CalendarEvent) -> CalendarEventResult:
         """Update an existing calendar event.
 
         Args:

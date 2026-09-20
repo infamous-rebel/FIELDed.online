@@ -43,7 +43,9 @@ class ServiceExecutionCreate(BaseModel):
 class ServiceExecutionTransitionRequest(BaseModel):
     """Request schema for transitioning a service execution."""
 
-    target_status: str = Field(..., description="Target status (in_progress, completed, cancelled, no_show)")
+    target_status: str = Field(
+        ..., description="Target status (in_progress, completed, cancelled, no_show)"
+    )
     notes: str | None = None
     completion_evidence: dict[str, Any] | None = None
 

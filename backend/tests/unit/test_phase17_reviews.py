@@ -15,7 +15,7 @@ Tests cover deterministic review eligibility (no AI involvement):
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 import pytest_asyncio
@@ -33,7 +33,7 @@ from app.domain.review.service import (
     ReviewService,
 )
 from app.domain.service_execution.models import ServiceExecution
-from app.domain.services.models import ServiceCategory, ServiceOffer
+from app.domain.services.models import ServiceOffer
 from tests.factories import (
     business_factory,
     business_member_factory,
@@ -69,9 +69,7 @@ async def _make_chain(
         db_session.add(biz)
         await db_session.flush()
 
-        db_session.add(
-            business_member_factory(user_id=owner.id, business_id=biz.id, role="owner")
-        )
+        db_session.add(business_member_factory(user_id=owner.id, business_id=biz.id, role="owner"))
         db_session.add(business_profile_factory(business_id=biz.id))
         await db_session.flush()
 
@@ -123,7 +121,7 @@ async def _make_chain(
         quote_id=quote.id,
         enquiry_id=enquiry.id,
         service_offer_id=offer.id,
-        requested_at=datetime.now(timezone.utc) + timedelta(days=1),
+        requested_at=datetime.now(UTC) + timedelta(days=1),
         currency="GBP",
         status=booking_status,
     )
@@ -137,9 +135,7 @@ async def _make_chain(
         service_offer_id=offer.id,
         quote_id=quote.id,
         status=execution_status,
-        completed_at=(
-            datetime.now(timezone.utc) if execution_status == "completed" else None
-        ),
+        completed_at=(datetime.now(UTC) if execution_status == "completed" else None),
         completed_by=owner.id if execution_status == "completed" else None,
     )
     db_session.add(execution)
@@ -170,9 +166,7 @@ class TestReviewEligibility:
     async def test_eligible_completed_transaction_review_succeeds(
         self, db_session: AsyncSession, customer, owner
     ):
-        biz, execution = await _make_chain(
-            db_session, customer=customer, owner=owner
-        )
+        biz, execution = await _make_chain(db_session, customer=customer, owner=owner)
         service = ReviewService(db_session)
 
         review = await service.submit_review(
@@ -231,9 +225,7 @@ class TestReviewEligibility:
     async def test_wrong_customer_review_rejected(
         self, db_session: AsyncSession, customer, other_customer, owner
     ):
-        _, execution = await _make_chain(
-            db_session, customer=customer, owner=owner
-        )
+        _, execution = await _make_chain(db_session, customer=customer, owner=owner)
         service = ReviewService(db_session)
 
         with pytest.raises(ReviewEligibilityError, match="does not own"):
@@ -244,12 +236,8 @@ class TestReviewEligibility:
             )
 
     @pytest.mark.asyncio
-    async def test_duplicate_review_rejected(
-        self, db_session: AsyncSession, customer, owner
-    ):
-        _, execution = await _make_chain(
-            db_session, customer=customer, owner=owner
-        )
+    async def test_duplicate_review_rejected(self, db_session: AsyncSession, customer, owner):
+        _, execution = await _make_chain(db_session, customer=customer, owner=owner)
         service = ReviewService(db_session)
 
         await service.submit_review(
@@ -273,9 +261,7 @@ class TestBusinessResponse:
     async def test_business_response_authorized_allowed(
         self, db_session: AsyncSession, customer, owner
     ):
-        biz, execution = await _make_chain(
-            db_session, customer=customer, owner=owner
-        )
+        biz, execution = await _make_chain(db_session, customer=customer, owner=owner)
         service = ReviewService(db_session)
         review = await service.submit_review(
             customer_id=customer.id,
@@ -298,9 +284,7 @@ class TestBusinessResponse:
     async def test_wrong_business_response_rejected(
         self, db_session: AsyncSession, customer, owner
     ):
-        _, execution = await _make_chain(
-            db_session, customer=customer, owner=owner
-        )
+        _, execution = await _make_chain(db_session, customer=customer, owner=owner)
         service = ReviewService(db_session)
         review = await service.submit_review(
             customer_id=customer.id,
@@ -308,9 +292,7 @@ class TestBusinessResponse:
             rating=5,
         )
 
-        other_biz, _ = await _make_chain(
-            db_session, customer=customer, owner=owner
-        )
+        other_biz, _ = await _make_chain(db_session, customer=customer, owner=owner)
 
         with pytest.raises(ReviewNotFoundError, match="does not belong"):
             await service.respond_to_review(
@@ -328,9 +310,7 @@ class TestRatingAggregation:
     async def test_rating_aggregation_correctness(
         self, db_session: AsyncSession, customer, other_customer, owner
     ):
-        biz, execution = await _make_chain(
-            db_session, customer=customer, owner=owner
-        )
+        biz, execution = await _make_chain(db_session, customer=customer, owner=owner)
         service = ReviewService(db_session)
 
         await service.submit_review(
@@ -340,9 +320,7 @@ class TestRatingAggregation:
         )
 
         # Second transaction on the SAME business for the second customer
-        _, execution2 = await _make_chain(
-            db_session, customer=other_customer, owner=owner, biz=biz
-        )
+        _, execution2 = await _make_chain(db_session, customer=other_customer, owner=owner, biz=biz)
         assert execution2.business_id == biz.id
         await service.submit_review(
             customer_id=other_customer.id,
@@ -360,9 +338,7 @@ class TestRatingBounds:
 
     def test_rating_valid_bounds(self):
         for rating in (1, 2, 3, 4, 5):
-            request = ReviewCreate(
-                service_execution_id=uuid.uuid4(), rating=rating
-            )
+            request = ReviewCreate(service_execution_id=uuid.uuid4(), rating=rating)
             assert request.rating == rating
 
     def test_rating_zero_rejected(self):

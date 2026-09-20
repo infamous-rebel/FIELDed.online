@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from app.security.token_revocation import TokenRevocationStore
 
@@ -14,7 +14,7 @@ class TestTokenRevocationStore:
         """Revoked tokens are detected."""
         store = TokenRevocationStore()
         jti = "test-jti-1"
-        expires = datetime.now(timezone.utc) + timedelta(hours=1)
+        expires = datetime.now(UTC) + timedelta(hours=1)
 
         store.revoke(jti, expires)
         assert store.is_revoked(jti) is True
@@ -29,7 +29,7 @@ class TestTokenRevocationStore:
         store = TokenRevocationStore()
         jti = "expired-jti"
         # Set expiry in the past
-        expires = datetime.now(timezone.utc) - timedelta(seconds=1)
+        expires = datetime.now(UTC) - timedelta(seconds=1)
 
         store.revoke(jti, expires)
         # Should be considered expired and cleaned
@@ -39,9 +39,9 @@ class TestTokenRevocationStore:
         """Manual cleanup removes expired entries."""
         store = TokenRevocationStore()
         # Add expired entry
-        store.revoke("expired", datetime.now(timezone.utc) - timedelta(hours=1))
+        store.revoke("expired", datetime.now(UTC) - timedelta(hours=1))
         # Add valid entry
-        store.revoke("valid", datetime.now(timezone.utc) + timedelta(hours=1))
+        store.revoke("valid", datetime.now(UTC) + timedelta(hours=1))
 
         removed = store.cleanup()
         assert removed == 1
@@ -53,14 +53,14 @@ class TestTokenRevocationStore:
         store = TokenRevocationStore()
         assert store.size == 0
 
-        store.revoke("j1", datetime.now(timezone.utc) + timedelta(hours=1))
-        store.revoke("j2", datetime.now(timezone.utc) + timedelta(hours=1))
+        store.revoke("j1", datetime.now(UTC) + timedelta(hours=1))
+        store.revoke("j2", datetime.now(UTC) + timedelta(hours=1))
         assert store.size == 2
 
     def test_multiple_revocations(self):
         """Multiple tokens can be revoked independently."""
         store = TokenRevocationStore()
-        expires = datetime.now(timezone.utc) + timedelta(hours=1)
+        expires = datetime.now(UTC) + timedelta(hours=1)
 
         store.revoke("jti-1", expires)
         store.revoke("jti-2", expires)

@@ -21,10 +21,10 @@ ProviderResult inside this adapter.
 
 from __future__ import annotations
 
-import json
 import logging
 from decimal import Decimal
 from typing import Any
+
 import stripe
 from stripe import StripeClient
 
@@ -170,9 +170,7 @@ class StripePaymentProvider(PaymentProvider):
 
     # --- Status verification ---
 
-    async def verify_payment_status(
-        self, provider_payment_reference: str
-    ) -> ProviderResult:
+    async def verify_payment_status(self, provider_payment_reference: str) -> ProviderResult:
         """Retrieve a PaymentIntent and return its current status."""
         try:
             pi = self._client.v1.payment_intents.retrieve(provider_payment_reference)
@@ -212,9 +210,7 @@ class StripePaymentProvider(PaymentProvider):
 
             if request.amount is not None:
                 # Determine currency from the original PaymentIntent
-                pi = self._client.v1.payment_intents.retrieve(
-                    request.provider_payment_reference
-                )
+                pi = self._client.v1.payment_intents.retrieve(request.provider_payment_reference)
                 params["amount"] = _amount_to_stripe(request.amount, pi.currency)
 
             if request.reason:
@@ -227,9 +223,7 @@ class StripePaymentProvider(PaymentProvider):
 
             refund_obj = self._client.v1.refunds.create(params, options)
 
-            refund_status = _STRIPE_REFUND_STATUS.get(
-                refund_obj.status, refund_obj.status
-            )
+            refund_status = _STRIPE_REFUND_STATUS.get(refund_obj.status, refund_obj.status)
 
             return ProviderResult.ok(
                 provider_reference=refund_obj.id,
@@ -259,9 +253,7 @@ class StripePaymentProvider(PaymentProvider):
 
     # --- Webhook verification ---
 
-    async def verify_webhook_signature(
-        self, payload: bytes, signature: str, secret: str
-    ) -> bool:
+    async def verify_webhook_signature(self, payload: bytes, signature: str, secret: str) -> bool:
         """Verify a Stripe webhook signature.
 
         Uses stripe.WebhookSignature.verify_header which checks the
@@ -341,13 +333,13 @@ def _is_retryable_stripe_error(exc: stripe.StripeError) -> bool:
     Rate limits, connection errors, and API connection issues are
     retryable.  Card declines and invalid requests are not.
     """
-    if isinstance(exc, stripe.RateLimitError):
-        return True
-    if isinstance(exc, stripe.APIConnectionError):
-        return True
-    if isinstance(exc, stripe.APIError):
-        return True
-    if isinstance(exc, stripe.IdempotencyError):
-        return True
     # Card errors, invalid requests, etc. are not retryable
-    return False
+    return isinstance(
+        exc,
+        (
+            stripe.RateLimitError,
+            stripe.APIConnectionError,
+            stripe.APIError,
+            stripe.IdempotencyError,
+        ),
+    )

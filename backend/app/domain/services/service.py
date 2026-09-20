@@ -115,13 +115,13 @@ class ServiceOfferService:
         try:
             DeliveryMode(delivery_mode)
         except ValueError:
-            raise ValidationError(f"Invalid delivery mode: {delivery_mode}")
+            raise ValidationError(f"Invalid delivery mode: {delivery_mode}") from None
 
         # Validate pricing model
         try:
             PricingModel(pricing_model)
         except ValueError:
-            raise ValidationError(f"Invalid pricing model: {pricing_model}")
+            raise ValidationError(f"Invalid pricing model: {pricing_model}") from None
 
         # Validate category exists if provided
         if category_id is not None:
@@ -155,15 +155,11 @@ class ServiceOfferService:
             raise NotFoundError("Service offer not found")
         return offer
 
-    async def get_business_offers(
-        self, business_id: uuid.UUID
-    ) -> list[ServiceOffer]:
+    async def get_business_offers(self, business_id: uuid.UUID) -> list[ServiceOffer]:
         """Get all service offers for a business."""
         return await self.offer_repo.get_by_business_id(business_id)
 
-    async def get_active_offers_for_business(
-        self, business_id: uuid.UUID
-    ) -> list[ServiceOffer]:
+    async def get_active_offers_for_business(self, business_id: uuid.UUID) -> list[ServiceOffer]:
         """Get only ACTIVE service offers for public display."""
         return await self.offer_repo.get_by_business_and_status(
             business_id, ServiceOfferStatus.ACTIVE
@@ -180,9 +176,16 @@ class ServiceOfferService:
         Status changes must go through transition_offer().
         """
         allowed_fields = {
-            "name", "description", "delivery_mode", "pricing_model",
-            "pricing_config", "qualification_requirements", "booking_rules",
-            "cancellation_policy", "service_area", "category_id",
+            "name",
+            "description",
+            "delivery_mode",
+            "pricing_model",
+            "pricing_config",
+            "qualification_requirements",
+            "booking_rules",
+            "cancellation_policy",
+            "service_area",
+            "category_id",
         }
         for field, value in fields.items():
             if field not in allowed_fields:
@@ -195,12 +198,12 @@ class ServiceOfferService:
                 try:
                     DeliveryMode(value)  # type: ignore[arg-type]
                 except ValueError:
-                    raise ValidationError(f"Invalid delivery mode: {value}")
+                    raise ValidationError(f"Invalid delivery mode: {value}") from None
             if field == "pricing_model" and value is not None:
                 try:
                     PricingModel(value)  # type: ignore[arg-type]
                 except ValueError:
-                    raise ValidationError(f"Invalid pricing model: {value}")
+                    raise ValidationError(f"Invalid pricing model: {value}") from None
             setattr(offer, field, value)
 
         # Regenerate slug if name changed

@@ -70,7 +70,9 @@ class DiscoveryMatchingService:
                 # A specific category was requested but doesn't exist.
                 # Return empty results — do NOT fall back to all offers.
                 return DiscoveryResult(
-                    intent=intent, matches=[], total_matches=0,
+                    intent=intent,
+                    matches=[],
+                    total_matches=0,
                     categories_searched=[],
                 )
 
@@ -163,7 +165,9 @@ class DiscoveryMatchingService:
             conditions.append(
                 or_(
                     BusinessProfile.city.ilike(f"%{location_city}%"),
-                    BusinessProfile.service_area.is_(None),  # No area constraint = serves everywhere
+                    BusinessProfile.service_area.is_(
+                        None
+                    ),  # No area constraint = serves everywhere
                 )
             )
 

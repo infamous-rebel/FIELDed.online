@@ -20,23 +20,20 @@ from __future__ import annotations
 import logging
 import re
 import uuid
-from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.common import ProviderResult
 from app.adapters.email.base import EmailMessage, EmailProvider
+from app.adapters.push.base import PushMessage, PushProvider
 from app.adapters.sms.base import SMSMessage, SMSProvider
 from app.adapters.voice.base import VoiceCallRequest, VoiceProvider
 from app.adapters.whatsapp.base import WhatsAppMessage, WhatsAppProvider
-from app.adapters.push.base import PushMessage, PushProvider
 from app.domain.communication.models import (
     Communication,
     CommunicationAttempt,
     CommunicationAuditEvent,
     CommunicationRecipient,
-    CommunicationTemplate,
-    CommunicationTemplateVersion,
 )
 from app.domain.communication.policy import (
     CommunicationPolicyService,
@@ -121,22 +118,15 @@ class OrchestrationService:
             channel = target.get("channel", "")
             purpose = target.get("purpose", "")
             customer_id_str = target.get("customer_id")
-            customer_id = (
-                uuid.UUID(customer_id_str) if customer_id_str else None
-            )
+            customer_id = uuid.UUID(customer_id_str) if customer_id_str else None
             recipient_address = target.get("recipient_address", "")
             recipient_type = target.get("recipient_type", "CUSTOMER")
 
             # Build idempotency key
-            idempotency_key = (
-                f"{event_type}:{aggregate_type}:{aggregate_id}"
-                f":{channel}:{purpose}"
-            )
+            idempotency_key = f"{event_type}:{aggregate_type}:{aggregate_id}:{channel}:{purpose}"
 
             # Check idempotency
-            existing = await self.comm_repo.get_by_idempotency_key(
-                idempotency_key
-            )
+            existing = await self.comm_repo.get_by_idempotency_key(idempotency_key)
             if existing:
                 communications.append(existing)
                 continue
@@ -219,10 +209,7 @@ class OrchestrationService:
         notification_type: str | None = None,
     ) -> Notification:
         """Create an idempotent notification."""
-        idem_key = (
-            f"notification:{event_type}:{aggregate_type}:"
-            f"{aggregate_id}:{outbox_event_id}"
-        )
+        idem_key = f"notification:{event_type}:{aggregate_type}:{aggregate_id}:{outbox_event_id}"
         title = payload.get("notification_title", event_type)
         body = payload.get("notification_body", f"Event: {event_type}")
 
@@ -272,9 +259,7 @@ class OrchestrationService:
             subject = variables.get("subject")
             return subject, body
 
-        version = await self.template_repo.get_version(
-            template.active_version_id
-        )
+        version = await self.template_repo.get_version(template.active_version_id)
         if version is None:
             body = variables.get("body", "")
             subject = variables.get("subject")
@@ -315,9 +300,7 @@ class OrchestrationService:
             enquiry_id=_parse_uuid(payload.get("enquiry_id")),
             quote_id=_parse_uuid(payload.get("quote_id")),
             booking_id=_parse_uuid(payload.get("booking_id")),
-            service_execution_id=_parse_uuid(
-                payload.get("service_execution_id")
-            ),
+            service_execution_id=_parse_uuid(payload.get("service_execution_id")),
             invoice_id=_parse_uuid(payload.get("invoice_id")),
         )
         communication = await self.comm_repo.create(communication)
@@ -366,9 +349,7 @@ class OrchestrationService:
         await self.session.flush()
 
         # Audit
-        audit_event_type = (
-            "COMMUNICATION_SENT" if result.success else "COMMUNICATION_FAILED"
-        )
+        audit_event_type = "COMMUNICATION_SENT" if result.success else "COMMUNICATION_FAILED"
         audit = CommunicationAuditEvent(
             event_type=audit_event_type,
             business_id=business_id,
@@ -455,9 +436,7 @@ class OrchestrationService:
             "ESCALATE": "COMMUNICATION_DEFERRED",
         }
         audit = CommunicationAuditEvent(
-            event_type=event_type_map.get(
-                decision.decision, "COMMUNICATION_DENIED"
-            ),
+            event_type=event_type_map.get(decision.decision, "COMMUNICATION_DENIED"),
             business_id=business_id,
             customer_id=customer_id,
             channel=channel,
@@ -474,6 +453,7 @@ def _render_template(template: str, variables: dict) -> str:
     Replaces {{ variable_name }} with the corresponding value
     from the variables dict.  Unknown variables are left as-is.
     """
+
     def replacer(match: re.Match) -> str:
         var_name = match.group(1)
         value = variables.get(var_name)

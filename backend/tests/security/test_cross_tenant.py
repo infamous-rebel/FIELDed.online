@@ -6,7 +6,6 @@ Verifies that users cannot access each other's data.
 from __future__ import annotations
 
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
 
 
@@ -14,9 +13,7 @@ class TestCrossTenantIsolation:
     """Test that tenant isolation is enforced."""
 
     @pytest.mark.asyncio
-    async def test_user_cannot_see_other_user_profile(
-        self, client: AsyncClient, auth_headers
-    ):
+    async def test_user_cannot_see_other_user_profile(self, client: AsyncClient, auth_headers):
         """A user's /me endpoint only returns their own data."""
         response = await client.get("/api/v1/auth/me", headers=auth_headers)
         assert response.status_code == 200

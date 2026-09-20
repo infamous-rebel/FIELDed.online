@@ -23,7 +23,7 @@ from app.domain.ledger.schemas import (
     LedgerSummaryRead,
 )
 from app.domain.ledger.service import LedgerService
-from app.security.authorization import get_current_user, require_business_member
+from app.security.authorization import require_business_member
 
 router = APIRouter()
 
@@ -80,9 +80,7 @@ async def get_ledger_summary(
 ) -> LedgerSummaryRead:
     """Get ledger summary/totals for a business."""
     service = LedgerService(db)
-    summary = await service.get_summary(
-        business_id, date_from=date_from, date_to=date_to
-    )
+    summary = await service.get_summary(business_id, date_from=date_from, date_to=date_to)
     return LedgerSummaryRead(**summary)
 
 

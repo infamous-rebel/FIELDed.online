@@ -25,20 +25,19 @@ import uuid
 from typing import Any
 from urllib.parse import urlencode
 
-import pytest
 import pytest_asyncio
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.ai.base import AIProvider, AIResponse
+from app.adapters.common import ProviderResult
+from app.adapters.voice.base import VoiceCallRequest, VoiceProvider
 from app.adapters.voice.twilio_security import verify_twilio_signature
-from app.domain.common.enums import CallPurpose, CallStatus
+from app.domain.common.enums import CallPurpose
 from app.domain.identity.models import Business, User
 from app.domain.voice.agent import AGENT_DECISION_SCHEMA, VoiceCallAgent
 from app.domain.voice.models import CallAgentConfiguration, VoiceCall
 from app.domain.voice.provider_service import VoiceProviderOrchestrationService
 from app.domain.voice.repository import (
-    VoiceCallRepository,
     VoiceCallSessionRepository,
 )
 from app.domain.voice.service import VoiceCallLifecycleService
@@ -49,13 +48,8 @@ from app.domain.voice.twiml import (
     retry_gather_response,
     say_and_hangup_response,
 )
-from app.exceptions import DomainError, StateTransitionError
 from app.security.password import hash_password
 from tests.factories import business_factory, business_member_factory
-
-from app.adapters.common import ProviderResult
-from app.adapters.voice.base import VoiceCallRequest, VoiceProvider
-
 
 PROVIDER = "stub"
 
@@ -167,7 +161,7 @@ async def _make_brain_with_voice_agent(
     business_id: uuid.UUID,
 ) -> Any:
     """Create an ACTIVE BrainVersion with voice_agent governance."""
-    from app.domain.business.models import BusinessBrain, BrainVersion
+    from app.domain.business.models import BrainVersion, BusinessBrain
 
     brain = BusinessBrain(business_id=business_id)
     db_session.add(brain)
@@ -201,7 +195,7 @@ async def _connected_call(
     provider_ref: str | None = None,
 ) -> VoiceCall:
     """Create a call and drive it to CONNECTED with an active session."""
-    config = await _make_config(db_session, biz.id)
+    _config = await _make_config(db_session, biz.id)
     await _make_brain_with_voice_agent(db_session, biz.id)
     lifecycle = VoiceCallLifecycleService(db_session)
 
@@ -237,9 +231,7 @@ class TestTwilioSignatureVerification:
         """Compute a valid Twilio signature for testing."""
         data = url + urlencode(sorted(params.items()))
         return base64.b64encode(
-            hmac.new(
-                self.AUTH_TOKEN.encode(), data.encode(), hashlib.sha256
-            ).digest()
+            hmac.new(self.AUTH_TOKEN.encode(), data.encode(), hashlib.sha256).digest()
         ).decode()
 
     def test_valid_signature_accepted(self):
@@ -345,9 +337,7 @@ class TestTwiMLWebhookEndpoint:
         self, db_session: AsyncSession, biz: Business, client
     ):
         """Initial TwiML webhook returns valid Gather TwiML."""
-        call = await _connected_call(
-            db_session, biz, provider_ref=f"CA{uuid.uuid4().hex[:24]}"
-        )
+        call = await _connected_call(db_session, biz, provider_ref=f"CA{uuid.uuid4().hex[:24]}")
 
         response = await client.post(
             f"/api/v1/webhooks/voice/twilio/twiml/{call.id}",
@@ -364,9 +354,7 @@ class TestTwiMLWebhookEndpoint:
         self, db_session: AsyncSession, biz: Business, client
     ):
         """A completed call should get a Hangup response."""
-        call = await _connected_call(
-            db_session, biz, provider_ref=f"CA{uuid.uuid4().hex[:24]}"
-        )
+        call = await _connected_call(db_session, biz, provider_ref=f"CA{uuid.uuid4().hex[:24]}")
         lifecycle = VoiceCallLifecycleService(db_session)
         call = await lifecycle.complete_call(call, reason="test")
 
@@ -396,15 +384,11 @@ class TestGatherCallbackEndpoint:
         self, db_session: AsyncSession, biz: Business, client, monkeypatch
     ):
         """Gather callback processes transcript and returns Say + Gather."""
-        call = await _connected_call(
-            db_session, biz, provider_ref=f"CA{uuid.uuid4().hex[:24]}"
-        )
+        call = await _connected_call(db_session, biz, provider_ref=f"CA{uuid.uuid4().hex[:24]}")
 
         # Patch the AI provider resolver so the endpoint uses our stub
         ai = StubConversationalAI()
-        monkeypatch.setattr(
-            "app.adapters._resolve_ai_provider", lambda settings: ai
-        )
+        monkeypatch.setattr("app.adapters._resolve_ai_provider", lambda settings: ai)
 
         # Start the agent session first (simulating the initial TwiML)
         agent = VoiceCallAgent(db_session, ai)
@@ -428,9 +412,7 @@ class TestGatherCallbackEndpoint:
         self, db_session: AsyncSession, biz: Business, client
     ):
         """Empty speech result returns a retry prompt, no LLM call."""
-        call = await _connected_call(
-            db_session, biz, provider_ref=f"CA{uuid.uuid4().hex[:24]}"
-        )
+        call = await _connected_call(db_session, biz, provider_ref=f"CA{uuid.uuid4().hex[:24]}")
 
         # Start session
         ai = StubConversationalAI()
@@ -450,9 +432,7 @@ class TestGatherCallbackEndpoint:
         self, db_session: AsyncSession, biz: Business, client
     ):
         """Gather on a completed call returns Hangup."""
-        call = await _connected_call(
-            db_session, biz, provider_ref=f"CA{uuid.uuid4().hex[:24]}"
-        )
+        call = await _connected_call(db_session, biz, provider_ref=f"CA{uuid.uuid4().hex[:24]}")
         lifecycle = VoiceCallLifecycleService(db_session)
         call = await lifecycle.complete_call(call, reason="test")
 
@@ -474,9 +454,7 @@ class TestCrossTenantIsolation:
         self, db_session: AsyncSession, biz: Business, other_biz: Business, client
     ):
         """A CallSid belonging to a different business cannot access this call."""
-        call = await _connected_call(
-            db_session, biz, provider_ref=f"CA{uuid.uuid4().hex[:24]}"
-        )
+        call = await _connected_call(db_session, biz, provider_ref=f"CA{uuid.uuid4().hex[:24]}")
         # Start session
         ai = StubConversationalAI()
         agent = VoiceCallAgent(db_session, ai)
@@ -507,9 +485,7 @@ class TestIdempotency:
         self, db_session: AsyncSession, biz: Business, client
     ):
         """Two TwiML webhooks for the same call should not create two sessions."""
-        call = await _connected_call(
-            db_session, biz, provider_ref=f"CA{uuid.uuid4().hex[:24]}"
-        )
+        call = await _connected_call(db_session, biz, provider_ref=f"CA{uuid.uuid4().hex[:24]}")
 
         # First request creates the session
         r1 = await client.post(
@@ -534,11 +510,9 @@ class TestIdempotency:
 class TestTwilioURLConstruction:
     """TwiML URL is passed to the Twilio adapter."""
 
-    async def test_initiate_call_includes_twiml_url(
-        self, db_session: AsyncSession, biz: Business
-    ):
+    async def test_initiate_call_includes_twiml_url(self, db_session: AsyncSession, biz: Business):
         """The provider receives the TwiML URL as callback_url."""
-        config = await _make_config(db_session, biz.id)
+        _config = await _make_config(db_session, biz.id)
         lifecycle = VoiceCallLifecycleService(db_session)
         call = await lifecycle.request_call(
             business_id=biz.id,

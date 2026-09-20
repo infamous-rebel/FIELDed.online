@@ -1,7 +1,5 @@
 """Unit tests for Service Offer lifecycle state machine."""
 
-import pytest
-
 from app.domain.common.enums import (
     SERVICE_OFFER_TRANSITIONS,
     ServiceOfferStatus,

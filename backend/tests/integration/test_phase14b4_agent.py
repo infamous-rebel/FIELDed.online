@@ -482,9 +482,7 @@ class TestAgentTurns:
 
     async def test_max_turns_forces_handoff_without_ai(self, db_session, biz_a):
         call, _, _ = await connected_call(db_session, biz_a)
-        await make_brain(
-            db_session, biz_a, voice_agent={**VOICE_AGENT_CONFIG, "max_turns": 2}
-        )
+        await make_brain(db_session, biz_a, voice_agent={**VOICE_AGENT_CONFIG, "max_turns": 2})
         ai = StubAIProvider()
         agent = agent_for(db_session, ai)
         await agent.begin(call)

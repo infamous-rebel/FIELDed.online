@@ -48,9 +48,7 @@ class ResendEmailProvider(EmailProvider):
         """
         from_address = message.from_address or self._from_address
 
-        recipients = (
-            message.to if isinstance(message.to, list) else [message.to]
-        )
+        recipients = message.to if isinstance(message.to, list) else [message.to]
 
         payload: dict = {
             "from": from_address,
@@ -74,9 +72,7 @@ class ResendEmailProvider(EmailProvider):
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    self._api_url, json=payload, headers=headers
-                )
+                response = await client.post(self._api_url, json=payload, headers=headers)
 
             if response.status_code == 201 or response.status_code == 200:
                 data = response.json()

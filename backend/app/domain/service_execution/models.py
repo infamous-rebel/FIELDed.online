@@ -84,15 +84,9 @@ class ServiceExecution(BaseModel):
     )  # ServiceExecutionStatus enum value
 
     # Timestamps for service delivery
-    scheduled_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    started_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Completion actor — who marked the service as completed
     completed_by: Mapped[uuid.UUID | None] = mapped_column(
@@ -108,14 +102,14 @@ class ServiceExecution(BaseModel):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
-    business: Mapped["Business"] = relationship(foreign_keys=[business_id])
-    customer: Mapped["User"] = relationship(foreign_keys=[customer_id])
-    booking: Mapped["Booking"] = relationship(foreign_keys=[booking_id])
-    service_offer: Mapped["ServiceOffer"] = relationship(foreign_keys=[service_offer_id])
-    quote: Mapped["Quote | None"] = relationship(foreign_keys=[quote_id])
-    invoices: Mapped[list["Invoice"]] = relationship(
+    business: Mapped[Business] = relationship(foreign_keys=[business_id])
+    customer: Mapped[User] = relationship(foreign_keys=[customer_id])
+    booking: Mapped[Booking] = relationship(foreign_keys=[booking_id])
+    service_offer: Mapped[ServiceOffer] = relationship(foreign_keys=[service_offer_id])
+    quote: Mapped[Quote | None] = relationship(foreign_keys=[quote_id])
+    invoices: Mapped[list[Invoice]] = relationship(
         back_populates="service_execution", cascade="all, delete-orphan"
     )
-    ledger_entries: Mapped[list["ServiceLedgerEntry"]] = relationship(
+    ledger_entries: Mapped[list[ServiceLedgerEntry]] = relationship(
         back_populates="service_execution", cascade="all, delete-orphan"
     )

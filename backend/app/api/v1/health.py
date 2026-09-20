@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncEngine
+from fastapi import APIRouter
 
 from app.database import check_db_health, get_engine
 

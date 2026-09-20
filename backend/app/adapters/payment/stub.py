@@ -43,9 +43,7 @@ class StubPaymentProvider(PaymentProvider):
             },
         )
 
-    async def verify_payment_status(
-        self, provider_payment_reference: str
-    ) -> ProviderResult:
+    async def verify_payment_status(self, provider_payment_reference: str) -> ProviderResult:
         """Simulate status verification — always returns succeeded."""
         return ProviderResult.ok(
             provider_reference=provider_payment_reference,
@@ -63,9 +61,7 @@ class StubPaymentProvider(PaymentProvider):
             },
         )
 
-    async def verify_webhook_signature(
-        self, payload: bytes, signature: str, secret: str
-    ) -> bool:
+    async def verify_webhook_signature(self, payload: bytes, signature: str, secret: str) -> bool:
         """Stub always returns True (no real signature to verify)."""
         return True
 
@@ -74,7 +70,9 @@ class StubPaymentProvider(PaymentProvider):
         return WebhookEvent(
             event_type=payload.get("type", "payment_intent.succeeded"),
             provider_event_id=payload.get("id", f"evt_{uuid.uuid4().hex[:16]}"),
-            provider_payment_reference=payload.get("payment_intent", f"stub_pi_{uuid.uuid4().hex[:24]}"),
+            provider_payment_reference=payload.get(
+                "payment_intent", f"stub_pi_{uuid.uuid4().hex[:24]}"
+            ),
             amount=Decimal(str(payload["amount"])) if "amount" in payload else None,
             currency=payload.get("currency"),
             status=payload.get("status", "succeeded"),

@@ -9,16 +9,11 @@ from __future__ import annotations
 import uuid
 
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.domain.identity.models import Business, BusinessMember, User
-from app.domain.identity.token_models import MemberInvitation
 from sqlalchemy import select
+
+from app.domain.identity.token_models import MemberInvitation
 from tests.factories import (
-    business_factory,
-    business_member_factory,
     customer_profile_factory,
     user_factory,
 )
@@ -42,7 +37,9 @@ class TestBusinessCreation:
         assert data["status"] == "pending"
 
     @pytest.mark.asyncio
-    async def test_create_business_duplicate_slug(self, client: AsyncClient, test_user, auth_headers):
+    async def test_create_business_duplicate_slug(
+        self, client: AsyncClient, test_user, auth_headers
+    ):
         """Cannot create two businesses with the same slug."""
         await client.post(
             "/api/v1/businesses",
@@ -147,7 +144,9 @@ class TestBusinessMembership:
         assert response.json()["role"] == "staff"
 
     @pytest.mark.asyncio
-    async def test_add_duplicate_member_fails(self, client: AsyncClient, test_user, second_user, auth_headers):
+    async def test_add_duplicate_member_fails(
+        self, client: AsyncClient, test_user, second_user, auth_headers
+    ):
         """Cannot add the same member twice."""
         create_resp = await client.post(
             "/api/v1/businesses",
@@ -405,9 +404,7 @@ class TestMemberInvitations:
 
         # Token is delivered by email — read it from the same transaction
         result = await db_session.execute(
-            select(MemberInvitation).where(
-                MemberInvitation.business_id == uuid.UUID(biz_id)
-            )
+            select(MemberInvitation).where(MemberInvitation.business_id == uuid.UUID(biz_id))
         )
         invitation = result.scalar_one()
 
@@ -440,9 +437,7 @@ class TestMemberInvitations:
         assert invite_resp.status_code == 201
 
         result = await db_session.execute(
-            select(MemberInvitation).where(
-                MemberInvitation.business_id == uuid.UUID(biz_id)
-            )
+            select(MemberInvitation).where(MemberInvitation.business_id == uuid.UUID(biz_id))
         )
         invitation = result.scalar_one()
 
@@ -479,9 +474,7 @@ class TestMemberInvitations:
         assert "already been used" in response.text
 
         # Business now lists two members
-        members = await client.get(
-            f"/api/v1/businesses/{biz_id}/members", headers=auth_headers
-        )
+        members = await client.get(f"/api/v1/businesses/{biz_id}/members", headers=auth_headers)
         assert len(members.json()) == 2
 
     @pytest.mark.asyncio
@@ -521,12 +514,8 @@ class TestMemberInvitations:
         assert response.json()["role"] == "admin"
 
         # Owner cannot demote themselves (last owner)
-        members = await client.get(
-            f"/api/v1/businesses/{biz_id}/members", headers=auth_headers
-        )
-        owner_member = next(
-            m for m in members.json() if m["role"] == "owner"
-        )
+        members = await client.get(f"/api/v1/businesses/{biz_id}/members", headers=auth_headers)
+        owner_member = next(m for m in members.json() if m["role"] == "owner")
         response = await client.patch(
             f"/api/v1/businesses/{biz_id}/members/{owner_member['id']}",
             headers=auth_headers,
@@ -568,18 +557,12 @@ class TestMemberInvitations:
         assert response.status_code == 200
 
         # Member no longer listed
-        members = await client.get(
-            f"/api/v1/businesses/{biz_id}/members", headers=auth_headers
-        )
+        members = await client.get(f"/api/v1/businesses/{biz_id}/members", headers=auth_headers)
         assert all(m["id"] != member_id for m in members.json())
 
         # Owner cannot remove themselves (and is the last owner)
-        members = await client.get(
-            f"/api/v1/businesses/{biz_id}/members", headers=auth_headers
-        )
-        owner_member = next(
-            m for m in members.json() if m["role"] == "owner"
-        )
+        members = await client.get(f"/api/v1/businesses/{biz_id}/members", headers=auth_headers)
+        owner_member = next(m for m in members.json() if m["role"] == "owner")
         response = await client.delete(
             f"/api/v1/businesses/{biz_id}/members/{owner_member['id']}",
             headers=auth_headers,
@@ -602,7 +585,7 @@ class TestMemberInvitations:
             json={"name": "Biz B", "slug": "tenant-b-biz"},
         )
         biz_a = resp_a.json()["id"]
-        biz_b = resp_b.json()["id"]
+        _biz_b = resp_b.json()["id"]
 
         # B's owner cannot invite into A
         response = await client.post(
@@ -620,9 +603,7 @@ class TestMemberInvitations:
         assert response.status_code == 403
 
         # B's owner cannot change/remove A's members
-        members_a = await client.get(
-            f"/api/v1/businesses/{biz_a}/members", headers=auth_headers
-        )
+        members_a = await client.get(f"/api/v1/businesses/{biz_a}/members", headers=auth_headers)
         a_member_id = members_a.json()[0]["id"]
 
         response = await client.patch(

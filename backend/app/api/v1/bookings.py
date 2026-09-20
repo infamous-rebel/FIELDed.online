@@ -12,14 +12,15 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adapters.payment.stub import StubPaymentProvider
 from app.database import get_db_session
 from app.domain.booking.schemas import (
     AvailabilityCheckRequest,
     AvailabilityCheckResponse,
     BookingCreate,
-    BookingListRead,
     BookingRead,
     BookingTransitionRequest,
 )
@@ -32,18 +33,14 @@ from app.domain.payment.schemas import PaymentRead
 from app.domain.payment.service import PaymentService
 from app.domain.service_execution.repository import ServiceExecutionRepository
 from app.exceptions import NotFoundError, ValidationError
-from app.security.authorization import get_current_user, require_business_member, require_customer
-
-from pydantic import BaseModel, Field
-from app.adapters.payment.base import PaymentProvider
-from app.adapters.payment.stub import StubPaymentProvider
-
+from app.security.authorization import require_business_member, require_customer
 
 router = APIRouter()
 
 
 class CustomerPayRequest(BaseModel):
     """Request schema for customer payment against a booking."""
+
     payment_method: str = Field("card", description="Payment method type")
     idempotency_key: str = Field(..., description="Client-generated idempotency key")
 
@@ -233,9 +230,7 @@ async def pay_my_booking(
     invoice_repo = InvoiceRepository(db)
     invoice = await invoice_repo.get_by_service_execution_id(execution.id)
     if invoice is None:
-        raise ValidationError(
-            "Payment not yet available — service must be completed first"
-        )
+        raise ValidationError("Payment not yet available — service must be completed first")
 
     # 4. Create payment via existing PaymentService
     provider = StubPaymentProvider()
@@ -261,9 +256,7 @@ async def pay_my_booking(
     from sqlalchemy.orm import selectinload
 
     result = await db.execute(
-        select(Payment)
-        .where(Payment.id == payment.id)
-        .options(selectinload(Payment.attempts))
+        select(Payment).where(Payment.id == payment.id).options(selectinload(Payment.attempts))
     )
     payment = result.scalar_one()
     return PaymentRead.model_validate(payment)

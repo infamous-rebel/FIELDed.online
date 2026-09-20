@@ -20,10 +20,10 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 
-from app.domain.business.evaluator import BrainEvaluator, ConditionEvaluator, DecisionContext
+from app.domain.business.evaluator import ConditionEvaluator, DecisionContext
 from app.domain.business.models import BrainVersion, BusinessRule
 from app.domain.services.models import ServiceOffer
 from app.logging import get_logger
@@ -36,6 +36,7 @@ TWO_PLACES = Decimal("0.01")
 @dataclass
 class PricingResult:
     """Result of a deterministic pricing evaluation."""
+
     amount: Decimal
     currency: str
     base_amount: Decimal
@@ -105,7 +106,9 @@ class PricingEngine:
 
         # 1. Resolve base amount
         base_amount, currency = self._resolve_base_amount(
-            pricing_model, pricing_config, business_currency,
+            pricing_model,
+            pricing_config,
+            business_currency,
         )
 
         # Track applied rules
@@ -121,7 +124,8 @@ class PricingEngine:
 
         if brain_version is not None and context is not None:
             pricing_rules = [
-                r for r in (brain_version.rules or [])
+                r
+                for r in (brain_version.rules or [])
                 if r.rule_type in _PRICING_RULE_TYPES and r.is_active
             ]
 
@@ -136,8 +140,11 @@ class PricingEngine:
 
                     applied_rules.append(rule.id)
                     action = self._apply_pricing_rule(
-                        rule, rule_data, base_amount,
-                        surcharges, discounts,
+                        rule,
+                        rule_data,
+                        base_amount,
+                        surcharges,
+                        discounts,
                     )
 
                     if action == "floor":
@@ -287,23 +294,27 @@ class PricingEngine:
         if rule_type == "surcharge":
             amount = self._calculate_surcharge(rule_data, base_amount)
             if amount > Decimal("0"):
-                surcharges.append({
-                    "rule_id": str(rule.id),
-                    "name": rule_data.get("surcharge_name", rule.name),
-                    "amount": str(amount),
-                    "reason": rule_data.get("reason", ""),
-                })
+                surcharges.append(
+                    {
+                        "rule_id": str(rule.id),
+                        "name": rule_data.get("surcharge_name", rule.name),
+                        "amount": str(amount),
+                        "reason": rule_data.get("reason", ""),
+                    }
+                )
             return "surcharge"
 
         if rule_type == "discount":
             amount = self._calculate_discount(rule_data, base_amount)
             if amount > Decimal("0"):
-                discounts.append({
-                    "rule_id": str(rule.id),
-                    "name": rule_data.get("discount_name", rule.name),
-                    "amount": str(amount),
-                    "reason": rule_data.get("reason", ""),
-                })
+                discounts.append(
+                    {
+                        "rule_id": str(rule.id),
+                        "name": rule_data.get("discount_name", rule.name),
+                        "amount": str(amount),
+                        "reason": rule_data.get("reason", ""),
+                    }
+                )
             return "discount"
 
         if rule_type == "price_floor":
@@ -321,9 +332,7 @@ class PricingEngine:
 
         return "unknown"
 
-    def _calculate_surcharge(
-        self, rule_data: dict[str, Any], base_amount: Decimal
-    ) -> Decimal:
+    def _calculate_surcharge(self, rule_data: dict[str, Any], base_amount: Decimal) -> Decimal:
         """Calculate a surcharge amount."""
         # Percentage-based surcharge
         percentage = self._to_decimal(rule_data.get("percentage"))
@@ -336,9 +345,7 @@ class PricingEngine:
         amount = self._to_decimal(rule_data.get("amount"))
         return amount or Decimal("0")
 
-    def _calculate_discount(
-        self, rule_data: dict[str, Any], base_amount: Decimal
-    ) -> Decimal:
+    def _calculate_discount(self, rule_data: dict[str, Any], base_amount: Decimal) -> Decimal:
         """Calculate a discount amount, respecting max_discount."""
         amount = Decimal("0")
 
@@ -377,15 +384,17 @@ class PricingEngine:
 
 
 # Pricing rule types recognized by the engine
-_PRICING_RULE_TYPES = frozenset({
-    "base_pricing",
-    "surcharge",
-    "discount",
-    "price_floor",
-    "price_cap",
-    "quote_threshold",
-    "payment_terms",
-})
+_PRICING_RULE_TYPES = frozenset(
+    {
+        "base_pricing",
+        "surcharge",
+        "discount",
+        "price_floor",
+        "price_cap",
+        "quote_threshold",
+        "payment_terms",
+    }
+)
 
 
 # Module-level convenience instance

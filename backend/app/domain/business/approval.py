@@ -19,13 +19,14 @@ from typing import Any
 
 from app.domain.common.enums import BusinessMemberRole
 
-
 # ---------------------------------------------------------------------------
 # Approval decision
 # ---------------------------------------------------------------------------
 
+
 class ApprovalDecision(StrEnum):
     """Outcome of an approval check."""
+
     APPROVED = "approved"
     DENIED = "denied"
     SELF_APPROVAL_NOT_PERMITTED = "self_approval_not_permitted"
@@ -36,6 +37,7 @@ class ApprovalDecision(StrEnum):
 # ---------------------------------------------------------------------------
 # Approval policy
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class ApprovalPolicy:
@@ -54,6 +56,7 @@ class ApprovalPolicy:
         approval_timeout_hours: Hours before a pending approval is
             considered timed out.  None = no timeout.
     """
+
     self_approval_allowed: bool = True
     minimum_approver_role: BusinessMemberRole = BusinessMemberRole.OWNER
     required_approvals: int = 1
@@ -90,9 +93,12 @@ class ApprovalPolicy:
 
         # Determine required role (elevated for sensitive rules)
         required_role = self.minimum_approver_role
-        if rule_types and self.sensitive_rule_types:
-            if any(rt in self.sensitive_rule_types for rt in rule_types):
-                required_role = self.sensitive_approver_role
+        if (
+            rule_types
+            and self.sensitive_rule_types
+            and any(rt in self.sensitive_rule_types for rt in rule_types)
+        ):
+            required_role = self.sensitive_approver_role
 
         required_level = role_levels.get(required_role, 0)
         if approver_level < required_level:
@@ -136,11 +142,17 @@ ENTERPRISE_APPROVAL_POLICY = ApprovalPolicy(
     self_approval_allowed=False,
     minimum_approver_role=BusinessMemberRole.ADMIN,
     required_approvals=2,
-    sensitive_rule_types=frozenset({
-        "base_pricing", "surcharge", "discount",
-        "price_floor", "price_cap", "cancellation_policy",
-        "refund_policy",
-    }),
+    sensitive_rule_types=frozenset(
+        {
+            "base_pricing",
+            "surcharge",
+            "discount",
+            "price_floor",
+            "price_cap",
+            "cancellation_policy",
+            "refund_policy",
+        }
+    ),
     sensitive_approver_role=BusinessMemberRole.OWNER,
 )
 
@@ -148,6 +160,7 @@ ENTERPRISE_APPROVAL_POLICY = ApprovalPolicy(
 # ---------------------------------------------------------------------------
 # Policy resolution
 # ---------------------------------------------------------------------------
+
 
 def resolve_approval_policy(
     business_config: dict[str, Any] | None = None,
@@ -171,9 +184,7 @@ def resolve_approval_policy(
     # Future: read from business_config or database
     # For now, allow basic overrides from config
     return ApprovalPolicy(
-        self_approval_allowed=business_config.get(
-            "self_approval_allowed", True
-        ),
+        self_approval_allowed=business_config.get("self_approval_allowed", True),
         minimum_approver_role=BusinessMemberRole(
             business_config.get("minimum_approver_role", "owner")
         ),

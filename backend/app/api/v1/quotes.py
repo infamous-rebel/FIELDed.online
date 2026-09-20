@@ -16,15 +16,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db_session
 from app.domain.common.enums import QuoteStatus
-from app.domain.identity.models import BusinessMember, User
+from app.domain.identity.models import User
 from app.domain.quote.schemas import (
     QuoteCreate,
-    QuoteListRead,
     QuoteRead,
     QuoteTransitionRequest,
 )
 from app.domain.quote.service import QuoteService
-from app.security.authorization import get_current_user, require_business_member, require_customer
+from app.security.authorization import require_business_member, require_customer
 
 router = APIRouter()
 
@@ -134,9 +133,7 @@ async def list_my_quotes(
 ) -> list[QuoteRead]:
     """List all quotes for the authenticated customer."""
     service = QuoteService(db)
-    quotes = await service.list_customer_quotes(
-        user.id, status=status, limit=limit, offset=offset
-    )
+    quotes = await service.list_customer_quotes(user.id, status=status, limit=limit, offset=offset)
     return [_quote_to_read(q) for q in quotes]
 
 

@@ -14,6 +14,7 @@ from typing import Any
 @dataclass
 class AIResponse:
     """Structured response from an AI provider."""
+
     content: str
     model: str
     usage: dict[str, int] | None = None

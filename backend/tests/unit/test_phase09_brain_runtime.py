@@ -22,8 +22,6 @@ import uuid
 from types import SimpleNamespace
 from typing import Any
 
-import pytest
-
 from app.domain.business.evaluator import (
     BrainDecision,
     BrainDecisionOutcome,
@@ -34,10 +32,10 @@ from app.domain.business.evaluator import (
     RuleConflict,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_rule(
     *,
@@ -92,6 +90,7 @@ def _make_context(
 # ===================================================================
 # ConditionEvaluator — operator tests
 # ===================================================================
+
 
 class TestConditionEvaluator:
     """Test all condition operators against the transaction context."""
@@ -307,9 +306,11 @@ class TestConditionEvaluator:
     # --- nested field resolution ---
 
     def test_nested_field(self) -> None:
-        ctx = _make_context(context_data={
-            "service_offer": {"pricing_model": "fixed"},
-        })
+        ctx = _make_context(
+            context_data={
+                "service_offer": {"pricing_model": "fixed"},
+            }
+        )
         assert self.eval.evaluate(
             [{"field": "service_offer.pricing_model", "operator": "equals", "value": "fixed"}],
             ctx,
@@ -329,8 +330,8 @@ class TestConditionEvaluator:
 # ConditionEvaluator — required field detection
 # ===================================================================
 
-class TestConditionEvaluatorRequiredFields:
 
+class TestConditionEvaluatorRequiredFields:
     def setup_method(self) -> None:
         self.eval = ConditionEvaluator()
 
@@ -358,6 +359,7 @@ class TestConditionEvaluatorRequiredFields:
 # BrainEvaluator — decision resolution
 # ===================================================================
 
+
 class TestBrainEvaluator:
     """Test the full evaluation pipeline."""
 
@@ -379,7 +381,9 @@ class TestBrainEvaluator:
 
     def test_single_allow_rule(self) -> None:
         rule = _make_rule(
-            conditions=[{"field": "service_offer.pricing_model", "operator": "equals", "value": "fixed"}],
+            conditions=[
+                {"field": "service_offer.pricing_model", "operator": "equals", "value": "fixed"}
+            ],
             actions=[{"outcome": "allow"}],
         )
         version = _make_version(rules=[rule])
@@ -394,7 +398,9 @@ class TestBrainEvaluator:
     def test_deny_rule_blocks(self) -> None:
         rule = _make_rule(
             name="No hourly enquiries",
-            conditions=[{"field": "service_offer.pricing_model", "operator": "equals", "value": "hourly"}],
+            conditions=[
+                {"field": "service_offer.pricing_model", "operator": "equals", "value": "hourly"}
+            ],
             actions=[{"outcome": "deny"}],
         )
         version = _make_version(rules=[rule])
@@ -533,12 +539,16 @@ class TestBrainEvaluator:
         # Should not raise
         decision = self.evaluator.evaluate(version, ctx)
         # The rule either fails to match or is skipped
-        assert decision.decision in (BrainDecisionOutcome.ALLOW, BrainDecisionOutcome.NEEDS_INFORMATION)
+        assert decision.decision in (
+            BrainDecisionOutcome.ALLOW,
+            BrainDecisionOutcome.NEEDS_INFORMATION,
+        )
 
 
 # ===================================================================
 # BrainDecision — serialization / decision contract
 # ===================================================================
+
 
 class TestBrainDecisionContract:
     """Verify the decision contract structure."""
@@ -593,7 +603,9 @@ class TestBrainDecisionContract:
         d_deny = BrainDecision(decision=BrainDecisionOutcome.DENY, brain_version_id=None)
         assert d_deny.is_denied
 
-        d_appr = BrainDecision(decision=BrainDecisionOutcome.REQUIRE_APPROVAL, brain_version_id=None)
+        d_appr = BrainDecision(
+            decision=BrainDecisionOutcome.REQUIRE_APPROVAL, brain_version_id=None
+        )
         assert d_appr.requires_approval
 
         d_esc = BrainDecision(decision=BrainDecisionOutcome.ESCALATE, brain_version_id=None)
@@ -622,8 +634,8 @@ class TestBrainDecisionContract:
 # DecisionContext
 # ===================================================================
 
-class TestDecisionContext:
 
+class TestDecisionContext:
     def test_get_value_simple(self) -> None:
         ctx = _make_context(context_data={"foo": "bar"})
         assert ctx.get_value("foo") == "bar"
@@ -645,8 +657,8 @@ class TestDecisionContext:
 # Conflict detection
 # ===================================================================
 
-class TestConflictDetection:
 
+class TestConflictDetection:
     def setup_method(self) -> None:
         self.evaluator = BrainEvaluator()
 
@@ -709,6 +721,7 @@ class TestConflictDetection:
 # Historical BrainVersion linkage
 # ===================================================================
 
+
 class TestHistoricalLinkage:
     """Verify that the decision carries the brain_version_id."""
 
@@ -731,6 +744,7 @@ class TestHistoricalLinkage:
 # ===================================================================
 # Tenant isolation — evaluation boundary
 # ===================================================================
+
 
 class TestTenantIsolation:
     """Verify that evaluation is scoped to a specific business context."""
@@ -784,6 +798,7 @@ class TestTenantIsolation:
 # Authorization — brain evaluation requires valid business context
 # ===================================================================
 
+
 class TestAuthorizationBoundary:
     """Verify that the evaluator handles edge cases defensively."""
 
@@ -813,6 +828,7 @@ class TestAuthorizationBoundary:
 # ===================================================================
 # Failure behaviour
 # ===================================================================
+
 
 class TestFailureBehaviour:
     """Verify explicit handling of failure scenarios.
@@ -858,6 +874,7 @@ class TestFailureBehaviour:
 # ===================================================================
 # Integration: qualification rule scenario
 # ===================================================================
+
 
 class TestQualificationScenario:
     """End-to-end scenario: qualification rules governing enquiry creation."""
@@ -948,10 +965,12 @@ class TestQualificationScenario:
             actions=[{"outcome": "allow"}],
         )
         version = _make_version(rules=[qual_rule, pricing_rule])
-        ctx = _make_context(context_data={
-            "customer_status": "active",
-            "service_offer": {"pricing_model": "fixed"},
-        })
+        ctx = _make_context(
+            context_data={
+                "customer_status": "active",
+                "service_offer": {"pricing_model": "fixed"},
+            }
+        )
         evaluator = BrainEvaluator()
         decision = evaluator.evaluate(version, ctx)
         assert decision.is_allowed
@@ -961,6 +980,7 @@ class TestQualificationScenario:
 # ===================================================================
 # Regression: runtime safety (Phase 09 correction)
 # ===================================================================
+
 
 class TestRuntimeSafetyRegression:
     """Regression tests proving the Phase 09 safety corrections hold.

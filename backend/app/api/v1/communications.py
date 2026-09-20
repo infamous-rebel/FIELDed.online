@@ -11,9 +11,8 @@ Webhook endpoints use provider signature verification.
 from __future__ import annotations
 
 import hashlib
-import hmac
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -48,15 +47,14 @@ from app.domain.communication.schemas import (
     OptInRequest,
     OptOutRequest,
 )
+from app.domain.identity.models import User
 from app.domain.notification.schemas import (
     NotificationListRead,
     NotificationRead,
     UnreadCountResponse,
 )
-from app.domain.identity.models import User
 from app.domain.outbox.models import OutboxEvent
 from app.security.authorization import (
-    get_current_user,
     require_business_member,
     require_customer,
 )
@@ -455,17 +453,15 @@ async def upsert_channel_config(
             aggregate_id=result.id,
             payload={
                 "notification_title": "Communication settings updated",
-                "notification_body": (
-                    f"Channel '{channel}' configuration was updated."
-                ),
+                "notification_body": (f"Channel '{channel}' configuration was updated."),
                 "config": {"channel": channel, "enabled": result.enabled},
             },
             idempotency_key=(
                 f"COMMUNICATION_CONFIG_UPDATED:communication_channel_config:"
-                f"{result.id}:{int(datetime.now(timezone.utc).timestamp())}"
+                f"{result.id}:{int(datetime.now(UTC).timestamp())}"
             ),
             status="PENDING",
-            available_at=datetime.now(timezone.utc),
+            available_at=datetime.now(UTC),
         )
     )
     await db.flush()
@@ -518,17 +514,15 @@ async def upsert_purpose_config(
             aggregate_id=result.id,
             payload={
                 "notification_title": "Communication settings updated",
-                "notification_body": (
-                    f"Purpose '{purpose}' configuration was updated."
-                ),
+                "notification_body": (f"Purpose '{purpose}' configuration was updated."),
                 "config": {"purpose": purpose, "enabled": result.enabled},
             },
             idempotency_key=(
                 f"COMMUNICATION_CONFIG_UPDATED:communication_purpose_config:"
-                f"{result.id}:{int(datetime.now(timezone.utc).timestamp())}"
+                f"{result.id}:{int(datetime.now(UTC).timestamp())}"
             ),
             status="PENDING",
-            available_at=datetime.now(timezone.utc),
+            available_at=datetime.now(UTC),
         )
     )
     await db.flush()
@@ -588,7 +582,7 @@ async def opt_in(
         consent_state="OPTED_IN",
         opt_in=True,
         source="customer_api",
-        consented_at=datetime.now(timezone.utc),
+        consented_at=datetime.now(UTC),
     )
     result = await repo.upsert(pref)
     return CustomerPreferenceRead.model_validate(result)
@@ -613,7 +607,7 @@ async def opt_out(
         consent_state="OPTED_OUT",
         opt_in=False,
         source="customer_api",
-        consented_at=datetime.now(timezone.utc),
+        consented_at=datetime.now(UTC),
     )
     result = await repo.upsert(pref)
     return CustomerPreferenceRead.model_validate(result)
@@ -665,8 +659,6 @@ async def receive_webhook(
     external_event_id = _extract_webhook_event_id(provider, payload)
     event_type = _extract_webhook_event_type(provider, payload)
 
-    repo = ConsentRepository(db)  # Use any repo with session access
-
     # Idempotent webhook creation
     from app.domain.communication.repository import WebhookRepository
 
@@ -681,7 +673,7 @@ async def receive_webhook(
         external_event_id=external_event_id,
         event_type=event_type,
         raw_payload=payload,
-        received_at=datetime.now(timezone.utc),
+        received_at=datetime.now(UTC),
     )
     webhook = await webhook_repo.create(webhook)
 

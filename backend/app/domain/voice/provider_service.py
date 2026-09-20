@@ -56,12 +56,14 @@ PROVIDER_STATUS_TRANSITIONS: dict[str, str] = {
 # transition (e.g. Twilio "queued").  Webhook processing persists
 # them for provenance and notes them on the attempt record, but the
 # call state machine is untouched.
-PROVIDER_NOOP_STATUSES: frozenset[str] = frozenset({
-    "queued",
-    "accepted",
-    "initiated",
-    "scheduled",
-})
+PROVIDER_NOOP_STATUSES: frozenset[str] = frozenset(
+    {
+        "queued",
+        "accepted",
+        "initiated",
+        "scheduled",
+    }
+)
 
 # States from which a (re)dial may be attempted.
 _INITIABLE_STATUSES: frozenset[CallStatus] = frozenset(
@@ -242,12 +244,8 @@ class VoiceProviderOrchestrationService:
                     "purpose": call.purpose,
                     "provider": self.voice_provider.provider_name,
                     "provider_reference": result.provider_reference,
-                    "customer_id": (
-                        str(call.customer_id) if call.customer_id else None
-                    ),
-                    "campaign_id": (
-                        str(call.campaign_id) if call.campaign_id else None
-                    ),
+                    "customer_id": (str(call.customer_id) if call.customer_id else None),
+                    "campaign_id": (str(call.campaign_id) if call.campaign_id else None),
                 },
             )
             return call

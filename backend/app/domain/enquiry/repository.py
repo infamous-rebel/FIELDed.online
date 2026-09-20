@@ -33,9 +33,7 @@ class EnquiryRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_id_with_relations(
-        self, enquiry_id: uuid.UUID
-    ) -> Enquiry | None:
+    async def get_by_id_with_relations(self, enquiry_id: uuid.UUID) -> Enquiry | None:
         """Fetch an enquiry with all relationships loaded."""
         result = await self.session.execute(
             select(Enquiry)
@@ -102,9 +100,7 @@ class EnquiryRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def count_by_customer(
-        self, customer_id: uuid.UUID
-    ) -> int:
+    async def count_by_customer(self, customer_id: uuid.UUID) -> int:
         """Count enquiries for a customer."""
         result = await self.session.execute(
             select(func.count())
@@ -116,9 +112,7 @@ class EnquiryRepository:
         )
         return result.scalar_one()
 
-    async def count_by_business(
-        self, business_id: uuid.UUID
-    ) -> int:
+    async def count_by_business(self, business_id: uuid.UUID) -> int:
         """Count enquiries for a business."""
         result = await self.session.execute(
             select(func.count())
@@ -148,13 +142,10 @@ class ConversationRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def get_by_enquiry_id(
-        self, enquiry_id: uuid.UUID
-    ) -> Conversation | None:
+    async def get_by_enquiry_id(self, enquiry_id: uuid.UUID) -> Conversation | None:
         """Fetch the conversation for an enquiry."""
         result = await self.session.execute(
-            select(Conversation)
-            .where(
+            select(Conversation).where(
                 Conversation.enquiry_id == enquiry_id,
                 Conversation.deleted_at.is_(None),
             )
@@ -164,8 +155,7 @@ class ConversationRepository:
     async def get_by_id(self, conversation_id: uuid.UUID) -> Conversation | None:
         """Fetch a conversation by ID."""
         result = await self.session.execute(
-            select(Conversation)
-            .where(
+            select(Conversation).where(
                 Conversation.id == conversation_id,
                 Conversation.deleted_at.is_(None),
             )
@@ -208,8 +198,7 @@ class MessageRepository:
     async def get_by_id(self, message_id: uuid.UUID) -> Message | None:
         """Fetch a message by ID."""
         result = await self.session.execute(
-            select(Message)
-            .where(
+            select(Message).where(
                 Message.id == message_id,
                 Message.deleted_at.is_(None),
             )

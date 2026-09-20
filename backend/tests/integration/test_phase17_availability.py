@@ -9,7 +9,7 @@ Tests the customer-safe public availability endpoint:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 import pytest_asyncio
@@ -23,9 +23,7 @@ from tests.factories import business_member_factory
 
 
 @pytest_asyncio.fixture
-async def public_biz(
-    db_session: AsyncSession, second_user: User
-) -> tuple[Business, ServiceOffer]:
+async def public_biz(db_session: AsyncSession, second_user: User) -> tuple[Business, ServiceOffer]:
     """Active public business with an active service offer."""
     biz = Business(
         name=f"Avail Biz {uuid.uuid4().hex[:6]}",
@@ -36,16 +34,12 @@ async def public_biz(
     await db_session.flush()
 
     db_session.add(
-        business_member_factory(
-            user_id=second_user.id, business_id=biz.id, role="owner"
-        )
+        business_member_factory(user_id=second_user.id, business_id=biz.id, role="owner")
     )
     db_session.add(BusinessProfile(business_id=biz.id, public_status="active"))
     await db_session.flush()
 
-    category = ServiceCategory(
-        name="Avail Cat", slug=f"avail-cat-{uuid.uuid4().hex[:8]}"
-    )
+    category = ServiceCategory(name="Avail Cat", slug=f"avail-cat-{uuid.uuid4().hex[:8]}")
     db_session.add(category)
     await db_session.flush()
 
@@ -68,14 +62,10 @@ class TestPublicAvailability:
     """Customer-safe availability summary."""
 
     @pytest.mark.asyncio
-    async def test_public_availability_returns_safe_data(
-        self, client: AsyncClient, public_biz
-    ):
+    async def test_public_availability_returns_safe_data(self, client: AsyncClient, public_biz):
         biz, _ = public_biz
 
-        response = await client.get(
-            f"/api/v1/public/business/{biz.slug}/availability"
-        )
+        response = await client.get(f"/api/v1/public/business/{biz.slug}/availability")
         assert response.status_code == 200
         data = response.json()
         # Exactly the customer-safe fields, nothing else
@@ -85,9 +75,7 @@ class TestPublicAvailability:
         assert "customer" not in data
 
     @pytest.mark.asyncio
-    async def test_does_not_expose_brain_internals(
-        self, client: AsyncClient, public_biz
-    ):
+    async def test_does_not_expose_brain_internals(self, client: AsyncClient, public_biz):
         biz, offer = public_biz
 
         response = await client.get(
@@ -112,7 +100,7 @@ class TestPublicAvailability:
     ):
         biz, offer = public_biz
 
-        check_time = datetime.now(timezone.utc) + timedelta(hours=1)
+        check_time = datetime.now(UTC) + timedelta(hours=1)
         direct = await BookingService(db_session).check_availability(
             business_id=biz.id,
             service_offer_id=offer.id,

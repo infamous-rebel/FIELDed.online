@@ -44,9 +44,7 @@ class TwilioVoiceProvider(VoiceProvider):
     def provider_name(self) -> str:
         return "twilio_voice"
 
-    async def initiate_call(
-        self, request: VoiceCallRequest
-    ) -> ProviderResult:
+    async def initiate_call(self, request: VoiceCallRequest) -> ProviderResult:
         """Initiate an outbound call through Twilio.
 
         Creates a Twilio Call resource.  The call's behavior

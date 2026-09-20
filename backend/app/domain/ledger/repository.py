@@ -44,8 +44,7 @@ class LedgerRepository:
     ) -> ServiceLedgerEntry | None:
         """Fetch the primary ledger entry for a service execution."""
         result = await self.session.execute(
-            select(ServiceLedgerEntry)
-            .where(
+            select(ServiceLedgerEntry).where(
                 ServiceLedgerEntry.service_execution_id == service_execution_id,
                 ServiceLedgerEntry.is_primary.is_(True),
                 ServiceLedgerEntry.deleted_at.is_(None),
@@ -104,19 +103,16 @@ class LedgerRepository:
         date_to: datetime | None = None,
     ) -> dict:
         """Calculate ledger summary/totals for a business."""
-        stmt = (
-            select(
-                func.count().label("total_entries"),
-                func.coalesce(func.sum(ServiceLedgerEntry.gross_amount), 0).label("total_gross"),
-                func.coalesce(func.sum(ServiceLedgerEntry.discount), 0).label("total_discount"),
-                func.coalesce(func.sum(ServiceLedgerEntry.tax), 0).label("total_tax"),
-                func.coalesce(func.sum(ServiceLedgerEntry.net_amount), 0).label("total_net"),
-            )
-            .where(
-                ServiceLedgerEntry.business_id == business_id,
-                ServiceLedgerEntry.is_primary.is_(True),
-                ServiceLedgerEntry.deleted_at.is_(None),
-            )
+        stmt = select(
+            func.count().label("total_entries"),
+            func.coalesce(func.sum(ServiceLedgerEntry.gross_amount), 0).label("total_gross"),
+            func.coalesce(func.sum(ServiceLedgerEntry.discount), 0).label("total_discount"),
+            func.coalesce(func.sum(ServiceLedgerEntry.tax), 0).label("total_tax"),
+            func.coalesce(func.sum(ServiceLedgerEntry.net_amount), 0).label("total_net"),
+        ).where(
+            ServiceLedgerEntry.business_id == business_id,
+            ServiceLedgerEntry.is_primary.is_(True),
+            ServiceLedgerEntry.deleted_at.is_(None),
         )
         if date_from is not None:
             stmt = stmt.where(ServiceLedgerEntry.completion_date >= date_from)
@@ -127,16 +123,13 @@ class LedgerRepository:
         row = result.one()
 
         # Calculate paid/outstanding by payment status
-        paid_stmt = (
-            select(
-                func.coalesce(func.sum(ServiceLedgerEntry.net_amount), 0).label("paid"),
-            )
-            .where(
-                ServiceLedgerEntry.business_id == business_id,
-                ServiceLedgerEntry.is_primary.is_(True),
-                ServiceLedgerEntry.payment_status == "paid",
-                ServiceLedgerEntry.deleted_at.is_(None),
-            )
+        paid_stmt = select(
+            func.coalesce(func.sum(ServiceLedgerEntry.net_amount), 0).label("paid"),
+        ).where(
+            ServiceLedgerEntry.business_id == business_id,
+            ServiceLedgerEntry.is_primary.is_(True),
+            ServiceLedgerEntry.payment_status == "paid",
+            ServiceLedgerEntry.deleted_at.is_(None),
         )
         if date_from is not None:
             paid_stmt = paid_stmt.where(ServiceLedgerEntry.completion_date >= date_from)

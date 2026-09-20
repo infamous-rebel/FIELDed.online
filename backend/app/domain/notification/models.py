@@ -50,37 +50,23 @@ class Notification(BaseModel):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    notification_type: Mapped[str] = mapped_column(
-        String(100), nullable=False
-    )
+    notification_type: Mapped[str] = mapped_column(String(100), nullable=False)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
-    priority: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="NORMAL"
-    )
+    priority: Mapped[str] = mapped_column(String(50), nullable=False, default="NORMAL")
 
     # Idempotency — unique constraint prevents duplicate notifications
     # when an outbox event is retried after a worker crash
-    idempotency_key: Mapped[str] = mapped_column(
-        String(500), unique=True, nullable=False
-    )
+    idempotency_key: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
 
     # Related entity tracking
-    related_entity_type: Mapped[str | None] = mapped_column(
-        String(100), nullable=True
-    )
-    related_entity_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    related_entity_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    related_entity_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
 
     # Read state
-    read_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    delivery_state: Mapped[str | None] = mapped_column(
-        String(50), nullable=True
-    )
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    delivery_state: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     # Relationships
-    business: Mapped["Business"] = relationship(foreign_keys=[business_id])
-    customer: Mapped["User | None"] = relationship(foreign_keys=[customer_id])
+    business: Mapped[Business] = relationship(foreign_keys=[business_id])
+    customer: Mapped[User | None] = relationship(foreign_keys=[customer_id])

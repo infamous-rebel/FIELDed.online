@@ -89,9 +89,7 @@ class QuoteRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_by_enquiry(
-        self, enquiry_id: uuid.UUID
-    ) -> list[Quote]:
+    async def get_by_enquiry(self, enquiry_id: uuid.UUID) -> list[Quote]:
         """Fetch all quotes for an enquiry."""
         result = await self.session.execute(
             select(Quote)

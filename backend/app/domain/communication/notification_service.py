@@ -10,7 +10,6 @@ communication pipeline.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -120,6 +119,4 @@ class NotificationService:
         customer_id: uuid.UUID,
     ) -> Notification | None:
         """Mark a notification as read."""
-        return await self.repo.mark_read(
-            notification_id, customer_id=customer_id
-        )
+        return await self.repo.mark_read(notification_id, customer_id=customer_id)

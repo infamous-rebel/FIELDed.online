@@ -8,22 +8,19 @@ Verifies authorization, tenant isolation, and idempotency.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
-from decimal import Decimal
+from datetime import UTC, datetime, timedelta
 
-import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.booking.models import Booking
-from app.domain.common.enums import BookingStatus, InvoicePaymentStatus
+from app.domain.common.enums import BookingStatus
 from app.domain.enquiry.models import Enquiry
-from app.domain.identity.models import Business, BusinessMember, CustomerProfile, User
+from app.domain.identity.models import Business, CustomerProfile, User
 from app.domain.invoice.models import Invoice, InvoiceLineItem
-from app.domain.payment.models import Payment
 from app.domain.quote.models import Quote
-from app.domain.services.models import ServiceCategory, ServiceOffer
+from app.domain.services.models import ServiceOffer
 from app.security.password import hash_password
 from tests.factories import (
     business_factory,
@@ -115,7 +112,7 @@ async def invoice_for_payment(
         quote_id=quote.id,
         enquiry_id=enquiry.id,
         service_offer_id=offer.id,
-        requested_at=datetime.now(timezone.utc) + timedelta(days=2),
+        requested_at=datetime.now(UTC) + timedelta(days=2),
         currency="GBP",
         status=BookingStatus.COMPLETED,
     )
@@ -132,7 +129,7 @@ async def invoice_for_payment(
         service_offer_id=offer.id,
         quote_id=quote.id,
         status="completed",
-        completed_at=datetime.now(timezone.utc),
+        completed_at=datetime.now(UTC),
         completed_by=owner_user.id,
     )
     db_session.add(execution)
@@ -145,7 +142,7 @@ async def invoice_for_payment(
         booking_id=booking.id,
         quote_id=quote.id,
         invoice_number=f"INV-{uuid.uuid4().hex[:6].upper()}",
-        issue_date=datetime.now(timezone.utc),
+        issue_date=datetime.now(UTC),
         currency="GBP",
         subtotal="150.00",
         discount="0.00",

@@ -17,7 +17,7 @@ The Brain must NOT directly create or confirm a booking.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,16 +25,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.booking.availability import AvailabilityEvaluator, AvailabilityResult
 from app.domain.booking.models import Booking
 from app.domain.booking.repository import BookingRepository
-from app.domain.business.evaluator import BrainEvaluator, BrainDecision, BrainDecisionOutcome, DecisionContext
+from app.domain.business.evaluator import (
+    BrainDecision,
+    BrainDecisionOutcome,
+    BrainEvaluator,
+    DecisionContext,
+)
 from app.domain.business.models import BrainVersion
-from app.domain.business.repository import BusinessBrainRepository, BrainVersionRepository
+from app.domain.business.repository import BrainVersionRepository, BusinessBrainRepository
 from app.domain.common.enums import (
     BOOKING_TRANSITIONS,
     BookingStatus,
     EnquiryStatus,
     QuoteStatus,
 )
-from app.domain.enquiry.models import Enquiry
 from app.domain.enquiry.repository import EnquiryRepository
 from app.domain.outbox.models import OutboxEvent
 from app.domain.quote.models import Quote
@@ -91,7 +95,7 @@ class BookingService:
         The requested_at must be timezone-aware.
         """
         if requested_at.tzinfo is None:
-            requested_at = requested_at.replace(tzinfo=timezone.utc)
+            requested_at = requested_at.replace(tzinfo=UTC)
 
         # 1. Resolve and validate the quote
         quote = await self._resolve_accepted_quote(quote_id, customer_id)
@@ -131,7 +135,8 @@ class BookingService:
         #    This serialises concurrent booking attempts for the same business
         #    around the same time, preventing capacity oversubscription.
         lock_key = self._compute_advisory_lock_key(
-            quote.business_id, requested_at,
+            quote.business_id,
+            requested_at,
         )
         await self.session.execute(
             text("SELECT pg_advisory_xact_lock(:key)"),
@@ -236,9 +241,7 @@ class BookingService:
 
         # Actor-specific authority
         if actor == "customer" and target_status != BookingStatus.CANCELLED:
-            raise AuthorizationError(
-                "Customers can only cancel their own bookings"
-            )
+            raise AuthorizationError("Customers can only cancel their own bookings")
 
         old_status = booking.status
         booking.status = target_status
@@ -296,7 +299,7 @@ class BookingService:
         This is a read-only evaluation — it does not create any entities.
         """
         if requested_at.tzinfo is None:
-            requested_at = requested_at.replace(tzinfo=timezone.utc)
+            requested_at = requested_at.replace(tzinfo=UTC)
 
         service_offer = await self._resolve_service_offer(service_offer_id)
         if service_offer.business_id != business_id:
@@ -337,18 +340,14 @@ class BookingService:
             raise NotFoundError("Booking not found")
         return booking
 
-    async def get_customer_booking(
-        self, booking_id: uuid.UUID, customer_id: uuid.UUID
-    ) -> Booking:
+    async def get_customer_booking(self, booking_id: uuid.UUID, customer_id: uuid.UUID) -> Booking:
         """Get a booking, verifying customer ownership."""
         booking = await self.get_booking(booking_id)
         if booking.customer_id != customer_id:
             raise AuthorizationError("Not your booking")
         return booking
 
-    async def get_business_booking(
-        self, booking_id: uuid.UUID, business_id: uuid.UUID
-    ) -> Booking:
+    async def get_business_booking(self, booking_id: uuid.UUID, business_id: uuid.UUID) -> Booking:
         """Get a booking, verifying it belongs to the business."""
         booking = await self.get_booking(booking_id)
         if booking.business_id != business_id:
@@ -383,9 +382,7 @@ class BookingService:
 
     # --- Internal helpers ---
 
-    async def _resolve_accepted_quote(
-        self, quote_id: uuid.UUID, customer_id: uuid.UUID
-    ) -> Quote:
+    async def _resolve_accepted_quote(self, quote_id: uuid.UUID, customer_id: uuid.UUID) -> Quote:
         """Resolve a quote that has been accepted by the customer."""
         quote = await self.quote_repo.get_by_id(quote_id)
         if quote is None:
@@ -394,14 +391,11 @@ class BookingService:
             raise AuthorizationError("Not your quote")
         if QuoteStatus(quote.status) != QuoteStatus.ACCEPTED:
             raise ValidationError(
-                f"Quote must be accepted before creating a booking. "
-                f"Current status: {quote.status}"
+                f"Quote must be accepted before creating a booking. Current status: {quote.status}"
             )
         return quote
 
-    async def _resolve_service_offer(
-        self, service_offer_id: uuid.UUID
-    ) -> ServiceOffer:
+    async def _resolve_service_offer(self, service_offer_id: uuid.UUID) -> ServiceOffer:
         """Resolve a service offer."""
         result = await self.session.execute(
             select(ServiceOffer).where(
@@ -414,9 +408,7 @@ class BookingService:
             raise NotFoundError("Service offer not found")
         return offer
 
-    async def _resolve_active_brain_version(
-        self, business_id: uuid.UUID
-    ) -> BrainVersion | None:
+    async def _resolve_active_brain_version(self, business_id: uuid.UUID) -> BrainVersion | None:
         """Resolve the active BrainVersion for a business."""
         brain_repo = BusinessBrainRepository(self.session)
         brain = await brain_repo.get_by_business_id(business_id)
@@ -463,6 +455,7 @@ class BookingService:
     ) -> list[Booking]:
         """Get existing bookings around the requested time for capacity checks."""
         from datetime import timedelta
+
         window_start = requested_at - timedelta(hours=12)
         window_end = requested_at + timedelta(hours=12)
 
@@ -494,6 +487,7 @@ class BookingService:
         then clamp to the valid signed range.
         """
         import hashlib
+
         # Use a 1-hour bucket so nearby slots contend, distant ones don't
         bucket = requested_at.replace(minute=0, second=0, microsecond=0)
         raw = f"{business_id}:{bucket.isoformat()}"
@@ -511,7 +505,7 @@ class BookingService:
         payload: dict,
     ) -> None:
         """Create an outbox event in the same transaction."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         event = OutboxEvent(
             business_id=business_id,
@@ -521,7 +515,7 @@ class BookingService:
             payload=payload,
             idempotency_key=f"{event_type}:booking:{aggregate_id}",
             status="PENDING",
-            available_at=datetime.now(timezone.utc),
+            available_at=datetime.now(UTC),
         )
         self.session.add(event)
         await self.session.flush()

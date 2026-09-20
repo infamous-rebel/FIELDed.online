@@ -11,14 +11,13 @@ Tests the authorization logic for:
 from __future__ import annotations
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.domain.common.enums import BusinessMemberRole
 from app.domain.enquiry.models import Conversation, Enquiry
 from app.domain.enquiry.service import EnquiryService
-from app.domain.identity.models import Business, BusinessMember, CustomerProfile, User
+from app.domain.identity.models import CustomerProfile, User
 from app.exceptions import AuthorizationError, NotFoundError, ValidationError
 
 
@@ -199,7 +198,6 @@ class TestMessageAuthorization:
     @pytest.mark.asyncio
     async def test_empty_message_rejected(self):
         """Empty message content is rejected."""
-        from app.domain.enquiry.models import Conversation
         conv = _make_conversation()
         user = _make_user()
 

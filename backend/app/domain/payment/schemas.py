@@ -7,11 +7,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Annotated
 
 from pydantic import BaseModel, BeforeValidator, Field
-from typing_extensions import Annotated
-
 
 # Allow Decimal or str to be serialized as str
 StrOrDecimal = Annotated[str, BeforeValidator(lambda v: str(v))]
@@ -80,9 +78,7 @@ class PaymentCreateRequest(BaseModel):
 class PaymentRefundRequest(BaseModel):
     """Request schema for refunding a payment."""
 
-    amount: str | None = Field(
-        None, description="Refund amount (null = full refund)"
-    )
+    amount: str | None = Field(None, description="Refund amount (null = full refund)")
     reason: str | None = Field(None, description="Reason for refund")
 
 

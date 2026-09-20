@@ -52,9 +52,7 @@ _NOTIFICATION_TITLES: dict[str, str] = {
 
 def _notification_text(event_type: str, payload: dict) -> tuple[str, str]:
     """Deterministic notification title/body for a voice event."""
-    title = payload.get("notification_title") or _NOTIFICATION_TITLES.get(
-        event_type, event_type
-    )
+    title = payload.get("notification_title") or _NOTIFICATION_TITLES.get(event_type, event_type)
     body = payload.get("notification_body") or f"Voice event: {event_type}"
     return str(title), str(body)
 
@@ -141,9 +139,7 @@ class VoiceEventOrchestrator:
         customer_id_str = payload.get("customer_id")
         notification = Notification(
             business_id=business_id,
-            customer_id=(
-                uuid.UUID(customer_id_str) if customer_id_str else None
-            ),
+            customer_id=(uuid.UUID(customer_id_str) if customer_id_str else None),
             notification_type=event_type,
             title=title,
             body=body,

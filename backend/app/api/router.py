@@ -64,16 +64,10 @@ api_router.include_router(communications.router, prefix="", tags=["communication
 api_router.include_router(voice.router, prefix="", tags=["voice"])
 
 # Phase 15 — Payments & Financial Operations
-api_router.include_router(
-    payments.router, prefix="", tags=["payments"]
-)
+api_router.include_router(payments.router, prefix="", tags=["payments"])
 
 # Phase 17 — Reviews & Trust
-api_router.include_router(
-    reviews.router, prefix="", tags=["reviews"]
-)
+api_router.include_router(reviews.router, prefix="", tags=["reviews"])
 
 # Phase 17 — Member invitation acceptance (public path outside /businesses)
-api_router.include_router(
-    businesses.accept_router, prefix="", tags=["businesses"]
-)
+api_router.include_router(businesses.accept_router, prefix="", tags=["businesses"])

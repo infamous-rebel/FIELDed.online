@@ -76,7 +76,7 @@ async def submit_review(
             body=body.body,
         )
     except ReviewEligibilityError as exc:
-        raise ValidationError(message=str(exc))
+        raise ValidationError(message=str(exc)) from exc
 
     await db.refresh(review)
     return ReviewRead.model_validate(review)
@@ -129,7 +129,6 @@ async def get_public_business_reviews(
     offset: int = Query(0, ge=0),
 ) -> PublicReviewListRead:
     """Get visible reviews for a business (public, no auth required)."""
-    from app.domain.identity.models import Business
     from app.domain.identity.repository import BusinessRepository
 
     business_repo = BusinessRepository(db)
@@ -138,9 +137,7 @@ async def get_public_business_reviews(
         raise NotFoundError("Business not found")
 
     review_repo = ReviewRepository(db)
-    reviews = await review_repo.get_visible_by_business_slug(
-        slug, limit=limit, offset=offset
-    )
+    reviews = await review_repo.get_visible_by_business_slug(slug, limit=limit, offset=offset)
 
     # Get aggregate rating
     avg_rating, _ = await review_repo.get_average_rating_for_business(business.id)
@@ -180,7 +177,7 @@ async def respond_to_review(
             response_body=body.response_body,
         )
     except ReviewNotFoundError as exc:
-        raise NotFoundError(message=str(exc))
+        raise NotFoundError(message=str(exc)) from exc
 
     await db.refresh(review)
     return ReviewRead.model_validate(review)

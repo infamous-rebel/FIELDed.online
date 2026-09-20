@@ -17,11 +17,10 @@ The trust chain requires:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.booking.models import Booking
 from app.domain.booking.repository import BookingRepository
 from app.domain.common.enums import AuditEventType
 from app.domain.enquiry.repository import EnquiryRepository
@@ -29,7 +28,6 @@ from app.domain.identity.repository import BusinessRepository
 from app.domain.outbox.models import OutboxEvent
 from app.domain.review.models import Review
 from app.domain.review.repository import ReviewRepository
-from app.domain.service_execution.models import ServiceExecution
 from app.domain.service_execution.repository import ServiceExecutionRepository
 
 
@@ -72,9 +70,7 @@ class ReviewService:
 
         # 2. Execution must be COMPLETED
         if execution.status != "completed":
-            raise ReviewEligibilityError(
-                "Service execution is not completed — review not eligible"
-            )
+            raise ReviewEligibilityError("Service execution is not completed — review not eligible")
 
         # 3. Execution must NOT be CANCELLED or NO_SHOW
         #    (already covered by status == "completed" check above,
@@ -86,9 +82,7 @@ class ReviewService:
 
         # 4. Customer must own the transaction
         if execution.customer_id != customer_id:
-            raise ReviewEligibilityError(
-                "Customer does not own this service execution"
-            )
+            raise ReviewEligibilityError("Customer does not own this service execution")
 
         # 5. Load linked booking and verify status
         booking = await self.booking_repo.get_by_id(execution.booking_id)
@@ -109,13 +103,9 @@ class ReviewService:
             )
 
         # 7. No existing review for this execution (UNIQUE constraint)
-        existing = await self.review_repo.get_by_service_execution(
-            service_execution_id
-        )
+        existing = await self.review_repo.get_by_service_execution(service_execution_id)
         if existing is not None:
-            raise ReviewEligibilityError(
-                "A review already exists for this service execution"
-            )
+            raise ReviewEligibilityError("A review already exists for this service execution")
 
         # All checks passed — create the review
         review = Review(
@@ -166,13 +156,11 @@ class ReviewService:
 
         # Verify the review belongs to this business
         if review.business_id != business_id:
-            raise ReviewNotFoundError(
-                "Review does not belong to this business"
-            )
+            raise ReviewNotFoundError("Review does not belong to this business")
 
         # Set response
         review.response_body = response_body
-        review.responded_at = datetime.now(timezone.utc)
+        review.responded_at = datetime.now(UTC)
         review.responded_by = responder_id
         review = await self.review_repo.update(review)
 
@@ -196,9 +184,7 @@ class ReviewService:
         Database-driven, deterministic.  Uses AVG(rating) and COUNT(*)
         across all visible reviews for the business.
         """
-        avg_rating, count = await self.review_repo.get_average_rating_for_business(
-            business_id
-        )
+        avg_rating, count = await self.review_repo.get_average_rating_for_business(business_id)
 
         business = await self.business_repo.get_by_id(business_id)
         if business is not None and business.profile is not None:
@@ -223,7 +209,7 @@ class ReviewService:
             payload=payload,
             idempotency_key=f"{event_type}:review:{aggregate_id}",
             status="PENDING",
-            available_at=datetime.now(timezone.utc),
+            available_at=datetime.now(UTC),
         )
         self.session.add(event)
         await self.session.flush()

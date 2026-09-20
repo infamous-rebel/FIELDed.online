@@ -18,12 +18,14 @@ def _stringify_amount(v):
 
 class QuoteCreate(BaseModel):
     """Request to create a quote for an enquiry."""
+
     enquiry_id: uuid.UUID
     notes: str | None = None
 
 
 class QuoteRead(BaseModel):
     """Quote response."""
+
     id: uuid.UUID
     reference: str
     customer_id: uuid.UUID
@@ -46,6 +48,7 @@ class QuoteRead(BaseModel):
 
 class QuoteTransitionRequest(BaseModel):
     """Request to transition a quote's lifecycle status."""
+
     target_status: str = Field(
         pattern=r"^(issued|accepted|declined|expired)$",
         description="Target lifecycle status",
@@ -54,6 +57,7 @@ class QuoteTransitionRequest(BaseModel):
 
 class QuoteListRead(BaseModel):
     """Summary quote for list views."""
+
     id: uuid.UUID
     reference: str
     enquiry_id: uuid.UUID

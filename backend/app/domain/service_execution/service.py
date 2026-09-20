@@ -17,20 +17,20 @@ completed.  A customer must NOT be able to mark a service as completed.
 
 from __future__ import annotations
 
+import contextlib
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.booking.models import Booking
 from app.domain.booking.repository import BookingRepository
 from app.domain.common.enums import (
+    SERVICE_EXECUTION_TRANSITIONS,
     BookingStatus,
     InvoicePaymentStatus,
     InvoiceStatus,
-    SERVICE_EXECUTION_TRANSITIONS,
     ServiceExecutionStatus,
 )
 from app.domain.invoice.models import Invoice, InvoiceLineItem
@@ -38,7 +38,6 @@ from app.domain.invoice.repository import InvoiceRepository
 from app.domain.ledger.models import ServiceLedgerEntry
 from app.domain.ledger.repository import LedgerRepository
 from app.domain.outbox.models import OutboxEvent
-from app.domain.quote.models import Quote
 from app.domain.quote.repository import QuoteRepository
 from app.domain.service_execution.models import ServiceExecution
 from app.domain.service_execution.repository import ServiceExecutionRepository
@@ -155,9 +154,9 @@ class ServiceExecutionService:
 
         # Update timestamps based on target status
         if target_status == ServiceExecutionStatus.IN_PROGRESS:
-            execution.started_at = datetime.now(timezone.utc)
+            execution.started_at = datetime.now(UTC)
         elif target_status == ServiceExecutionStatus.COMPLETED:
-            execution.completed_at = datetime.now(timezone.utc)
+            execution.completed_at = datetime.now(UTC)
             execution.completed_by = actor_id
             if completion_evidence:
                 execution.completion_evidence = completion_evidence
@@ -324,9 +323,7 @@ class ServiceExecutionService:
 
     # --- Internal: completion flow ---
 
-    async def _create_completion_records(
-        self, execution: ServiceExecution
-    ) -> None:
+    async def _create_completion_records(self, execution: ServiceExecution) -> None:
         """Atomically create invoice and ledger entry for a completed service.
 
         This method is idempotent — it checks for existing records before
@@ -334,9 +331,7 @@ class ServiceExecutionService:
         if completion is called multiple times.
         """
         # Idempotency check: does an invoice already exist?
-        existing_invoice = await self.invoice_repo.get_by_service_execution_id(
-            execution.id
-        )
+        existing_invoice = await self.invoice_repo.get_by_service_execution_id(execution.id)
         if existing_invoice is not None:
             logger.info(
                 "completion_records_already_exist",
@@ -365,21 +360,16 @@ class ServiceExecutionService:
         currency = booking.currency if booking else "GBP"
 
         # Calculate amounts from quote (deterministic, no LLM)
-        if quote:
-            amount = Decimal(str(quote.amount))
-        else:
-            amount = Decimal("0.00")
+        amount = Decimal(str(quote.amount)) if quote else Decimal("0.00")
 
         discount = Decimal("0.00")
         tax = Decimal("0.00")
         total = amount - discount + tax
 
         # Generate invoice number
-        invoice_number = await self.invoice_repo.get_next_invoice_number(
-            execution.business_id
-        )
+        invoice_number = await self.invoice_repo.get_next_invoice_number(execution.business_id)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Create invoice
         invoice = Invoice(
@@ -491,12 +481,11 @@ class ServiceExecutionService:
         from app.domain.booking.service import BookingService
 
         booking_service = BookingService(self.session)
-        try:
+        with contextlib.suppress(StateTransitionError):
             await booking_service.transition_booking(
                 booking, BookingStatus.COMPLETED, actor="system"
             )
-        except StateTransitionError:
-            pass  # Already handled by another path — idempotent
+        # Suppressed: StateTransitionError means another path already completed it
 
     async def _emit_outbox_event(
         self,
@@ -515,7 +504,7 @@ class ServiceExecutionService:
             payload=payload,
             idempotency_key=f"{event_type}:service_execution:{aggregate_id}",
             status="PENDING",
-            available_at=datetime.now(timezone.utc),
+            available_at=datetime.now(UTC),
         )
         self.session.add(event)
         await self.session.flush()

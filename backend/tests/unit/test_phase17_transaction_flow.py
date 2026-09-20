@@ -10,7 +10,7 @@ Tests cover the deterministic completion cascade and payment validation:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 import pytest_asyncio
@@ -34,7 +34,7 @@ from app.domain.payment.service import PaymentService
 from app.domain.quote.models import Quote
 from app.domain.service_execution.models import ServiceExecution
 from app.domain.service_execution.service import ServiceExecutionService
-from app.domain.services.models import ServiceCategory, ServiceOffer
+from app.domain.services.models import ServiceOffer
 from app.exceptions import ValidationError
 from tests.factories import (
     business_factory,
@@ -68,9 +68,7 @@ async def _make_chain(
     db_session.add(biz)
     await db_session.flush()
 
-    db_session.add(
-        business_member_factory(user_id=owner.id, business_id=biz.id, role="owner")
-    )
+    db_session.add(business_member_factory(user_id=owner.id, business_id=biz.id, role="owner"))
     db_session.add(business_profile_factory(business_id=biz.id))
     await db_session.flush()
 
@@ -122,7 +120,7 @@ async def _make_chain(
         quote_id=quote.id,
         enquiry_id=enquiry.id,
         service_offer_id=offer.id,
-        requested_at=datetime.now(timezone.utc) + timedelta(days=1),
+        requested_at=datetime.now(UTC) + timedelta(days=1),
         currency="GBP",
         status=booking_status,
     )
@@ -132,9 +130,7 @@ async def _make_chain(
     return biz, enquiry, quote, booking
 
 
-async def _make_paid_invoice(
-    db_session: AsyncSession, *, customer, owner, biz, booking
-) -> Invoice:
+async def _make_paid_invoice(db_session: AsyncSession, *, customer, owner, biz, booking) -> Invoice:
     """Create a completed execution + issued invoice for the booking."""
     execution = ServiceExecution(
         business_id=biz.id,
@@ -143,7 +139,7 @@ async def _make_paid_invoice(
         service_offer_id=booking.service_offer_id,
         quote_id=booking.quote_id,
         status="completed",
-        completed_at=datetime.now(timezone.utc),
+        completed_at=datetime.now(UTC),
         completed_by=owner.id,
     )
     db_session.add(execution)
@@ -156,7 +152,7 @@ async def _make_paid_invoice(
         booking_id=booking.id,
         quote_id=booking.quote_id,
         invoice_number=f"INV-{uuid.uuid4().hex[:6].upper()}",
-        issue_date=datetime.now(timezone.utc),
+        issue_date=datetime.now(UTC),
         currency="GBP",
         subtotal="150.00",
         discount="0.00",
@@ -202,9 +198,7 @@ class TestCompletionCascade:
     async def test_execution_completion_cascades_to_booking_completed(
         self, db_session: AsyncSession, customer, owner
     ):
-        biz, enquiry, quote, booking = await _make_chain(
-            db_session, customer=customer, owner=owner
-        )
+        biz, enquiry, quote, booking = await _make_chain(db_session, customer=customer, owner=owner)
 
         # Production flow: the confirmed booking moves to in_progress
         # before the service is completed (CONFIRMED → COMPLETED is not
@@ -215,9 +209,7 @@ class TestCompletionCascade:
         )
 
         service = ServiceExecutionService(db_session)
-        execution = await service.create_from_booking(
-            booking_id=booking.id, business_id=biz.id
-        )
+        execution = await service.create_from_booking(booking_id=booking.id, business_id=biz.id)
         execution = await service.start_service(execution, actor_id=owner.id)
         execution = await service.complete_service(execution, actor_id=owner.id)
 
@@ -242,12 +234,8 @@ class TestCompletionCascade:
         assert enquiry.status == EnquiryStatus.BOOKED
 
         service = BookingService(db_session)
-        await service.transition_booking(
-            booking, BookingStatus.IN_PROGRESS, actor="business"
-        )
-        await service.transition_booking(
-            booking, BookingStatus.COMPLETED, actor="business"
-        )
+        await service.transition_booking(booking, BookingStatus.IN_PROGRESS, actor="business")
+        await service.transition_booking(booking, BookingStatus.COMPLETED, actor="business")
 
         enquiry_repo = EnquiryRepository(db_session)
         refreshed = await enquiry_repo.get_by_id(enquiry.id)
@@ -261,9 +249,7 @@ class TestPaymentValidation:
     async def test_payment_amount_validated_against_invoice(
         self, db_session: AsyncSession, customer, owner
     ):
-        biz, _, _, booking = await _make_chain(
-            db_session, customer=customer, owner=owner
-        )
+        biz, _, _, booking = await _make_chain(db_session, customer=customer, owner=owner)
         invoice = await _make_paid_invoice(
             db_session, customer=customer, owner=owner, biz=biz, booking=booking
         )
@@ -299,9 +285,7 @@ class TestPaymentValidation:
     async def test_payment_amount_mismatch_rejected(
         self, db_session: AsyncSession, customer, owner
     ):
-        biz, _, _, booking = await _make_chain(
-            db_session, customer=customer, owner=owner
-        )
+        biz, _, _, booking = await _make_chain(db_session, customer=customer, owner=owner)
         invoice = await _make_paid_invoice(
             db_session, customer=customer, owner=owner, biz=biz, booking=booking
         )

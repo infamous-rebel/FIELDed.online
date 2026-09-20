@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -106,5 +106,5 @@ class ServiceOffer(BaseModel):
     )  # ServiceOfferStatus enum value
 
     # Relationships
-    business: Mapped["Business"] = relationship(back_populates="service_offers")
+    business: Mapped[Business] = relationship(back_populates="service_offers")
     category: Mapped[ServiceCategory | None] = relationship(back_populates="service_offers")

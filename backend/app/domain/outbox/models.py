@@ -13,7 +13,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, text
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -47,29 +47,17 @@ class OutboxEvent(BaseModel):
     )
     event_type: Mapped[str] = mapped_column(String(100), nullable=False)
     aggregate_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    aggregate_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False
-    )
+    aggregate_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     # Idempotency — unique constraint prevents duplicate events
-    idempotency_key: Mapped[str] = mapped_column(
-        String(500), unique=True, nullable=False
-    )
+    idempotency_key: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
 
     # Processing lifecycle
-    status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="PENDING"
-    )
-    attempt_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
-    available_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    processed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="PENDING")
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Lease/recovery: track when processing started

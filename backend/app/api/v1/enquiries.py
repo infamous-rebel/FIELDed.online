@@ -26,7 +26,6 @@ from app.domain.enquiry.schemas import (
 )
 from app.domain.enquiry.service import EnquiryService
 from app.domain.identity.models import User
-from app.exceptions import AuthorizationError
 from app.security.authorization import get_current_user, require_customer
 
 router = APIRouter()
@@ -164,9 +163,7 @@ async def list_enquiry_messages(
     enquiry = await service.get_customer_enquiry(enquiry_id, user.id)
     conversation = await service.get_enquiry_conversation(enquiry.id)
 
-    messages = await service.list_messages(
-        conversation.id, limit=limit, offset=offset
-    )
+    messages = await service.list_messages(conversation.id, limit=limit, offset=offset)
 
     # Mark messages as read for this customer
     await service.mark_messages_read(conversation.id, user.id)

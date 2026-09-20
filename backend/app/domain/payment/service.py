@@ -20,7 +20,7 @@ All critical decisions flow through validated domain rules.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 
 from sqlalchemy import func, select
@@ -28,18 +28,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.payment.base import PaymentProvider, PaymentRequest, RefundRequest
 from app.domain.common.enums import (
-    AuditEventType,
+    PAYMENT_TRANSITIONS,
     InvoicePaymentStatus,
     PaymentStatus,
-    PAYMENT_TRANSITIONS,
 )
-from app.domain.invoice.models import Invoice
 from app.domain.invoice.repository import InvoiceRepository
 from app.domain.payment.models import Payment, PaymentAttempt
 from app.domain.payment.repository import PaymentRepository
 from app.exceptions import (
     AuthorizationError,
-    ConflictError,
     NotFoundError,
     StateTransitionError,
     ValidationError,
@@ -75,18 +72,14 @@ class PaymentService:
             raise NotFoundError("Payment not found")
         return payment
 
-    async def get_business_payment(
-        self, payment_id: uuid.UUID, business_id: uuid.UUID
-    ) -> Payment:
+    async def get_business_payment(self, payment_id: uuid.UUID, business_id: uuid.UUID) -> Payment:
         """Get a payment, verifying it belongs to the business."""
         payment = await self.get_payment(payment_id)
         if payment.business_id != business_id:
             raise AuthorizationError("Payment does not belong to this business")
         return payment
 
-    async def get_customer_payment(
-        self, payment_id: uuid.UUID, customer_id: uuid.UUID
-    ) -> Payment:
+    async def get_customer_payment(self, payment_id: uuid.UUID, customer_id: uuid.UUID) -> Payment:
         """Get a payment, verifying customer ownership."""
         payment = await self.get_payment(payment_id)
         if payment.customer_id != customer_id:
@@ -119,23 +112,17 @@ class PaymentService:
             customer_id, status=status, limit=limit, offset=offset
         )
 
-    async def get_invoice_payments(
-        self, invoice_id: uuid.UUID
-    ) -> list[Payment]:
+    async def get_invoice_payments(self, invoice_id: uuid.UUID) -> list[Payment]:
         """List all payments for an invoice."""
         return await self.payment_repo.get_by_invoice(invoice_id)
 
-    async def get_invoice_payment_status(
-        self, invoice_id: uuid.UUID
-    ) -> dict:
+    async def get_invoice_payment_status(self, invoice_id: uuid.UUID) -> dict:
         """Get payment status and balance for an invoice."""
         invoice = await self.invoice_repo.get_by_id(invoice_id)
         if invoice is None:
             raise NotFoundError("Invoice not found")
 
-        paid_amount = Decimal(
-            await self.payment_repo.get_successful_total_for_invoice(invoice_id)
-        )
+        paid_amount = Decimal(await self.payment_repo.get_successful_total_for_invoice(invoice_id))
         refunded_amount = Decimal(
             await self.payment_repo.get_refunded_total_for_invoice(invoice_id)
         )
@@ -199,7 +186,7 @@ class PaymentService:
         try:
             amount_decimal = Decimal(amount)
         except (InvalidOperation, ValueError):
-            raise ValidationError("Invalid amount format")
+            raise ValidationError("Invalid amount format") from None
         if amount_decimal <= 0:
             raise ValidationError("Payment amount must be positive")
 
@@ -210,9 +197,7 @@ class PaymentService:
             )
 
         # Calculate outstanding balance
-        paid_amount = Decimal(
-            await self.payment_repo.get_successful_total_for_invoice(invoice_id)
-        )
+        paid_amount = Decimal(await self.payment_repo.get_successful_total_for_invoice(invoice_id))
         refunded_amount = Decimal(
             await self.payment_repo.get_refunded_total_for_invoice(invoice_id)
         )
@@ -263,9 +248,7 @@ class PaymentService:
         Creates a PaymentAttempt for each provider interaction.
         """
         if PaymentStatus(payment.status) != PaymentStatus.PENDING:
-            raise StateTransitionError(
-                f"Cannot process payment in status {payment.status}"
-            )
+            raise StateTransitionError(f"Cannot process payment in status {payment.status}")
 
         if self.payment_provider is None:
             raise ValidationError("No payment provider configured")
@@ -278,19 +261,19 @@ class PaymentService:
         # Create attempt
         # Query attempt count to avoid lazy loading relationship
         attempt_count_result = await self.session.execute(
-            select(func.count()).select_from(PaymentAttempt).where(
-                PaymentAttempt.payment_id == payment.id
-            )
+            select(func.count())
+            .select_from(PaymentAttempt)
+            .where(PaymentAttempt.payment_id == payment.id)
         )
         attempt_number = attempt_count_result.scalar_one() + 1
-        
+
         attempt = PaymentAttempt(
             payment_id=payment.id,
             attempt_number=attempt_number,
             provider=payment.provider,
             amount=payment.amount,
             currency=payment.currency,
-            requested_at=datetime.now(timezone.utc),
+            requested_at=datetime.now(UTC),
             status="processing",
         )
         attempt = await self.payment_repo.create_attempt(attempt)
@@ -299,13 +282,13 @@ class PaymentService:
         request = PaymentRequest(
             amount=Decimal(payment.amount),
             currency=payment.currency,
-            description=f"FIELDed payment for invoice",
+            description="FIELDed payment for invoice",
             idempotency_key=payment.idempotency_key,
             metadata={"payment_id": str(payment.id)},
         )
         result = await self.payment_provider.initiate_payment(request)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         attempt.completed_at = now
 
         if result.success:
@@ -365,9 +348,7 @@ class PaymentService:
         Duplicate webhook deliveries are safely ignored.
         """
         # Find payment by provider reference
-        payment = await self.payment_repo.get_by_provider_reference(
-            provider_payment_reference
-        )
+        payment = await self.payment_repo.get_by_provider_reference(provider_payment_reference)
         if payment is None:
             logger.warning(
                 "payment_webhook_unknown_reference",
@@ -409,7 +390,7 @@ class PaymentService:
             return payment
 
         # Apply transition
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         payment.status = target_status
 
         if target_status == PaymentStatus.SUCCEEDED:
@@ -417,9 +398,7 @@ class PaymentService:
             await self._update_invoice_payment_status(payment)
         elif target_status == PaymentStatus.FAILED:
             payment.failure_code = event_type
-        elif target_status == PaymentStatus.EXPIRED:
-            pass
-        elif target_status == PaymentStatus.CANCELLED:
+        elif target_status == PaymentStatus.EXPIRED or target_status == PaymentStatus.CANCELLED:
             pass
 
         await self.payment_repo.update(payment)
@@ -455,9 +434,7 @@ class PaymentService:
             PaymentStatus.SUCCEEDED,
             PaymentStatus.PARTIALLY_REFUNDED,
         ):
-            raise StateTransitionError(
-                f"Cannot refund payment in status {payment.status}"
-            )
+            raise StateTransitionError(f"Cannot refund payment in status {payment.status}")
 
         if self.payment_provider is None:
             raise ValidationError("No payment provider configured")
@@ -471,7 +448,7 @@ class PaymentService:
             try:
                 refund_amount = Decimal(amount)
             except (InvalidOperation, ValueError):
-                raise ValidationError("Invalid refund amount format")
+                raise ValidationError("Invalid refund amount format") from None
             if refund_amount <= 0:
                 raise ValidationError("Refund amount must be positive")
             if refund_amount > max_refundable:
@@ -490,7 +467,7 @@ class PaymentService:
         )
         result = await self.payment_provider.refund(refund_request)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if result.success:
             # Update refunded amount
@@ -501,14 +478,10 @@ class PaymentService:
 
             # Determine new status
             if new_refunded >= payment_amount:
-                self._validate_transition(
-                    payment.status, PaymentStatus.REFUNDED
-                )
+                self._validate_transition(payment.status, PaymentStatus.REFUNDED)
                 payment.status = PaymentStatus.REFUNDED
             else:
-                self._validate_transition(
-                    payment.status, PaymentStatus.PARTIALLY_REFUNDED
-                )
+                self._validate_transition(payment.status, PaymentStatus.PARTIALLY_REFUNDED)
                 payment.status = PaymentStatus.PARTIALLY_REFUNDED
 
             # Update invoice payment status
@@ -522,9 +495,7 @@ class PaymentService:
                 actor=str(actor_id),
             )
         else:
-            raise ValidationError(
-                f"Refund failed: {result.error}"
-            )
+            raise ValidationError(f"Refund failed: {result.error}")
 
         await self.payment_repo.update(payment)
         return payment
@@ -540,9 +511,7 @@ class PaymentService:
         """Cancel a pending payment."""
         current_status = PaymentStatus(payment.status)
         if current_status != PaymentStatus.PENDING:
-            raise StateTransitionError(
-                f"Cannot cancel payment in status {payment.status}"
-            )
+            raise StateTransitionError(f"Cannot cancel payment in status {payment.status}")
 
         self._validate_transition(payment.status, PaymentStatus.CANCELLED)
         payment.status = PaymentStatus.CANCELLED
@@ -562,9 +531,7 @@ class PaymentService:
         """Expire a payment that has exceeded its time limit."""
         current_status = PaymentStatus(payment.status)
         if current_status not in (PaymentStatus.PENDING, PaymentStatus.PROCESSING):
-            raise StateTransitionError(
-                f"Cannot expire payment in status {payment.status}"
-            )
+            raise StateTransitionError(f"Cannot expire payment in status {payment.status}")
 
         self._validate_transition(payment.status, PaymentStatus.EXPIRED)
         payment.status = PaymentStatus.EXPIRED
@@ -578,9 +545,7 @@ class PaymentService:
 
     # --- Internal helpers ---
 
-    def _validate_transition(
-        self, from_status: str, to_status: PaymentStatus
-    ) -> None:
+    def _validate_transition(self, from_status: str, to_status: PaymentStatus) -> None:
         """Validate a payment state transition."""
         current = PaymentStatus(from_status)
         allowed = PAYMENT_TRANSITIONS.get(current, set())
@@ -611,9 +576,7 @@ class PaymentService:
 
         return None
 
-    async def _update_invoice_payment_status(
-        self, payment: Payment
-    ) -> None:
+    async def _update_invoice_payment_status(self, payment: Payment) -> None:
         """Update the linked invoice's payment status based on payments.
 
         Deterministic: derives status from the aggregate of all

@@ -8,12 +8,12 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import AsyncIterator
 
 
 @dataclass
 class StoredObject:
     """Metadata for a stored object."""
+
     key: str
     size: int
     content_type: str

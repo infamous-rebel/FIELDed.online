@@ -28,13 +28,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.domain.common.base_model import BaseModel
 
 if TYPE_CHECKING:
-    from app.domain.booking.models import Booking
     from app.domain.business.models import BrainVersion
     from app.domain.identity.models import Business, User
-    from app.domain.enquiry.models import Enquiry
-    from app.domain.invoice.models import Invoice
-    from app.domain.quote.models import Quote
-    from app.domain.service_execution.models import ServiceExecution
 
 
 class Communication(BaseModel):
@@ -66,14 +61,10 @@ class Communication(BaseModel):
     )
     channel: Mapped[str] = mapped_column(String(50), nullable=False)
     purpose: Mapped[str] = mapped_column(String(50), nullable=False)
-    status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="PENDING"
-    )
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="PENDING")
 
     # Idempotency — unique constraint prevents duplicate communications
-    idempotency_key: Mapped[str] = mapped_column(
-        String(500), unique=True, nullable=False
-    )
+    idempotency_key: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
 
     # Brain traceability
     brain_version_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -111,19 +102,13 @@ class Communication(BaseModel):
     )
 
     # Provider tracking
-    provider_reference: Mapped[str | None] = mapped_column(
-        String(500), nullable=True
-    )
-    metadata_: Mapped[dict | None] = mapped_column(
-        "metadata", JSONB, nullable=True
-    )
+    provider_reference: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    metadata_: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True)
 
     # Relationships
-    business: Mapped["Business"] = relationship(foreign_keys=[business_id])
-    customer: Mapped["User | None"] = relationship(foreign_keys=[customer_id])
-    brain_version: Mapped["BrainVersion | None"] = relationship(
-        foreign_keys=[brain_version_id]
-    )
+    business: Mapped[Business] = relationship(foreign_keys=[business_id])
+    customer: Mapped[User | None] = relationship(foreign_keys=[customer_id])
+    brain_version: Mapped[BrainVersion | None] = relationship(foreign_keys=[brain_version_id])
     recipients: Mapped[list[CommunicationRecipient]] = relationship(
         back_populates="communication", cascade="all, delete-orphan"
     )
@@ -160,18 +145,12 @@ class CommunicationRecipient(BaseModel):
         String(50), nullable=False
     )  # RecipientType enum value
     channel: Mapped[str] = mapped_column(String(50), nullable=False)
-    address: Mapped[str] = mapped_column(
-        String(500), nullable=False
-    )  # email/phone/device token
-    status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="PENDING"
-    )
+    address: Mapped[str] = mapped_column(String(500), nullable=False)  # email/phone/device token
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="PENDING")
 
     # Relationships
-    communication: Mapped[Communication] = relationship(
-        back_populates="recipients"
-    )
-    user: Mapped["User | None"] = relationship(foreign_keys=[user_id])
+    communication: Mapped[Communication] = relationship(back_populates="recipients")
+    user: Mapped[User | None] = relationship(foreign_keys=[user_id])
 
 
 class CommunicationAttempt(BaseModel):
@@ -184,9 +163,7 @@ class CommunicationAttempt(BaseModel):
     """
 
     __tablename__ = "communication_attempts"
-    __table_args__ = (
-        Index("ix_comm_attempts_communication_id", "communication_id"),
-    )
+    __table_args__ = (Index("ix_comm_attempts_communication_id", "communication_id"),)
 
     communication_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -194,22 +171,14 @@ class CommunicationAttempt(BaseModel):
         nullable=False,
     )
     provider_name: Mapped[str] = mapped_column(String(100), nullable=False)
-    provider_reference: Mapped[str | None] = mapped_column(
-        String(500), nullable=True
-    )
-    status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="PENDING"
-    )
+    provider_reference: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="PENDING")
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    retry_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
+    retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     provider_response: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     # Relationships
-    communication: Mapped[Communication] = relationship(
-        back_populates="attempts"
-    )
+    communication: Mapped[Communication] = relationship(back_populates="attempts")
 
 
 class CommunicationTemplate(BaseModel):
@@ -239,12 +208,8 @@ class CommunicationTemplate(BaseModel):
         ForeignKey("communication_template_versions.id", ondelete="SET NULL"),
         nullable=True,
     )
-    status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="DRAFT"
-    )
-    approval_state: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="PENDING"
-    )
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="DRAFT")
+    approval_state: Mapped[str] = mapped_column(String(50), nullable=False, default="PENDING")
 
     # Relationships
     versions: Mapped[list[CommunicationTemplateVersion]] = relationship(
@@ -264,9 +229,7 @@ class CommunicationTemplateVersion(BaseModel):
     """
 
     __tablename__ = "communication_template_versions"
-    __table_args__ = (
-        Index("ix_comm_template_versions_template_id", "template_id"),
-    )
+    __table_args__ = (Index("ix_comm_template_versions_template_id", "template_id"),)
 
     template_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -316,12 +279,8 @@ class BusinessCommunicationChannel(BaseModel):
         nullable=False,
     )
     channel: Mapped[str] = mapped_column(String(50), nullable=False)
-    enabled: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
-    provider_ref: Mapped[str | None] = mapped_column(
-        String(100), nullable=True
-    )
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    provider_ref: Mapped[str | None] = mapped_column(String(100), nullable=True)
     settings: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
 
@@ -349,9 +308,7 @@ class BusinessCommunicationPurpose(BaseModel):
         nullable=False,
     )
     purpose: Mapped[str] = mapped_column(String(50), nullable=False)
-    enabled: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     permitted_channels: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
 
@@ -388,31 +345,15 @@ class CustomerCommunicationPreference(BaseModel):
         ForeignKey("businesses.id", ondelete="CASCADE"),
         nullable=False,
     )
-    channel: Mapped[str | None] = mapped_column(
-        String(50), nullable=True
-    )  # NULL = all channels
-    purpose: Mapped[str | None] = mapped_column(
-        String(50), nullable=True
-    )  # NULL = all purposes
-    consent_state: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="UNKNOWN"
-    )
-    opt_in: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
-    suppression: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
-    suppression_reason: Mapped[str | None] = mapped_column(
-        Text, nullable=True
-    )
-    do_not_contact: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
+    channel: Mapped[str | None] = mapped_column(String(50), nullable=True)  # NULL = all channels
+    purpose: Mapped[str | None] = mapped_column(String(50), nullable=True)  # NULL = all purposes
+    consent_state: Mapped[str] = mapped_column(String(50), nullable=False, default="UNKNOWN")
+    opt_in: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    suppression: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    suppression_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    do_not_contact: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     source: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    consented_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    consented_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class CommunicationWebhook(BaseModel):
@@ -437,9 +378,7 @@ class CommunicationWebhook(BaseModel):
     )
 
     provider: Mapped[str] = mapped_column(String(100), nullable=False)
-    external_event_id: Mapped[str] = mapped_column(
-        String(500), nullable=False
-    )
+    external_event_id: Mapped[str] = mapped_column(String(500), nullable=False)
     event_type: Mapped[str] = mapped_column(String(100), nullable=False)
     communication_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
@@ -453,16 +392,10 @@ class CommunicationWebhook(BaseModel):
         nullable=True,
     )
     raw_payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    processing_status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="RECEIVED"
-    )
+    processing_status: Mapped[str] = mapped_column(String(50), nullable=False, default="RECEIVED")
     error_metadata: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    received_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    processed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class CommunicationAuditEvent(BaseModel):
@@ -508,9 +441,5 @@ class CommunicationAuditEvent(BaseModel):
         nullable=True,
     )
     decision_evidence: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    provider_reference: Mapped[str | None] = mapped_column(
-        String(500), nullable=True
-    )
-    metadata_: Mapped[dict | None] = mapped_column(
-        "metadata", JSONB, nullable=True
-    )
+    provider_reference: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    metadata_: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True)

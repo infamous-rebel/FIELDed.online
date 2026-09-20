@@ -30,9 +30,7 @@ class PaymentRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_idempotency_key(
-        self, idempotency_key: str
-    ) -> Payment | None:
+    async def get_by_idempotency_key(self, idempotency_key: str) -> Payment | None:
         """Fetch a payment by its idempotency key."""
         result = await self.session.execute(
             select(Payment)
@@ -44,9 +42,7 @@ class PaymentRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_provider_reference(
-        self, provider_reference: str
-    ) -> Payment | None:
+    async def get_by_provider_reference(self, provider_reference: str) -> Payment | None:
         """Fetch a payment by provider reference."""
         result = await self.session.execute(
             select(Payment)
@@ -108,9 +104,7 @@ class PaymentRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_by_invoice(
-        self, invoice_id: uuid.UUID
-    ) -> list[Payment]:
+    async def get_by_invoice(self, invoice_id: uuid.UUID) -> list[Payment]:
         """Fetch all payments for an invoice."""
         result = await self.session.execute(
             select(Payment)
@@ -123,15 +117,12 @@ class PaymentRepository:
         )
         return list(result.scalars().all())
 
-    async def get_successful_total_for_invoice(
-        self, invoice_id: uuid.UUID
-    ) -> str:
+    async def get_successful_total_for_invoice(self, invoice_id: uuid.UUID) -> str:
         """Sum of successful payment amounts for an invoice."""
         from decimal import Decimal
 
         result = await self.session.execute(
-            select(func.coalesce(func.sum(Payment.amount), Decimal("0.00")))
-            .where(
+            select(func.coalesce(func.sum(Payment.amount), Decimal("0.00"))).where(
                 Payment.invoice_id == invoice_id,
                 Payment.status.in_(["succeeded", "partially_refunded"]),
                 Payment.deleted_at.is_(None),
@@ -139,15 +130,12 @@ class PaymentRepository:
         )
         return str(result.scalar_one())
 
-    async def get_refunded_total_for_invoice(
-        self, invoice_id: uuid.UUID
-    ) -> str:
+    async def get_refunded_total_for_invoice(self, invoice_id: uuid.UUID) -> str:
         """Sum of refunded amounts for an invoice."""
         from decimal import Decimal
 
         result = await self.session.execute(
-            select(func.coalesce(func.sum(Payment.refunded_amount), Decimal("0.00")))
-            .where(
+            select(func.coalesce(func.sum(Payment.refunded_amount), Decimal("0.00"))).where(
                 Payment.invoice_id == invoice_id,
                 Payment.status.in_(["succeeded", "partially_refunded", "refunded"]),
                 Payment.deleted_at.is_(None),

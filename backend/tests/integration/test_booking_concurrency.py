@@ -15,21 +15,15 @@ G. both requests remain tenant-authorized
 
 from __future__ import annotations
 
-import asyncio
 import uuid
-from datetime import datetime, timedelta, timezone
-from decimal import Decimal
-from unittest.mock import MagicMock
+from datetime import UTC, datetime
 
 import pytest
 import pytest_asyncio
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.booking.availability import AvailabilityEvaluator
-from app.domain.booking.models import Booking
 from app.domain.booking.service import BookingService
-from app.domain.business.evaluator import DecisionContext
 from app.domain.business.models import BrainVersion, BusinessRule
 from app.domain.common.enums import BookingStatus, QuoteStatus
 from app.domain.enquiry.models import Enquiry
@@ -38,10 +32,10 @@ from app.domain.quote.models import Quote
 from app.domain.services.models import ServiceOffer
 from app.security.password import hash_password
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 async def _create_user(session: AsyncSession, email: str | None = None) -> User:
     """Persist a user."""
@@ -182,6 +176,7 @@ async def _create_accepted_quote(
 # Tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.integration
 class TestBookingConcurrency:
     """PostgreSQL-backed concurrency tests for booking creation."""
@@ -193,7 +188,9 @@ class TestBookingConcurrency:
         business = await _create_business(db_session, user.id, currency="GBP")
         service_offer = await _create_service_offer(db_session, business.id)
         brain_version = await _create_brain_with_capacity(
-            db_session, business.id, max_capacity=1,
+            db_session,
+            business.id,
+            max_capacity=1,
         )
         return {
             "user": user,
@@ -206,7 +203,7 @@ class TestBookingConcurrency:
     async def test_advisory_lock_key_is_deterministic(self):
         """The advisory lock key must be deterministic for same business + time bucket."""
         biz_id = uuid.uuid4()
-        dt = datetime(2026, 10, 1, 14, 30, tzinfo=timezone.utc)
+        dt = datetime(2026, 10, 1, 14, 30, tzinfo=UTC)
 
         key1 = BookingService._compute_advisory_lock_key(biz_id, dt)
         key2 = BookingService._compute_advisory_lock_key(biz_id, dt)
@@ -214,7 +211,7 @@ class TestBookingConcurrency:
 
     async def test_advisory_lock_key_differs_for_different_businesses(self):
         """Different businesses should get different lock keys."""
-        dt = datetime(2026, 10, 1, 14, 30, tzinfo=timezone.utc)
+        dt = datetime(2026, 10, 1, 14, 30, tzinfo=UTC)
         key1 = BookingService._compute_advisory_lock_key(uuid.uuid4(), dt)
         key2 = BookingService._compute_advisory_lock_key(uuid.uuid4(), dt)
         assert key1 != key2
@@ -222,8 +219,8 @@ class TestBookingConcurrency:
     async def test_advisory_lock_key_same_for_same_hour_bucket(self):
         """Times within the same hour should get the same lock key."""
         biz_id = uuid.uuid4()
-        dt1 = datetime(2026, 10, 1, 14, 0, tzinfo=timezone.utc)
-        dt2 = datetime(2026, 10, 1, 14, 59, tzinfo=timezone.utc)
+        dt1 = datetime(2026, 10, 1, 14, 0, tzinfo=UTC)
+        dt2 = datetime(2026, 10, 1, 14, 59, tzinfo=UTC)
 
         key1 = BookingService._compute_advisory_lock_key(biz_id, dt1)
         key2 = BookingService._compute_advisory_lock_key(biz_id, dt2)
@@ -232,8 +229,8 @@ class TestBookingConcurrency:
     async def test_advisory_lock_key_differs_for_different_hours(self):
         """Times in different hours should get different lock keys."""
         biz_id = uuid.uuid4()
-        dt1 = datetime(2026, 10, 1, 14, 0, tzinfo=timezone.utc)
-        dt2 = datetime(2026, 10, 1, 15, 0, tzinfo=timezone.utc)
+        dt1 = datetime(2026, 10, 1, 14, 0, tzinfo=UTC)
+        dt2 = datetime(2026, 10, 1, 15, 0, tzinfo=UTC)
 
         key1 = BookingService._compute_advisory_lock_key(biz_id, dt1)
         key2 = BookingService._compute_advisory_lock_key(biz_id, dt2)
@@ -250,31 +247,37 @@ class TestBookingConcurrency:
         assert result is not None
 
     async def test_concurrent_bookings_capacity_one(
-        self, setup_data, db_session: AsyncSession,
+        self,
+        setup_data,
+        db_session: AsyncSession,
     ):
         """Two concurrent booking attempts for capacity=1: exactly one succeeds.
 
         This is the core concurrency test.  It uses two separate sessions
         to simulate concurrent requests.
         """
-        from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-        from sqlalchemy.pool import NullPool
 
-        user = setup_data["user"]
+        _user = setup_data["user"]
         business = setup_data["business"]
         service_offer = setup_data["service_offer"]
 
-        requested_at = datetime(2026, 10, 15, 14, 0, tzinfo=timezone.utc)
+        requested_at = datetime(2026, 10, 15, 14, 0, tzinfo=UTC)
 
         # Create two accepted quotes for two different customers
         customer1 = await _create_user(db_session, email="cust1-conc@example.com")
         customer2 = await _create_user(db_session, email="cust2-conc@example.com")
 
         quote1 = await _create_accepted_quote(
-            db_session, customer1.id, business.id, service_offer.id,
+            db_session,
+            customer1.id,
+            business.id,
+            service_offer.id,
         )
         quote2 = await _create_accepted_quote(
-            db_session, customer2.id, business.id, service_offer.id,
+            db_session,
+            customer2.id,
+            business.id,
+            service_offer.id,
         )
 
         # Use the SAME session to create both bookings sequentially
@@ -292,6 +295,7 @@ class TestBookingConcurrency:
 
         # Second booking for the same time slot should fail (capacity=1)
         from app.exceptions import ValidationError
+
         with pytest.raises(ValidationError, match="not available"):
             await booking_service.create_booking(
                 customer_id=customer2.id,
@@ -312,23 +316,31 @@ class TestBookingConcurrency:
         assert count == 1, f"Expected 1 booking, got {count}"
 
     async def test_no_duplicate_booking_persisted(
-        self, setup_data, db_session: AsyncSession,
+        self,
+        setup_data,
+        db_session: AsyncSession,
     ):
         """Verify no partial/duplicate bookings exist after contention."""
-        user = setup_data["user"]
+        _user = setup_data["user"]
         business = setup_data["business"]
         service_offer = setup_data["service_offer"]
 
-        requested_at = datetime(2026, 10, 20, 10, 0, tzinfo=timezone.utc)
+        requested_at = datetime(2026, 10, 20, 10, 0, tzinfo=UTC)
 
         customer1 = await _create_user(db_session, email="dup1@example.com")
         customer2 = await _create_user(db_session, email="dup2@example.com")
 
         quote1 = await _create_accepted_quote(
-            db_session, customer1.id, business.id, service_offer.id,
+            db_session,
+            customer1.id,
+            business.id,
+            service_offer.id,
         )
         quote2 = await _create_accepted_quote(
-            db_session, customer2.id, business.id, service_offer.id,
+            db_session,
+            customer2.id,
+            business.id,
+            service_offer.id,
         )
 
         booking_service = BookingService(db_session)
@@ -343,6 +355,7 @@ class TestBookingConcurrency:
 
         # Second fails
         from app.exceptions import ValidationError
+
         with pytest.raises(ValidationError):
             await booking_service.create_booking(
                 customer_id=customer2.id,
@@ -363,19 +376,24 @@ class TestBookingConcurrency:
         assert str(rows[0][1]) == str(customer1.id)
 
     async def test_tenant_isolation_preserved(
-        self, setup_data, db_session: AsyncSession,
+        self,
+        setup_data,
+        db_session: AsyncSession,
     ):
         """Both booking attempts must be tenant-authorized."""
-        user = setup_data["user"]
+        _user = setup_data["user"]
         business = setup_data["business"]
         service_offer = setup_data["service_offer"]
 
-        requested_at = datetime(2026, 10, 25, 16, 0, tzinfo=timezone.utc)
+        requested_at = datetime(2026, 10, 25, 16, 0, tzinfo=UTC)
 
         # Customer in the same business
         customer = await _create_user(db_session, email="tenant-test@example.com")
         quote = await _create_accepted_quote(
-            db_session, customer.id, business.id, service_offer.id,
+            db_session,
+            customer.id,
+            business.id,
+            service_offer.id,
         )
 
         booking_service = BookingService(db_session)
@@ -390,10 +408,12 @@ class TestBookingConcurrency:
         assert booking.customer_id == customer.id
 
     async def test_different_time_slots_both_succeed(
-        self, setup_data, db_session: AsyncSession,
+        self,
+        setup_data,
+        db_session: AsyncSession,
     ):
         """Bookings for different time slots should both succeed (no false contention)."""
-        user = setup_data["user"]
+        _user = setup_data["user"]
         business = setup_data["business"]
         service_offer = setup_data["service_offer"]
 
@@ -401,17 +421,23 @@ class TestBookingConcurrency:
         customer2 = await _create_user(db_session, email="slot2@example.com")
 
         quote1 = await _create_accepted_quote(
-            db_session, customer1.id, business.id, service_offer.id,
+            db_session,
+            customer1.id,
+            business.id,
+            service_offer.id,
         )
         quote2 = await _create_accepted_quote(
-            db_session, customer2.id, business.id, service_offer.id,
+            db_session,
+            customer2.id,
+            business.id,
+            service_offer.id,
         )
 
         booking_service = BookingService(db_session)
 
         # Different time slots (more than 2 hours apart — outside capacity window)
-        slot1 = datetime(2026, 11, 1, 9, 0, tzinfo=timezone.utc)
-        slot2 = datetime(2026, 11, 1, 15, 0, tzinfo=timezone.utc)
+        slot1 = datetime(2026, 11, 1, 9, 0, tzinfo=UTC)
+        slot2 = datetime(2026, 11, 1, 15, 0, tzinfo=UTC)
 
         booking1 = await booking_service.create_booking(
             customer_id=customer1.id,

@@ -15,7 +15,6 @@ from sqlalchemy.orm import selectinload
 from app.domain.identity.models import (
     Business,
     BusinessMember,
-    BusinessProfile,
     CustomerProfile,
     User,
 )
@@ -156,9 +155,7 @@ class BusinessMemberRepository:
         )
         return list(result.scalars().all())
 
-    async def get_by_business_id(
-        self, business_id: uuid.UUID
-    ) -> list[BusinessMember]:
+    async def get_by_business_id(self, business_id: uuid.UUID) -> list[BusinessMember]:
         """Fetch all members of a business."""
         result = await self.session.execute(
             select(BusinessMember)

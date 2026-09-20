@@ -8,15 +8,14 @@ Tests:
 - Prompt-injection/adversarial input
 """
 
-import pytest
-import asyncio
 from typing import Any
 
-from app.domain.discovery import DiscoveryIntent, IntentStatus, ServiceIntent
-from app.domain.discovery.interpreter import DiscoveryInterpreter
+import pytest
+
 from app.adapters.ai.base import AIProvider, AIResponse
 from app.adapters.ai.stub import StubAIProvider
-
+from app.domain.discovery import DiscoveryIntent, IntentStatus
+from app.domain.discovery.interpreter import DiscoveryInterpreter
 
 # --- Test AI Provider Mocks ---
 
@@ -72,18 +71,22 @@ class TestDiscoveryInterpreter:
     @pytest.mark.asyncio
     async def test_valid_interpretation(self):
         """AI returns valid structured data → complete intent."""
-        provider = MockAIProvider(response={
-            "status": "complete",
-            "service_name": "Electrical Inspection",
-            "category_slug": "electrical",
-            "keywords": ["electrical", "inspection", "wiring"],
-            "location_city": "Portland",
-            "location_state": None,
-            "location_country": None,
-            "location_postal_code": None,
-        })
+        provider = MockAIProvider(
+            response={
+                "status": "complete",
+                "service_name": "Electrical Inspection",
+                "category_slug": "electrical",
+                "keywords": ["electrical", "inspection", "wiring"],
+                "location_city": "Portland",
+                "location_state": None,
+                "location_country": None,
+                "location_postal_code": None,
+            }
+        )
         interpreter = DiscoveryInterpreter(provider)
-        intent = await interpreter.interpret("I need an electrical inspection for my apartment wiring")
+        intent = await interpreter.interpret(
+            "I need an electrical inspection for my apartment wiring"
+        )
 
         assert intent.status == IntentStatus.COMPLETE
         assert intent.service.service_name == "Electrical Inspection"
@@ -95,13 +98,15 @@ class TestDiscoveryInterpreter:
     @pytest.mark.asyncio
     async def test_ambiguous_interpretation(self):
         """AI returns ambiguous status → intent with clarification."""
-        provider = MockAIProvider(response={
-            "status": "ambiguous",
-            "service_name": None,
-            "category_slug": None,
-            "keywords": ["service"],
-            "clarification_needed": "Please specify what type of service you need.",
-        })
+        provider = MockAIProvider(
+            response={
+                "status": "ambiguous",
+                "service_name": None,
+                "category_slug": None,
+                "keywords": ["service"],
+                "clarification_needed": "Please specify what type of service you need.",
+            }
+        )
         interpreter = DiscoveryInterpreter(provider)
         intent = await interpreter.interpret("I need a service")
 
@@ -112,13 +117,15 @@ class TestDiscoveryInterpreter:
     @pytest.mark.asyncio
     async def test_insufficient_interpretation(self):
         """AI returns insufficient status → intent with clarification."""
-        provider = MockAIProvider(response={
-            "status": "insufficient",
-            "service_name": None,
-            "category_slug": None,
-            "keywords": [],
-            "clarification_needed": "Please describe what you need help with.",
-        })
+        provider = MockAIProvider(
+            response={
+                "status": "insufficient",
+                "service_name": None,
+                "category_slug": None,
+                "keywords": [],
+                "clarification_needed": "Please describe what you need help with.",
+            }
+        )
         interpreter = DiscoveryInterpreter(provider)
         intent = await interpreter.interpret("help")
 
@@ -128,10 +135,12 @@ class TestDiscoveryInterpreter:
     @pytest.mark.asyncio
     async def test_schema_invalid_ai_output(self):
         """AI returns invalid status value → falls back to INSUFFICIENT."""
-        provider = MockAIProvider(response={
-            "status": "invalid_status_value",
-            "service_name": "Something",
-        })
+        provider = MockAIProvider(
+            response={
+                "status": "invalid_status_value",
+                "service_name": "Something",
+            }
+        )
         interpreter = DiscoveryInterpreter(provider)
         intent = await interpreter.interpret("I need something")
 
@@ -191,12 +200,15 @@ class TestDiscoveryInterpreter:
     async def test_customer_id_preserved(self):
         """Customer ID is preserved through interpretation."""
         import uuid
-        provider = MockAIProvider(response={
-            "status": "complete",
-            "service_name": "Plumbing",
-            "category_slug": "plumbing",
-            "keywords": ["plumbing"],
-        })
+
+        provider = MockAIProvider(
+            response={
+                "status": "complete",
+                "service_name": "Plumbing",
+                "category_slug": "plumbing",
+                "keywords": ["plumbing"],
+            }
+        )
         interpreter = DiscoveryInterpreter(provider)
         customer_id = str(uuid.uuid4())
         intent = await interpreter.interpret("I need a plumber", customer_id)

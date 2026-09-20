@@ -39,7 +39,8 @@ class BusinessBrain(BaseModel):
 
     # Relationships
     versions: Mapped[list[BrainVersion]] = relationship(
-        back_populates="brain", cascade="all, delete-orphan",
+        back_populates="brain",
+        cascade="all, delete-orphan",
         foreign_keys="BrainVersion.brain_id",
     )
 

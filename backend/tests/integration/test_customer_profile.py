@@ -6,11 +6,7 @@ Tests: get profile, update profile, access restrictions.
 from __future__ import annotations
 
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.domain.identity.models import User
 
 
 class TestCustomerProfileAPI:

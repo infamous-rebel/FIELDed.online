@@ -15,10 +15,12 @@ Never expose:
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
+from pydantic import BaseModel as _BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -29,15 +31,14 @@ from app.domain.identity.models import Business, BusinessProfile
 from app.domain.services.models import ServiceOffer
 from app.exceptions import NotFoundError
 
-from datetime import datetime, timedelta, timezone
-from pydantic import BaseModel as _BaseModel
-
 
 class PublicAvailabilityResponse(_BaseModel):
     """Customer-safe availability summary."""
+
     available: bool
     next_available: str | None = None  # ISO datetime or null
     lead_time_hours: int | None = None
+
 
 router = APIRouter()
 
@@ -54,6 +55,7 @@ class PublicSocialLinks(BaseModel):
 
 class PublicBusinessProfile(BaseModel):
     """Public-facing business profile — only intentionally public fields."""
+
     name: str
     slug: str
     description: str | None = None
@@ -73,6 +75,7 @@ class PublicBusinessProfile(BaseModel):
 
 class PublicPricingSummary(BaseModel):
     """Customer-visible pricing summary — derived from pricing_config, never raw JSONB."""
+
     pricing_model: str
     starting_price: str | None = None
     hourly_rate: str | None = None
@@ -82,6 +85,7 @@ class PublicPricingSummary(BaseModel):
 
 class PublicServiceOffer(BaseModel):
     """Public-facing service offer — only ACTIVE offers are visible."""
+
     id: str
     name: str
     slug: str
@@ -94,6 +98,7 @@ class PublicServiceOffer(BaseModel):
 
 class PublicServiceOfferDetail(PublicServiceOffer):
     """Detailed public service offer with pricing summary and business context."""
+
     business_id: str  # Business UUID — minimum identifier for enquiry creation
     business_name: str
     business_slug: str
@@ -105,6 +110,7 @@ class PublicServiceOfferDetail(PublicServiceOffer):
 
 class PublicBusinessDetail(PublicBusinessProfile):
     """Full public business page including active service offers."""
+
     id: str  # Business UUID — minimum identifier for enquiry creation
     service_offers: list[PublicServiceOffer] = []
     active_offer_count: int = 0
@@ -112,6 +118,7 @@ class PublicBusinessDetail(PublicBusinessProfile):
 
 class PublicBusinessDirectoryItem(BaseModel):
     """Compact business listing for the network directory."""
+
     name: str
     slug: str
     description: str | None = None
@@ -128,6 +135,7 @@ class PublicBusinessDirectoryItem(BaseModel):
 
 class PublicBusinessDirectoryResponse(BaseModel):
     """Paginated directory of active public businesses."""
+
     businesses: list[PublicBusinessDirectoryItem] = []
     total: int = 0
     limit: int = 20
@@ -171,7 +179,8 @@ def _build_public_profile(business: Business) -> PublicBusinessDetail:
 
     # Collect only ACTIVE service offers
     active_offers = [
-        offer for offer in (business.service_offers or [])
+        offer
+        for offer in (business.service_offers or [])
         if offer.status == ServiceOfferStatus.ACTIVE and offer.deleted_at is None
     ]
 
@@ -401,13 +410,9 @@ async def list_public_businesses(
 
     # Apply location filters
     if city:
-        base_query = base_query.where(
-            func.lower(BusinessProfile.city) == func.lower(city)
-        )
+        base_query = base_query.where(func.lower(BusinessProfile.city) == func.lower(city))
     if country:
-        base_query = base_query.where(
-            func.lower(BusinessProfile.country) == func.lower(country)
-        )
+        base_query = base_query.where(func.lower(BusinessProfile.country) == func.lower(country))
 
     # Count total before pagination
     count_query = select(func.count()).select_from(base_query.subquery())
@@ -416,8 +421,7 @@ async def list_public_businesses(
 
     # Paginate
     result = await db.execute(
-        base_query
-        .options(
+        base_query.options(
             selectinload(Business.profile),
             selectinload(Business.service_offers).selectinload(ServiceOffer.category),
         )
@@ -431,7 +435,8 @@ async def list_public_businesses(
     for biz in businesses_list:
         profile = biz.profile
         active_offers = [
-            o for o in (biz.service_offers or [])
+            o
+            for o in (biz.service_offers or [])
             if o.status == ServiceOfferStatus.ACTIVE and o.deleted_at is None
         ]
 
@@ -445,10 +450,7 @@ async def list_public_businesses(
 
         # If filtering by category, only include businesses with matching offers
         if category:
-            matching = [
-                o for o in active_offers
-                if o.category and o.category.slug == category
-            ]
+            matching = [o for o in active_offers if o.category and o.category.slug == category]
             if not matching:
                 continue
 
@@ -520,10 +522,11 @@ async def get_public_availability(
 
     # 3. Verify service offer is ACTIVE
     import uuid as _uuid
+
     try:
         offer_uuid = _uuid.UUID(service_offer_id)
     except ValueError:
-        raise NotFoundError("Invalid service offer ID")
+        raise NotFoundError("Invalid service offer ID") from None
 
     offer_result = await db.execute(
         select(ServiceOffer).where(
@@ -539,7 +542,7 @@ async def get_public_availability(
 
     # 4. Use existing BookingService.check_availability
     booking_service = BookingService(db)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     # Check availability for 1 hour from now as a reasonable default
     check_time = now + timedelta(hours=1)
 

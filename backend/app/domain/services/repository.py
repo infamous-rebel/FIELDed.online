@@ -86,9 +86,7 @@ class ServiceOfferRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_business_id(
-        self, business_id: uuid.UUID
-    ) -> list[ServiceOffer]:
+    async def get_by_business_id(self, business_id: uuid.UUID) -> list[ServiceOffer]:
         """Fetch all service offers for a business."""
         result = await self.session.execute(
             select(ServiceOffer)
@@ -117,9 +115,7 @@ class ServiceOfferRepository:
         )
         return list(result.scalars().all())
 
-    async def get_by_category_id(
-        self, category_id: uuid.UUID
-    ) -> list[ServiceOffer]:
+    async def get_by_category_id(self, category_id: uuid.UUID) -> list[ServiceOffer]:
         """Fetch all active service offers in a category."""
         result = await self.session.execute(
             select(ServiceOffer)
@@ -149,9 +145,7 @@ class ServiceOfferRepository:
             query = query.where(ServiceOffer.status == "active")
 
         result = await self.session.execute(
-            query.options(selectinload(ServiceOffer.category)).order_by(
-                ServiceOffer.name
-            )
+            query.options(selectinload(ServiceOffer.category)).order_by(ServiceOffer.name)
         )
         return list(result.scalars().all())
 

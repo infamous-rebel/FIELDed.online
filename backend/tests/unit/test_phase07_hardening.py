@@ -13,7 +13,7 @@ Tests cover all 7 safeguards:
 from __future__ import annotations
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -22,15 +22,12 @@ from app.domain.business.approval import (
     ENTERPRISE_APPROVAL_POLICY,
     STRICT_APPROVAL_POLICY,
     ApprovalDecision,
-    ApprovalPolicy,
     resolve_approval_policy,
 )
+from app.domain.business.models import BrainVersion
 from app.domain.business.registry import (
     CURRENT_SCHEMA_VERSION,
     ConfigCategory,
-    ConditionOperator,
-    RuleScope,
-    ActionOutcome,
     get_all_rule_types,
     get_rule_type,
     get_rule_types_for_category,
@@ -40,21 +37,20 @@ from app.domain.business.registry import (
     is_supported_scope,
     registry,
 )
+from app.domain.business.service import _IMMUTABLE_STATUSES, BrainService
 from app.domain.business.validation import (
     ValidationResult,
     validate_brain_version_config,
     validate_brain_version_full,
     validate_rule_data,
 )
-from app.domain.business.service import BrainService, BusinessRuleService, _IMMUTABLE_STATUSES
-from app.domain.business.models import BrainVersion, BusinessRule
 from app.domain.common.enums import BrainVersionStatus, BusinessMemberRole
-from app.exceptions import DomainError, ValidationError
-
+from app.exceptions import DomainError
 
 # ===========================================================================
 # 1. DB-level constraint — migration structure
 # ===========================================================================
+
 
 class TestActiveVersionMigration:
     """Verify migration 006 structure (PG execution requires live DB)."""
@@ -70,11 +66,14 @@ class TestActiveVersionMigration:
 
         migration_path = (
             Path(__file__).resolve().parent.parent.parent
-            / "alembic" / "versions" / "006_brain_version_active_unique.py"
+            / "alembic"
+            / "versions"
+            / "006_brain_version_active_unique.py"
         )
         assert migration_path.exists(), f"Migration file not found: {migration_path}"
         spec = importlib.util.spec_from_file_location(
-            "migration_006", str(migration_path),
+            "migration_006",
+            str(migration_path),
         )
         assert spec is not None and spec.loader is not None
         mod = importlib.util.module_from_spec(spec)
@@ -98,6 +97,7 @@ class TestActiveVersionMigration:
 # 2. Structural validation
 # ===========================================================================
 
+
 class TestBrainVersionConfigValidation:
     """Validate BrainVersion config envelope."""
 
@@ -110,16 +110,20 @@ class TestBrainVersionConfigValidation:
         assert result.is_valid
 
     def test_known_config_areas_accepted(self):
-        result = validate_brain_version_config({
-            "services": {"service_name": "Test"},
-            "pricing": {"base_price": 100},
-        })
+        result = validate_brain_version_config(
+            {
+                "services": {"service_name": "Test"},
+                "pricing": {"base_price": 100},
+            }
+        )
         assert result.is_valid
 
     def test_unknown_config_area_rejected(self):
-        result = validate_brain_version_config({
-            "unknown_area": {"foo": "bar"},
-        })
+        result = validate_brain_version_config(
+            {
+                "unknown_area": {"foo": "bar"},
+            }
+        )
         assert not result.is_valid
         assert any("Unknown configuration area" in e.message for e in result.errors)
 
@@ -128,21 +132,27 @@ class TestBrainVersionConfigValidation:
         assert not result.is_valid
 
     def test_non_dict_area_value_rejected(self):
-        result = validate_brain_version_config({
-            "services": "not a dict",
-        })
+        result = validate_brain_version_config(
+            {
+                "services": "not a dict",
+            }
+        )
         assert not result.is_valid
 
     def test_supported_schema_version_accepted(self):
-        result = validate_brain_version_config({
-            "schema_version": "1.0",
-        })
+        result = validate_brain_version_config(
+            {
+                "schema_version": "1.0",
+            }
+        )
         assert result.is_valid
 
     def test_unsupported_schema_version_rejected(self):
-        result = validate_brain_version_config({
-            "schema_version": "99.0",
-        })
+        result = validate_brain_version_config(
+            {
+                "schema_version": "99.0",
+            }
+        )
         assert not result.is_valid
         assert any("Unsupported schema version" in e.message for e in result.errors)
 
@@ -151,9 +161,13 @@ class TestRuleDataValidation:
     """Validate BusinessRule data against registry."""
 
     def test_known_rule_type_with_required_fields(self):
-        result = validate_rule_data("base_pricing", {
-            "amount": 100, "currency": "AUD",
-        })
+        result = validate_rule_data(
+            "base_pricing",
+            {
+                "amount": 100,
+                "currency": "AUD",
+            },
+        )
         assert result.is_valid
 
     def test_unknown_rule_type_rejected(self):
@@ -162,51 +176,74 @@ class TestRuleDataValidation:
         assert any("Unknown rule type" in e.message for e in result.errors)
 
     def test_missing_required_field(self):
-        result = validate_rule_data("base_pricing", {
-            "currency": "AUD",
-            # missing "amount"
-        })
+        result = validate_rule_data(
+            "base_pricing",
+            {
+                "currency": "AUD",
+                # missing "amount"
+            },
+        )
         assert not result.is_valid
         assert any("missing" in e.message.lower() for e in result.errors)
 
     def test_invalid_operator_rejected(self):
-        result = validate_rule_data("base_pricing", {
-            "amount": 100, "currency": "AUD",
-            "conditions": [
-                {"field": "x", "operator": "INVALID_OP", "value": 1},
-            ],
-        })
+        result = validate_rule_data(
+            "base_pricing",
+            {
+                "amount": 100,
+                "currency": "AUD",
+                "conditions": [
+                    {"field": "x", "operator": "INVALID_OP", "value": 1},
+                ],
+            },
+        )
         assert not result.is_valid
         assert any("Unknown operator" in e.message for e in result.errors)
 
     def test_valid_operator_accepted(self):
-        result = validate_rule_data("base_pricing", {
-            "amount": 100, "currency": "AUD",
-            "conditions": [
-                {"field": "x", "operator": "equals", "value": 1},
-            ],
-        })
+        result = validate_rule_data(
+            "base_pricing",
+            {
+                "amount": 100,
+                "currency": "AUD",
+                "conditions": [
+                    {"field": "x", "operator": "equals", "value": 1},
+                ],
+            },
+        )
         assert result.is_valid
 
     def test_invalid_scope_rejected(self):
-        result = validate_rule_data("base_pricing", {
-            "amount": 100, "currency": "AUD",
-            "scope": "invalid_scope",
-        })
+        result = validate_rule_data(
+            "base_pricing",
+            {
+                "amount": 100,
+                "currency": "AUD",
+                "scope": "invalid_scope",
+            },
+        )
         assert not result.is_valid
 
     def test_negative_priority_rejected(self):
-        result = validate_rule_data("base_pricing", {
-            "amount": 100, "currency": "AUD",
-            "priority": -1,
-        })
+        result = validate_rule_data(
+            "base_pricing",
+            {
+                "amount": 100,
+                "currency": "AUD",
+                "priority": -1,
+            },
+        )
         assert not result.is_valid
 
     def test_invalid_action_outcome_rejected(self):
-        result = validate_rule_data("base_pricing", {
-            "amount": 100, "currency": "AUD",
-            "actions": [{"outcome": "INVALID_OUTCOME"}],
-        })
+        result = validate_rule_data(
+            "base_pricing",
+            {
+                "amount": 100,
+                "currency": "AUD",
+                "actions": [{"outcome": "INVALID_OUTCOME"}],
+            },
+        )
         assert not result.is_valid
 
     def test_non_dict_rule_data_rejected(self):
@@ -214,10 +251,14 @@ class TestRuleDataValidation:
         assert not result.is_valid
 
     def test_unsupported_schema_version_in_rule(self):
-        result = validate_rule_data("base_pricing", {
-            "amount": 100, "currency": "AUD",
-            "schema_version": "99.0",
-        })
+        result = validate_rule_data(
+            "base_pricing",
+            {
+                "amount": 100,
+                "currency": "AUD",
+                "schema_version": "99.0",
+            },
+        )
         assert not result.is_valid
 
 
@@ -253,6 +294,7 @@ class TestFullVersionValidation:
 # ===========================================================================
 # 3. Rule-type registry
 # ===========================================================================
+
 
 class TestRuleTypeRegistry:
     """Verify the rule-type registry."""
@@ -301,7 +343,7 @@ class TestRuleTypeRegistry:
         assert not is_supported_schema_version("99.0")
 
     def test_all_types_have_required_fields(self):
-        for type_id, defn in get_all_rule_types().items():
+        for defn in get_all_rule_types().values():
             assert isinstance(defn.required_fields, tuple)
             assert isinstance(defn.description, str)
             assert len(defn.description) > 0
@@ -310,6 +352,7 @@ class TestRuleTypeRegistry:
 # ===========================================================================
 # 4. BrainVersion immutability
 # ===========================================================================
+
 
 class TestBrainVersionImmutability:
     """Verify immutability enforcement for non-DRAFT versions."""
@@ -328,7 +371,7 @@ class TestBrainVersionImmutability:
         BrainService._ensure_mutable(version)
 
     def test_validating_is_immutable(self):
-        version = self._make_version(BrainVersionStatus.VALIDATING)
+        _version = self._make_version(BrainVersionStatus.VALIDATING)
         # VALIDATING is not in _IMMUTABLE_STATUSES (it's a transient state)
         # but it's also not DRAFT — let's check the actual set
         # Actually, VALIDATING is NOT in _IMMUTABLE_STATUSES per the code
@@ -367,29 +410,34 @@ class TestBrainVersionImmutability:
 # 5. Tenant authorization helpers
 # ===========================================================================
 
+
 class TestBrainAuthorization:
     """Verify Brain authorization dependency structure."""
 
     def test_brain_auth_module_exists(self):
         from app.domain.business import auth
+
         assert hasattr(auth, "require_brain_access")
         assert hasattr(auth, "require_brain_modify")
         assert hasattr(auth, "require_brain_approve")
 
     def test_role_hierarchy(self):
         from app.domain.business.auth import _ROLE_LEVELS
+
         assert _ROLE_LEVELS[BusinessMemberRole.OWNER] > _ROLE_LEVELS[BusinessMemberRole.ADMIN]
         assert _ROLE_LEVELS[BusinessMemberRole.ADMIN] > _ROLE_LEVELS[BusinessMemberRole.STAFF]
 
     def test_version_access_checks_brain_ownership(self):
         """require_brain_version_access must verify version belongs to brain."""
         from app.domain.business.auth import require_brain_version_access
+
         assert callable(require_brain_version_access)
 
 
 # ===========================================================================
 # 6. Approval policy
 # ===========================================================================
+
 
 class TestApprovalPolicy:
     """Verify configurable approval policy."""
@@ -464,11 +512,13 @@ class TestApprovalPolicy:
         assert policy.minimum_approver_role == BusinessMemberRole.OWNER
 
     def test_resolve_custom_policy(self):
-        policy = resolve_approval_policy({
-            "self_approval_allowed": False,
-            "minimum_approver_role": "admin",
-            "required_approvals": 2,
-        })
+        policy = resolve_approval_policy(
+            {
+                "self_approval_allowed": False,
+                "minimum_approver_role": "admin",
+                "required_approvals": 2,
+            }
+        )
         assert policy.self_approval_allowed is False
         assert policy.minimum_approver_role == BusinessMemberRole.ADMIN
         assert policy.required_approvals == 2
@@ -477,6 +527,7 @@ class TestApprovalPolicy:
 # ===========================================================================
 # 7. Schema versioning
 # ===========================================================================
+
 
 class TestSchemaVersioning:
     """Verify schema version handling."""
@@ -495,12 +546,14 @@ class TestSchemaVersioning:
         """BusinessRuleService.add_rule injects schema_version."""
         # This is tested via the service — verified structurally
         from app.domain.business.registry import CURRENT_SCHEMA_VERSION
+
         assert CURRENT_SCHEMA_VERSION == "1.0"
 
 
 # ===========================================================================
 # Validation result structure
 # ===========================================================================
+
 
 class TestValidationResultStructure:
     """Verify ValidationResult serialization."""

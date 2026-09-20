@@ -6,10 +6,15 @@ Provides factory functions for creating domain model instances in tests.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
 
-from app.domain.identity.models import Business, BusinessMember, BusinessProfile, CustomerProfile, User
-from app.domain.business.models import BusinessBrain, BrainVersion, BusinessRule
+from app.domain.business.models import BrainVersion, BusinessBrain, BusinessRule
+from app.domain.identity.models import (
+    Business,
+    BusinessMember,
+    BusinessProfile,
+    CustomerProfile,
+    User,
+)
 from app.domain.services.models import ServiceCategory, ServiceOffer
 from app.security.password import hash_password
 

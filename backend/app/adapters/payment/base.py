@@ -86,9 +86,7 @@ class PaymentProvider(ABC):
         ...
 
     @abstractmethod
-    async def verify_payment_status(
-        self, provider_payment_reference: str
-    ) -> ProviderResult:
+    async def verify_payment_status(self, provider_payment_reference: str) -> ProviderResult:
         """Verify the current status of a payment.
 
         Returns:
@@ -108,9 +106,7 @@ class PaymentProvider(ABC):
         ...
 
     @abstractmethod
-    async def verify_webhook_signature(
-        self, payload: bytes, signature: str, secret: str
-    ) -> bool:
+    async def verify_webhook_signature(self, payload: bytes, signature: str, secret: str) -> bool:
         """Verify a webhook signature from the provider.
 
         Returns:

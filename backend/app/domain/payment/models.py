@@ -55,9 +55,7 @@ class Payment(BaseModel):
     )
 
     # Idempotency key — unique per logical payment request
-    idempotency_key: Mapped[str] = mapped_column(
-        String(128), nullable=False, unique=True
-    )
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
 
     # Relationship anchors — server-resolved
     business_id: Mapped[uuid.UUID] = mapped_column(
@@ -77,12 +75,8 @@ class Payment(BaseModel):
     )
 
     # Payment details
-    amount: Mapped[str] = mapped_column(
-        Numeric(precision=12, scale=2), nullable=False
-    )
-    currency: Mapped[str] = mapped_column(
-        String(3), nullable=False, default="GBP"
-    )
+    amount: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GBP")
     payment_method: Mapped[str] = mapped_column(
         String(50), nullable=False, default="card"
     )  # PaymentMethod enum value
@@ -93,31 +87,19 @@ class Payment(BaseModel):
     )  # PaymentStatus enum value
 
     # Provider tracking
-    provider: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="stub"
-    )
-    provider_reference: Mapped[str | None] = mapped_column(
-        String(255), nullable=True
-    )
+    provider: Mapped[str] = mapped_column(String(50), nullable=False, default="stub")
+    provider_reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Refund tracking
     refunded_amount: Mapped[str] = mapped_column(
         Numeric(precision=12, scale=2), nullable=False, default="0.00"
     )
-    refund_provider_reference: Mapped[str | None] = mapped_column(
-        String(255), nullable=True
-    )
+    refund_provider_reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Timestamps
-    paid_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    refunded_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    refunded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Evidence / metadata
     provider_evidence: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -126,9 +108,9 @@ class Payment(BaseModel):
     failure_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
-    business: Mapped["Business"] = relationship(foreign_keys=[business_id])
-    customer: Mapped["User"] = relationship(foreign_keys=[customer_id])
-    invoice: Mapped["Invoice | None"] = relationship(foreign_keys=[invoice_id])
+    business: Mapped[Business] = relationship(foreign_keys=[business_id])
+    customer: Mapped[User] = relationship(foreign_keys=[customer_id])
+    invoice: Mapped[Invoice | None] = relationship(foreign_keys=[invoice_id])
     attempts: Mapped[list[PaymentAttempt]] = relationship(
         back_populates="payment", cascade="all, delete-orphan"
     )
@@ -157,31 +139,19 @@ class PaymentAttempt(BaseModel):
     attempt_number: Mapped[int] = mapped_column(default=1, nullable=False)
 
     # Provider details
-    provider: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="stub"
-    )
-    provider_reference: Mapped[str | None] = mapped_column(
-        String(255), nullable=True
-    )
+    provider: Mapped[str] = mapped_column(String(50), nullable=False, default="stub")
+    provider_reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Result
     status: Mapped[str] = mapped_column(
         String(50), nullable=False, default="pending"
     )  # "pending", "processing", "succeeded", "failed"
-    amount: Mapped[str] = mapped_column(
-        Numeric(precision=12, scale=2), nullable=False
-    )
-    currency: Mapped[str] = mapped_column(
-        String(3), nullable=False, default="GBP"
-    )
+    amount: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GBP")
 
     # Timing
-    requested_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Error details
     error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)

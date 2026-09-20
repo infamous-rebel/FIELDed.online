@@ -19,7 +19,6 @@ from app.database import get_db_session
 from app.domain.common.enums import (
     BusinessMemberRole,
     ServiceOfferStatus,
-    SERVICE_OFFER_TRANSITIONS,
 )
 from app.domain.identity.models import Business, BusinessMember, User
 from app.domain.services.models import ServiceOffer
@@ -29,7 +28,7 @@ from app.domain.services.schemas import (
     ServiceOfferTransitionRequest,
     ServiceOfferUpdate,
 )
-from app.exceptions import AuthorizationError, NotFoundError, StateTransitionError
+from app.exceptions import AuthorizationError, NotFoundError
 from app.security.authorization import get_current_user
 
 router = APIRouter()
@@ -51,8 +50,7 @@ async def _get_user_business(
 ) -> tuple[Business, BusinessMember]:
     """Get a business and the user's membership, enforcing tenant isolation."""
     result = await db.execute(
-        select(Business)
-        .where(Business.id == business_id, Business.deleted_at.is_(None))
+        select(Business).where(Business.id == business_id, Business.deleted_at.is_(None))
     )
     business = result.scalar_one_or_none()
     if business is None:
@@ -142,6 +140,7 @@ async def create_service_offer(
     _check_minimum_role(membership, BusinessMemberRole.ADMIN)
 
     from app.domain.services.service import ServiceOfferService
+
     service = ServiceOfferService(db)
 
     offer = await service.create_offer(
@@ -212,6 +211,7 @@ async def update_service_offer(
     offer = await _get_business_offer(business_id, offer_id, db)
 
     from app.domain.services.service import ServiceOfferService
+
     service = ServiceOfferService(db)
 
     update_data = body.model_dump(exclude_unset=True)
@@ -247,6 +247,7 @@ async def transition_service_offer(
     offer = await _get_business_offer(business_id, offer_id, db)
 
     from app.domain.services.service import ServiceOfferService
+
     service = ServiceOfferService(db)
 
     target_status = ServiceOfferStatus(body.target_status)

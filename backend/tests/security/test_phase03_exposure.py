@@ -20,7 +20,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.identity.models import Business, BusinessMember, BusinessProfile, User
-from app.domain.services.models import ServiceCategory, ServiceOffer
+from app.domain.services.models import ServiceOffer
 
 
 @pytest.mark.integration
@@ -30,15 +30,11 @@ class TestPublicPrivateExposure:
     @pytest_asyncio.fixture
     async def public_business(self, db_session: AsyncSession, test_user: User):
         """Create an active business with public profile."""
-        business = Business(
-            name="Public Biz", slug=f"public-biz-{id(self)}", status="active"
-        )
+        business = Business(name="Public Biz", slug=f"public-biz-{id(self)}", status="active")
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=test_user.id, business_id=business.id, role="owner"
-        )
+        member = BusinessMember(user_id=test_user.id, business_id=business.id, role="owner")
         db_session.add(member)
 
         profile = BusinessProfile(
@@ -96,15 +92,11 @@ class TestPublicPrivateExposure:
     @pytest_asyncio.fixture
     async def private_business(self, db_session: AsyncSession, test_user: User):
         """Create a business with incomplete public status."""
-        business = Business(
-            name="Private Biz", slug=f"private-biz-{id(self)}", status="active"
-        )
+        business = Business(name="Private Biz", slug=f"private-biz-{id(self)}", status="active")
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=test_user.id, business_id=business.id, role="owner"
-        )
+        member = BusinessMember(user_id=test_user.id, business_id=business.id, role="owner")
         db_session.add(member)
 
         profile = BusinessProfile(
@@ -119,9 +111,7 @@ class TestPublicPrivateExposure:
     async def test_public_profile_returns_active_business(
         self, client: AsyncClient, public_business: Business
     ):
-        response = await client.get(
-            f"/api/v1/public/business/{public_business.slug}"
-        )
+        response = await client.get(f"/api/v1/public/business/{public_business.slug}")
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "Public Biz"
@@ -130,9 +120,7 @@ class TestPublicPrivateExposure:
     async def test_public_profile_only_shows_active_offers(
         self, client: AsyncClient, public_business: Business
     ):
-        response = await client.get(
-            f"/api/v1/public/business/{public_business.slug}"
-        )
+        response = await client.get(f"/api/v1/public/business/{public_business.slug}")
         data = response.json()
         offer_names = [o["name"] for o in data["service_offers"]]
         assert "Active Service" in offer_names
@@ -143,12 +131,14 @@ class TestPublicPrivateExposure:
     async def test_public_profile_does_not_expose_private_data(
         self, client: AsyncClient, public_business: Business
     ):
-        response = await client.get(
-            f"/api/v1/public/business/{public_business.slug}"
-        )
+        response = await client.get(f"/api/v1/public/business/{public_business.slug}")
         data = response.json()
         # These fields should NOT be in the public response
-        assert "service_area" not in data or data.get("service_area") is None or isinstance(data.get("service_area"), dict)
+        assert (
+            "service_area" not in data
+            or data.get("service_area") is None
+            or isinstance(data.get("service_area"), dict)
+        )
         # Ensure no internal fields leak
         assert "is_verified" in data  # This IS public
         assert "average_rating" in data  # This IS public
@@ -156,17 +146,13 @@ class TestPublicPrivateExposure:
     async def test_incomplete_public_profile_returns_404(
         self, client: AsyncClient, private_business: Business
     ):
-        response = await client.get(
-            f"/api/v1/public/business/{private_business.slug}"
-        )
+        response = await client.get(f"/api/v1/public/business/{private_business.slug}")
         assert response.status_code == 404
 
     async def test_public_services_endpoint_only_returns_active(
         self, client: AsyncClient, public_business: Business
     ):
-        response = await client.get(
-            f"/api/v1/public/business/{public_business.slug}/services"
-        )
+        response = await client.get(f"/api/v1/public/business/{public_business.slug}/services")
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1
@@ -188,9 +174,7 @@ class TestTenantIsolationPhase03:
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=test_user.id, business_id=business.id, role="owner"
-        )
+        member = BusinessMember(user_id=test_user.id, business_id=business.id, role="owner")
         db_session.add(member)
         profile = BusinessProfile(business_id=business.id)
         db_session.add(profile)
@@ -204,9 +188,7 @@ class TestTenantIsolationPhase03:
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=second_user.id, business_id=business.id, role="owner"
-        )
+        member = BusinessMember(user_id=second_user.id, business_id=business.id, role="owner")
         db_session.add(member)
         profile = BusinessProfile(business_id=business.id)
         db_session.add(profile)
@@ -290,14 +272,10 @@ class TestStaffRoleRestrictions:
         db_session.add(business)
         await db_session.flush()
 
-        owner = BusinessMember(
-            user_id=test_user.id, business_id=business.id, role="owner"
-        )
+        owner = BusinessMember(user_id=test_user.id, business_id=business.id, role="owner")
         db_session.add(owner)
 
-        staff = BusinessMember(
-            user_id=second_user.id, business_id=business.id, role="staff"
-        )
+        staff = BusinessMember(user_id=second_user.id, business_id=business.id, role="staff")
         db_session.add(staff)
 
         profile = BusinessProfile(business_id=business.id)

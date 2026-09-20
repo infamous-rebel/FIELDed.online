@@ -23,7 +23,7 @@ from app.domain.invoice.schemas import (
     InvoiceRead,
 )
 from app.domain.invoice.service import InvoiceService
-from app.security.authorization import get_current_user, require_business_member, require_customer
+from app.security.authorization import require_business_member, require_customer
 
 router = APIRouter()
 
@@ -111,9 +111,7 @@ async def update_invoice_payment_status(
     service = InvoiceService(db)
     invoice = await service.get_business_invoice(invoice_id, business_id)
     new_status = InvoicePaymentStatus(body.payment_status)
-    invoice = await service.update_payment_status(
-        invoice, new_status, actor_id=user.id
-    )
+    invoice = await service.update_payment_status(invoice, new_status, actor_id=user.id)
     await db.refresh(invoice)
     return _invoice_to_read(invoice)
 

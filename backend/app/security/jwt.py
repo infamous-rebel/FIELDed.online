@@ -7,7 +7,7 @@ are configurable via environment variables.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
@@ -31,7 +31,7 @@ def create_access_token(
     Returns:
         The encoded JWT token string.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expires_at = now + timedelta(minutes=settings.jwt_access_token_expire_minutes)
 
     claims: dict[str, Any] = {
@@ -58,7 +58,7 @@ def create_refresh_token(settings: Settings, subject: str) -> str:
     Returns:
         The encoded JWT refresh token string.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expires_at = now + timedelta(days=settings.jwt_refresh_token_expire_days)
 
     claims: dict[str, Any] = {
@@ -94,9 +94,9 @@ def decode_token(settings: Settings, token: str) -> dict[str, Any]:
             algorithms=[settings.jwt_algorithm],
         )
     except jwt.ExpiredSignatureError:
-        raise AuthenticationError("Token has expired")
+        raise AuthenticationError("Token has expired") from None
     except jwt.InvalidTokenError as e:
-        raise AuthenticationError(f"Invalid token: {e}")
+        raise AuthenticationError(f"Invalid token: {e}") from e
 
     # Check if token has been revoked
     jti = claims.get("jti")

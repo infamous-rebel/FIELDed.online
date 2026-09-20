@@ -39,13 +39,12 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db_session
-from app.domain.business.models import BusinessBrain
+from app.domain.business.models import BrainVersion, BusinessBrain
 from app.domain.business.repository import BusinessBrainRepository
 from app.domain.common.enums import BusinessMemberRole
 from app.domain.identity.models import Business, BusinessMember, User
 from app.exceptions import AuthorizationError, NotFoundError
 from app.security.authorization import get_current_user
-
 
 # ---------------------------------------------------------------------------
 # Role hierarchy (consistent with rest of FIELDed)
@@ -61,6 +60,7 @@ _ROLE_LEVELS: dict[BusinessMemberRole, int] = {
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 async def _resolve_brain_with_membership(
     business_id: uuid.UUID,
@@ -82,6 +82,7 @@ async def _resolve_brain_with_membership(
     """
     # 1. Verify business exists
     from sqlalchemy import select
+
     result = await db.execute(
         select(Business).where(
             Business.id == business_id,
@@ -109,8 +110,7 @@ async def _resolve_brain_with_membership(
     required_level = _ROLE_LEVELS.get(minimum_role, 0)
     if member_level < required_level:
         raise AuthorizationError(
-            f"Requires {minimum_role.value} role or higher "
-            f"(current: {membership.role})"
+            f"Requires {minimum_role.value} role or higher (current: {membership.role})"
         )
 
     # 4. Resolve brain (get or create)
@@ -127,6 +127,7 @@ async def _resolve_brain_with_membership(
 # Reusable FastAPI dependencies
 # ---------------------------------------------------------------------------
 
+
 def _make_brain_dependency(minimum_role: BusinessMemberRole):
     """Factory for Brain authorization dependencies at a given role level."""
 
@@ -136,7 +137,10 @@ def _make_brain_dependency(minimum_role: BusinessMemberRole):
         db: Annotated[AsyncSession, Depends(get_db_session)],
     ) -> BusinessBrain:
         brain, _ = await _resolve_brain_with_membership(
-            business_id, user, db, minimum_role,
+            business_id,
+            user,
+            db,
+            minimum_role,
         )
         return brain
 
@@ -151,7 +155,10 @@ async def _dependency_with_membership(
 ) -> tuple[BusinessBrain, BusinessMember]:
     """Resolve brain + membership for endpoints that need both."""
     return await _resolve_brain_with_membership(
-        business_id, user, db, minimum_role,
+        business_id,
+        user,
+        db,
+        minimum_role,
     )
 
 
@@ -173,12 +180,13 @@ require_brain_approve = _make_brain_dependency(BusinessMemberRole.OWNER)
 # Version-level authorization
 # ---------------------------------------------------------------------------
 
+
 async def require_brain_version_access(
     business_id: uuid.UUID,
     version_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
-) -> tuple[BusinessBrain, "BrainVersion"]:
+) -> tuple[BusinessBrain, BrainVersion]:
     """Resolve a BrainVersion within a tenant-scoped Brain.
 
     Ensures the version belongs to the referenced business's brain.
@@ -193,9 +201,7 @@ async def require_brain_version_access(
         raise NotFoundError(f"Brain version {version_id} not found")
 
     if version.brain_id != brain.id:
-        raise AuthorizationError(
-            "Brain version does not belong to this business's brain"
-        )
+        raise AuthorizationError("Brain version does not belong to this business's brain")
 
     return brain, version
 
@@ -205,7 +211,7 @@ async def require_brain_version_modify(
     version_id: uuid.UUID,
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
-) -> tuple[BusinessBrain, "BrainVersion"]:
+) -> tuple[BusinessBrain, BrainVersion]:
     """Resolve a BrainVersion with admin+ role for modification."""
     from app.domain.business.repository import BrainVersionRepository
 
@@ -217,8 +223,6 @@ async def require_brain_version_modify(
         raise NotFoundError(f"Brain version {version_id} not found")
 
     if version.brain_id != brain.id:
-        raise AuthorizationError(
-            "Brain version does not belong to this business's brain"
-        )
+        raise AuthorizationError("Brain version does not belong to this business's brain")
 
     return brain, version

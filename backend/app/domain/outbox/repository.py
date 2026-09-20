@@ -7,9 +7,9 @@ Supports concurrent claiming via SELECT ... FOR UPDATE SKIP LOCKED.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select, text, update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.outbox.models import OutboxEvent
@@ -27,14 +27,10 @@ class OutboxRepository:
         await self.session.flush()
         return event
 
-    async def get_by_idempotency_key(
-        self, idempotency_key: str
-    ) -> OutboxEvent | None:
+    async def get_by_idempotency_key(self, idempotency_key: str) -> OutboxEvent | None:
         """Fetch an outbox event by idempotency key."""
         result = await self.session.execute(
-            select(OutboxEvent).where(
-                OutboxEvent.idempotency_key == idempotency_key
-            )
+            select(OutboxEvent).where(OutboxEvent.idempotency_key == idempotency_key)
         )
         return result.scalar_one_or_none()
 
@@ -52,7 +48,7 @@ class OutboxRepository:
 
         Also reclaims stuck PROCESSING events past the lease expiry.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         lease_cutoff = now - timedelta(seconds=lease_seconds)
 
         # First, reclaim stuck PROCESSING events
@@ -101,7 +97,7 @@ class OutboxRepository:
             .where(OutboxEvent.id == event_id)
             .values(
                 status="PROCESSED",
-                processed_at=datetime.now(timezone.utc),
+                processed_at=datetime.now(UTC),
                 processing_started_at=None,
             )
         )
@@ -114,9 +110,7 @@ class OutboxRepository:
         retry_after_seconds: int = 60,
     ) -> None:
         """Mark an event for retry."""
-        available_at = datetime.now(timezone.utc) + timedelta(
-            seconds=retry_after_seconds
-        )
+        available_at = datetime.now(UTC) + timedelta(seconds=retry_after_seconds)
         await self.session.execute(
             update(OutboxEvent)
             .where(OutboxEvent.id == event_id)
@@ -128,9 +122,7 @@ class OutboxRepository:
             )
         )
 
-    async def mark_failed(
-        self, event_id: uuid.UUID, *, error: str
-    ) -> None:
+    async def mark_failed(self, event_id: uuid.UUID, *, error: str) -> None:
         """Mark an event as permanently failed."""
         await self.session.execute(
             update(OutboxEvent)
@@ -138,7 +130,7 @@ class OutboxRepository:
             .values(
                 status="FAILED",
                 last_error=error,
-                processed_at=datetime.now(timezone.utc),
+                processed_at=datetime.now(UTC),
                 processing_started_at=None,
             )
         )

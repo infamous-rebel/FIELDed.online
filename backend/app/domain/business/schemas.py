@@ -10,7 +10,6 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-
 # --- BusinessBrain schemas ---
 
 
@@ -112,9 +111,7 @@ class BrainVersionSummaryRead(BrainVersionBase):
 class BusinessRuleBase(BaseModel):
     """Base business rule fields."""
 
-    rule_type: str = Field(
-        pattern=r"^(pricing|policy|qualification|availability|escalation)$"
-    )
+    rule_type: str = Field(pattern=r"^(pricing|policy|qualification|availability|escalation)$")
     name: str = Field(min_length=1, max_length=255)
     description: str | None = None
     rule_data: dict = Field(default_factory=dict)

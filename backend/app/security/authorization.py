@@ -19,7 +19,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db_session
 from app.domain.common.enums import BusinessMemberRole
-from app.domain.identity.models import Business, BusinessMember, CustomerProfile, User
+from app.domain.identity.models import BusinessMember, User
 from app.exceptions import AuthenticationError, AuthorizationError, TenantIsolationError
 from app.security.jwt import decode_token
 
@@ -51,7 +51,7 @@ async def get_current_user(
     try:
         user_uuid = uuid.UUID(user_id)
     except ValueError:
-        raise AuthenticationError("Invalid token subject")
+        raise AuthenticationError("Invalid token subject") from None
 
     result = await db.execute(
         select(User)
@@ -125,14 +125,10 @@ def require_business_role(minimum_role: BusinessMemberRole):
     ) -> BusinessMember:
         for membership in user.business_memberships:
             if membership.business_id == business_id:
-                member_level = role_hierarchy.get(
-                    BusinessMemberRole(membership.role), 0
-                )
+                member_level = role_hierarchy.get(BusinessMemberRole(membership.role), 0)
                 if member_level >= minimum_level:
                     return membership
-                raise AuthorizationError(
-                    f"Requires {minimum_role.value} role or higher"
-                )
+                raise AuthorizationError(f"Requires {minimum_role.value} role or higher")
         raise TenantIsolationError("Not a member of this business")
 
     return _check_role

@@ -14,26 +14,25 @@ Comprehensive unit tests covering:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import MagicMock
 
 import pytest
 
-from app.domain.booking.availability import AvailabilityEvaluator, AvailabilityResult
-from app.domain.booking.models import Booking
+from app.domain.booking.availability import AvailabilityEvaluator
 from app.domain.common.enums import (
     BOOKING_TRANSITIONS,
     QUOTE_TRANSITIONS,
     BookingStatus,
     QuoteStatus,
 )
-from app.domain.quote.pricing import PricingEngine, PricingResult
-
+from app.domain.quote.pricing import PricingEngine
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_service_offer(
     pricing_model: str = "fixed",
@@ -88,6 +87,7 @@ def _make_rule(
 def _make_context(**overrides):
     """Create a DecisionContext."""
     from app.domain.business.evaluator import DecisionContext
+
     return DecisionContext(
         business_id=overrides.get("business_id", uuid.uuid4()),
         service_offer_id=overrides.get("service_offer_id", uuid.uuid4()),
@@ -99,6 +99,7 @@ def _make_context(**overrides):
 # ===========================================================================
 # PRICING TESTS
 # ===========================================================================
+
 
 class TestPricingFixedPrice:
     """Test fixed pricing model."""
@@ -199,16 +200,17 @@ class TestPricingSurcharge:
             pricing_model="fixed",
             pricing_config={"amount": "100", "currency": "GBP"},
         )
-        rule = _make_rule("surcharge", {
-            "surcharge_name": "Weekend fee",
-            "amount": "25",
-        })
+        rule = _make_rule(
+            "surcharge",
+            {
+                "surcharge_name": "Weekend fee",
+                "amount": "25",
+            },
+        )
         brain = _make_brain_version(rules=[rule])
         context = _make_context()
 
-        result = engine.calculate(
-            service_offer=offer, brain_version=brain, context=context
-        )
+        result = engine.calculate(service_offer=offer, brain_version=brain, context=context)
         assert result.amount == Decimal("125.00")
         assert len(result.surcharges) == 1
 
@@ -218,16 +220,17 @@ class TestPricingSurcharge:
             pricing_model="fixed",
             pricing_config={"amount": "200", "currency": "GBP"},
         )
-        rule = _make_rule("surcharge", {
-            "surcharge_name": "10% fee",
-            "percentage": "10",
-        })
+        rule = _make_rule(
+            "surcharge",
+            {
+                "surcharge_name": "10% fee",
+                "percentage": "10",
+            },
+        )
         brain = _make_brain_version(rules=[rule])
         context = _make_context()
 
-        result = engine.calculate(
-            service_offer=offer, brain_version=brain, context=context
-        )
+        result = engine.calculate(service_offer=offer, brain_version=brain, context=context)
         assert result.amount == Decimal("220.00")
 
 
@@ -240,16 +243,17 @@ class TestPricingDiscount:
             pricing_model="fixed",
             pricing_config={"amount": "200", "currency": "GBP"},
         )
-        rule = _make_rule("discount", {
-            "discount_name": "Loyalty 15%",
-            "percentage": "15",
-        })
+        rule = _make_rule(
+            "discount",
+            {
+                "discount_name": "Loyalty 15%",
+                "percentage": "15",
+            },
+        )
         brain = _make_brain_version(rules=[rule])
         context = _make_context()
 
-        result = engine.calculate(
-            service_offer=offer, brain_version=brain, context=context
-        )
+        result = engine.calculate(service_offer=offer, brain_version=brain, context=context)
         assert result.amount == Decimal("170.00")
         assert len(result.discounts) == 1
 
@@ -259,17 +263,18 @@ class TestPricingDiscount:
             pricing_model="fixed",
             pricing_config={"amount": "500", "currency": "GBP"},
         )
-        rule = _make_rule("discount", {
-            "discount_name": "Big discount",
-            "percentage": "50",
-            "max_discount": "100",
-        })
+        rule = _make_rule(
+            "discount",
+            {
+                "discount_name": "Big discount",
+                "percentage": "50",
+                "max_discount": "100",
+            },
+        )
         brain = _make_brain_version(rules=[rule])
         context = _make_context()
 
-        result = engine.calculate(
-            service_offer=offer, brain_version=brain, context=context
-        )
+        result = engine.calculate(service_offer=offer, brain_version=brain, context=context)
         # 50% of 500 = 250, but capped at 100
         assert result.amount == Decimal("400.00")
 
@@ -279,16 +284,17 @@ class TestPricingDiscount:
             pricing_model="fixed",
             pricing_config={"amount": "50", "currency": "GBP"},
         )
-        rule = _make_rule("discount", {
-            "discount_name": "Huge discount",
-            "amount": "100",
-        })
+        rule = _make_rule(
+            "discount",
+            {
+                "discount_name": "Huge discount",
+                "amount": "100",
+            },
+        )
         brain = _make_brain_version(rules=[rule])
         context = _make_context()
 
-        result = engine.calculate(
-            service_offer=offer, brain_version=brain, context=context
-        )
+        result = engine.calculate(service_offer=offer, brain_version=brain, context=context)
         # Discount capped at base amount
         assert result.amount == Decimal("0")
 
@@ -306,9 +312,7 @@ class TestPricingFloorCap:
         brain = _make_brain_version(rules=[rule])
         context = _make_context()
 
-        result = engine.calculate(
-            service_offer=offer, brain_version=brain, context=context
-        )
+        result = engine.calculate(service_offer=offer, brain_version=brain, context=context)
         assert result.amount == Decimal("50.00")
         assert result.floor_applied is True
 
@@ -322,9 +326,7 @@ class TestPricingFloorCap:
         brain = _make_brain_version(rules=[rule])
         context = _make_context()
 
-        result = engine.calculate(
-            service_offer=offer, brain_version=brain, context=context
-        )
+        result = engine.calculate(service_offer=offer, brain_version=brain, context=context)
         assert result.amount == Decimal("300.00")
         assert result.cap_applied is True
 
@@ -339,9 +341,7 @@ class TestPricingFloorCap:
         brain = _make_brain_version(rules=[floor_rule, cap_rule])
         context = _make_context()
 
-        result = engine.calculate(
-            service_offer=offer, brain_version=brain, context=context
-        )
+        result = engine.calculate(service_offer=offer, brain_version=brain, context=context)
         assert result.amount == Decimal("50.00")
         assert result.floor_applied is True
 
@@ -373,12 +373,8 @@ class TestPricingDeterminism:
         brain = _make_brain_version(rules=[rule])
         context = _make_context()
 
-        result1 = engine.calculate(
-            service_offer=offer, brain_version=brain, context=context
-        )
-        result2 = engine.calculate(
-            service_offer=offer, brain_version=brain, context=context
-        )
+        result1 = engine.calculate(service_offer=offer, brain_version=brain, context=context)
+        result2 = engine.calculate(service_offer=offer, brain_version=brain, context=context)
         assert result1.amount == result2.amount
         assert result1.currency == result2.currency
 
@@ -391,9 +387,7 @@ class TestPricingDeterminism:
         brain = _make_brain_version(rules=[])
         context = _make_context()
 
-        result = engine.calculate(
-            service_offer=offer, brain_version=brain, context=context
-        )
+        result = engine.calculate(service_offer=offer, brain_version=brain, context=context)
         assert result.brain_version_id == brain.id
 
     def test_evidence_serialization(self):
@@ -427,19 +421,23 @@ class TestPricingNoBrain:
 # AVAILABILITY TESTS
 # ===========================================================================
 
+
 class TestAvailabilityBlackout:
     """Test blackout period rules."""
 
     def test_blackout_blocks_request(self):
         evaluator = AvailabilityEvaluator()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         requested = now + timedelta(days=3)
 
-        rule = _make_rule("blackout_period", {
-            "start_date": (requested - timedelta(hours=1)).isoformat(),
-            "end_date": (requested + timedelta(hours=1)).isoformat(),
-            "reason": "Holiday",
-        })
+        rule = _make_rule(
+            "blackout_period",
+            {
+                "start_date": (requested - timedelta(hours=1)).isoformat(),
+                "end_date": (requested + timedelta(hours=1)).isoformat(),
+                "reason": "Holiday",
+            },
+        )
         brain = _make_brain_version(rules=[rule])
         offer = _make_service_offer()
 
@@ -453,13 +451,16 @@ class TestAvailabilityBlackout:
 
     def test_outside_blackout_allows(self):
         evaluator = AvailabilityEvaluator()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         requested = now + timedelta(days=10)
 
-        rule = _make_rule("blackout_period", {
-            "start_date": (now + timedelta(days=1)).isoformat(),
-            "end_date": (now + timedelta(days=3)).isoformat(),
-        })
+        rule = _make_rule(
+            "blackout_period",
+            {
+                "start_date": (now + timedelta(days=1)).isoformat(),
+                "end_date": (now + timedelta(days=3)).isoformat(),
+            },
+        )
         brain = _make_brain_version(rules=[rule])
         offer = _make_service_offer()
 
@@ -476,7 +477,7 @@ class TestAvailabilityMinimumNotice:
 
     def test_insufficient_notice_blocks(self):
         evaluator = AvailabilityEvaluator()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         requested = now + timedelta(hours=2)  # Only 2 hours notice
 
         rule = _make_rule("minimum_notice", {"notice_hours": "24"})
@@ -492,7 +493,7 @@ class TestAvailabilityMinimumNotice:
 
     def test_sufficient_notice_allows(self):
         evaluator = AvailabilityEvaluator()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         requested = now + timedelta(days=7)
 
         rule = _make_rule("minimum_notice", {"notice_hours": "24"})
@@ -512,7 +513,7 @@ class TestAvailabilityMaximumAdvance:
 
     def test_too_far_ahead_blocks(self):
         evaluator = AvailabilityEvaluator()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         requested = now + timedelta(days=100)
 
         rule = _make_rule("maximum_advance", {"advance_days": "30"})
@@ -528,7 +529,7 @@ class TestAvailabilityMaximumAdvance:
 
     def test_within_window_allows(self):
         evaluator = AvailabilityEvaluator()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         requested = now + timedelta(days=10)
 
         rule = _make_rule("maximum_advance", {"advance_days": "30"})
@@ -548,13 +549,16 @@ class TestAvailabilityCapacity:
 
     def test_capacity_exceeded_blocks(self):
         evaluator = AvailabilityEvaluator()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         requested = now + timedelta(days=2, hours=10)
 
-        rule = _make_rule("capacity_limit", {
-            "max_capacity": "2",
-            "time_window_minutes": "120",
-        })
+        rule = _make_rule(
+            "capacity_limit",
+            {
+                "max_capacity": "2",
+                "time_window_minutes": "120",
+            },
+        )
         brain = _make_brain_version(rules=[rule])
         offer = _make_service_offer()
 
@@ -576,13 +580,16 @@ class TestAvailabilityCapacity:
 
     def test_capacity_available(self):
         evaluator = AvailabilityEvaluator()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         requested = now + timedelta(days=2, hours=10)
 
-        rule = _make_rule("capacity_limit", {
-            "max_capacity": "5",
-            "time_window_minutes": "120",
-        })
+        rule = _make_rule(
+            "capacity_limit",
+            {
+                "max_capacity": "5",
+                "time_window_minutes": "120",
+            },
+        )
         brain = _make_brain_version(rules=[rule])
         offer = _make_service_offer()
 
@@ -605,7 +612,7 @@ class TestAvailabilityNoBrain:
 
     def test_no_brain_allows_by_default(self):
         evaluator = AvailabilityEvaluator()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         requested = now + timedelta(days=2)
         offer = _make_service_offer()
 
@@ -623,7 +630,7 @@ class TestAvailabilityEvidence:
 
     def test_evidence_contains_brain_version_id(self):
         evaluator = AvailabilityEvaluator()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         requested = now + timedelta(days=2)
         brain = _make_brain_version(rules=[])
         offer = _make_service_offer()
@@ -637,7 +644,7 @@ class TestAvailabilityEvidence:
 
     def test_evidence_serialization(self):
         evaluator = AvailabilityEvaluator()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         requested = now + timedelta(days=2)
         offer = _make_service_offer()
 
@@ -655,11 +662,12 @@ class TestAvailabilityEvidence:
 # QUOTE LIFECYCLE TESTS
 # ===========================================================================
 
+
 class TestQuoteStateMachine:
     """Test quote lifecycle transitions."""
 
     def test_valid_transitions(self):
-        for from_status, targets in QUOTE_TRANSITIONS.items():
+        for targets in QUOTE_TRANSITIONS.values():
             for to_status in targets:
                 assert isinstance(to_status, QuoteStatus)
 
@@ -696,6 +704,7 @@ class TestQuoteStateMachine:
 # ===========================================================================
 # BOOKING LIFECYCLE TESTS
 # ===========================================================================
+
 
 class TestBookingStateMachine:
     """Test booking lifecycle transitions."""
@@ -754,6 +763,7 @@ class TestBookingStateMachine:
 # PRICING + BRAIN INTEGRATION TESTS
 # ===========================================================================
 
+
 class TestPricingBrainIntegration:
     """Test pricing engine with Brain rules."""
 
@@ -768,9 +778,7 @@ class TestPricingBrainIntegration:
         brain = _make_brain_version(rules=[rule1, rule2])
         context = _make_context()
 
-        result = engine.calculate(
-            service_offer=offer, brain_version=brain, context=context
-        )
+        result = engine.calculate(service_offer=offer, brain_version=brain, context=context)
         assert result.amount == Decimal("125.00")
         assert len(result.surcharges) == 2
 
@@ -785,9 +793,7 @@ class TestPricingBrainIntegration:
         brain = _make_brain_version(rules=[surcharge, discount])
         context = _make_context()
 
-        result = engine.calculate(
-            service_offer=offer, brain_version=brain, context=context
-        )
+        result = engine.calculate(service_offer=offer, brain_version=brain, context=context)
         # 200 + 50 = 250, then 10% of 200 = 20 discount → 230
         assert result.amount == Decimal("230.00")
 
@@ -801,9 +807,7 @@ class TestPricingBrainIntegration:
         brain = _make_brain_version(rules=[rule])
         context = _make_context()
 
-        result = engine.calculate(
-            service_offer=offer, brain_version=brain, context=context
-        )
+        result = engine.calculate(service_offer=offer, brain_version=brain, context=context)
         assert result.amount == Decimal("100.00")
 
     def test_price_never_negative(self):
@@ -816,9 +820,7 @@ class TestPricingBrainIntegration:
         brain = _make_brain_version(rules=[rule])
         context = _make_context()
 
-        result = engine.calculate(
-            service_offer=offer, brain_version=brain, context=context
-        )
+        result = engine.calculate(service_offer=offer, brain_version=brain, context=context)
         assert result.amount >= Decimal("0")
 
     def test_applied_rule_ids_tracked(self):
@@ -831,9 +833,7 @@ class TestPricingBrainIntegration:
         brain = _make_brain_version(rules=[rule])
         context = _make_context()
 
-        result = engine.calculate(
-            service_offer=offer, brain_version=brain, context=context
-        )
+        result = engine.calculate(service_offer=offer, brain_version=brain, context=context)
         assert rule.id in result.applied_rule_ids
 
 
@@ -841,19 +841,24 @@ class TestPricingBrainIntegration:
 # COMBINED AVAILABILITY + BRAIN TESTS
 # ===========================================================================
 
+
 class TestAvailabilityCombinedRules:
     """Test multiple availability rules together."""
 
     def test_blackout_and_notice_combined(self):
         evaluator = AvailabilityEvaluator()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         requested = now + timedelta(days=2)
 
         # Blackout doesn't cover this date
-        blackout = _make_rule("blackout_period", {
-            "start_date": (now + timedelta(days=10)).isoformat(),
-            "end_date": (now + timedelta(days=12)).isoformat(),
-        }, name="blackout")
+        blackout = _make_rule(
+            "blackout_period",
+            {
+                "start_date": (now + timedelta(days=10)).isoformat(),
+                "end_date": (now + timedelta(days=12)).isoformat(),
+            },
+            name="blackout",
+        )
 
         # Minimum notice is satisfied
         notice = _make_rule("minimum_notice", {"notice_hours": "12"}, name="notice")
@@ -871,7 +876,7 @@ class TestAvailabilityCombinedRules:
 
     def test_multiple_blocks_reported(self):
         evaluator = AvailabilityEvaluator()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         requested = now + timedelta(hours=1)  # Very soon
 
         # Minimum notice blocks
@@ -895,6 +900,7 @@ class TestAvailabilityCombinedRules:
 # E2E FLOW TEST (unit-level, no DB)
 # ===========================================================================
 
+
 class TestE2EFlowUnit:
     """End-to-end flow test at unit level (no database).
 
@@ -914,13 +920,21 @@ class TestE2EFlowUnit:
         )
 
         # Set up brain with pricing and availability rules
-        pricing_rule = _make_rule("surcharge", {
-            "surcharge_name": "Service fee",
-            "amount": "25",
-        }, name="service_fee")
-        notice_rule = _make_rule("minimum_notice", {
-            "notice_hours": "24",
-        }, name="min_notice")
+        pricing_rule = _make_rule(
+            "surcharge",
+            {
+                "surcharge_name": "Service fee",
+                "amount": "25",
+            },
+            name="service_fee",
+        )
+        notice_rule = _make_rule(
+            "minimum_notice",
+            {
+                "notice_hours": "24",
+            },
+            name="min_notice",
+        )
 
         brain = _make_brain_version(rules=[pricing_rule, notice_rule])
         context = _make_context()
@@ -933,7 +947,7 @@ class TestE2EFlowUnit:
         assert pricing_result.brain_version_id == brain.id
 
         # Step 2: Check availability (far enough in advance)
-        requested = datetime.now(timezone.utc) + timedelta(days=5)
+        requested = datetime.now(UTC) + timedelta(days=5)
         avail_result = avail_evaluator.evaluate(
             requested_at=requested,
             service_offer=offer,
@@ -977,9 +991,7 @@ class TestE2EFlowUnit:
         brain = _make_brain_version(rules=[])
         context = _make_context()
 
-        result = engine.calculate(
-            service_offer=offer, brain_version=brain, context=context
-        )
+        result = engine.calculate(service_offer=offer, brain_version=brain, context=context)
         evidence = result.to_evidence_dict()
 
         # Evidence must contain the brain version ID
@@ -991,6 +1003,7 @@ class TestE2EFlowUnit:
 # ===========================================================================
 # CURRENCY REGRESSION TESTS
 # ===========================================================================
+
 
 class TestCurrencyRegression:
     """Verify currency is explicit and never silently defaulted to AUD."""
@@ -1017,7 +1030,8 @@ class TestCurrencyRegression:
         offer.business_id = uuid.uuid4()
 
         result = engine.calculate(
-            service_offer=offer, business_currency="EUR",
+            service_offer=offer,
+            business_currency="EUR",
         )
         assert result.currency == "EUR"
 
@@ -1081,7 +1095,8 @@ class TestCurrencyRegression:
         offer.business_id = uuid.uuid4()
 
         result = engine.calculate(
-            service_offer=offer, business_currency="NZD",
+            service_offer=offer,
+            business_currency="NZD",
         )
         assert result.currency == "NZD"
         assert result.amount == Decimal("100.00")
@@ -1098,6 +1113,7 @@ class TestCurrencyRegression:
         offer.business_id = uuid.uuid4()
 
         result = engine.calculate(
-            service_offer=offer, business_currency="EUR",
+            service_offer=offer,
+            business_currency="EUR",
         )
         assert result.currency == "USD"  # pricing_config wins

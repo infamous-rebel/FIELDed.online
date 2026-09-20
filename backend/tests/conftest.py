@@ -16,50 +16,66 @@ from __future__ import annotations
 import uuid
 from collections.abc import AsyncGenerator
 from contextvars import ContextVar
-from typing import Any
 
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy import text
 from sqlalchemy.pool import NullPool
 
-from app.config import Settings, Environment
-from app.database import get_db_session, init_db
+from app.config import Settings
+from app.database import get_db_session
+from app.domain.booking.models import Booking  # noqa: F401
+from app.domain.business.models import BrainVersion, BusinessBrain, BusinessRule  # noqa: F401
 from app.domain.common.base_model import Base
 
-# Import all models so Base.metadata has them
-from app.domain.identity.models import User, CustomerProfile, Business, BusinessProfile, BusinessMember  # noqa: F401
-from app.domain.identity.token_models import EmailVerification, PasswordResetToken  # noqa: F401
-from app.domain.business.models import BusinessBrain, BrainVersion, BusinessRule  # noqa: F401
-from app.domain.services.models import ServiceCategory, ServiceOffer  # noqa: F401
-from app.domain.enquiry.models import Enquiry, Conversation, Message  # noqa: F401
-from app.domain.quote.models import Quote  # noqa: F401
-from app.domain.booking.models import Booking  # noqa: F401
-from app.domain.service_execution.models import ServiceExecution  # noqa: F401
-from app.domain.invoice.models import Invoice, InvoiceLineItem  # noqa: F401
-from app.domain.ledger.models import ServiceLedgerEntry  # noqa: F401
 # Phase 14A — Communication, Notification, Outbox
 from app.domain.communication.models import (  # noqa: F401
-    Communication,
-    CommunicationRecipient,
-    CommunicationAttempt,
-    CommunicationTemplate,
-    CommunicationTemplateVersion,
     BusinessCommunicationChannel,
     BusinessCommunicationPurpose,
-    CustomerCommunicationPreference,
-    CommunicationWebhook,
+    Communication,
+    CommunicationAttempt,
     CommunicationAuditEvent,
+    CommunicationRecipient,
+    CommunicationTemplate,
+    CommunicationTemplateVersion,
+    CommunicationWebhook,
+    CustomerCommunicationPreference,
 )
+from app.domain.enquiry.models import Conversation, Enquiry, Message  # noqa: F401
+
+# Import all models so Base.metadata has them
+from app.domain.identity.models import (  # noqa: F401
+    Business,
+    BusinessMember,
+    BusinessProfile,
+    CustomerProfile,
+    User,
+)
+from app.domain.identity.token_models import (  # noqa: F401
+    EmailVerification,
+    MemberInvitation,  # noqa: F401
+    PasswordResetToken,
+)
+from app.domain.invoice.models import Invoice, InvoiceLineItem  # noqa: F401
+from app.domain.ledger.models import ServiceLedgerEntry  # noqa: F401
 from app.domain.notification.models import Notification  # noqa: F401
 from app.domain.outbox.models import OutboxEvent  # noqa: F401
+
+# Phase 15 — Payments & Financial Operations
+from app.domain.payment.models import Payment, PaymentAttempt  # noqa: F401
+from app.domain.quote.models import Quote  # noqa: F401
+
+# Phase 17 — Reviews & Trust
+from app.domain.review.models import Review  # noqa: F401
+from app.domain.service_execution.models import ServiceExecution  # noqa: F401
+from app.domain.services.models import ServiceCategory, ServiceOffer  # noqa: F401
+
 # Phase 14B — Voice / Call Agent foundation
 from app.domain.voice.models import (  # noqa: F401
     CallAgentConfiguration,
@@ -71,12 +87,6 @@ from app.domain.voice.models import (  # noqa: F401
     VoiceCallParticipant,
     VoiceCallSession,
 )
-# Phase 15 — Payments & Financial Operations
-from app.domain.payment.models import Payment, PaymentAttempt  # noqa: F401
-# Phase 17 — Reviews & Trust
-from app.domain.review.models import Review  # noqa: F401
-from app.domain.identity.token_models import MemberInvitation  # noqa: F401
-
 
 # Test settings — use a dedicated test database
 TEST_DATABASE_URL = "postgresql+asyncpg://fielded:fielded@localhost:5433/fielded_test"
@@ -88,6 +98,7 @@ _test_session_var: ContextVar[AsyncSession | None] = ContextVar("_test_session_v
 def get_test_settings() -> Settings:
     """Create settings for the test environment."""
     import os
+
     os.environ["APP_ENV"] = "development"
     os.environ["DATABASE_URL"] = TEST_DATABASE_URL
     settings = Settings()
@@ -132,9 +143,7 @@ async def db_session(test_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, N
     uncommitted) data is visible to both test code and endpoints.
     After the test, the session is rolled back.
     """
-    factory = async_sessionmaker(
-        bind=test_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    factory = async_sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
 
     async with factory() as session:
         token = _test_session_var.set(session)
@@ -148,8 +157,8 @@ async def app(test_engine: AsyncEngine):
     """Create a FastAPI test application."""
     from unittest.mock import AsyncMock, patch
 
-    from app.main import create_app
     import app.database as db_module
+    from app.main import create_app
 
     settings = get_test_settings()
 
@@ -165,10 +174,8 @@ async def app(test_engine: AsyncEngine):
 
         # Disable rate limiting in tests (all requests come from same IP)
         from app.middleware.rate_limit import RateLimitMiddleware
-        app.user_middleware = [
-            m for m in app.user_middleware
-            if m.cls is not RateLimitMiddleware
-        ]
+
+        app.user_middleware = [m for m in app.user_middleware if m.cls is not RateLimitMiddleware]
 
         # Override the database dependency to return the SAME session
         # that db_session created (via ContextVar)

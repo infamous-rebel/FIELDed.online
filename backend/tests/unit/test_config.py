@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 
 import pytest
+from pydantic import ValidationError
 
 from app.config import Environment, Settings
 
@@ -24,7 +25,7 @@ class TestSettings:
         """Production environment rejects default secret key."""
         os.environ["APP_ENV"] = "production"
         os.environ["APP_SECRET_KEY"] = "change-me-to-a-random-secret"
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             Settings()
         # Reset
         os.environ["APP_ENV"] = "development"

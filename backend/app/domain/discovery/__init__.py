@@ -22,14 +22,16 @@ from pydantic import BaseModel, Field
 
 class IntentStatus(StrEnum):
     """Outcome of AI interpretation."""
-    COMPLETE = "complete"            # Fully interpreted, ready to match
-    PARTIAL = "partial"              # Partially interpreted, can match with caveats
-    AMBIGUOUS = "ambiguous"          # Multiple plausible interpretations
-    INSUFFICIENT = "insufficient"    # Cannot reliably interpret
+
+    COMPLETE = "complete"  # Fully interpreted, ready to match
+    PARTIAL = "partial"  # Partially interpreted, can match with caveats
+    AMBIGUOUS = "ambiguous"  # Multiple plausible interpretations
+    INSUFFICIENT = "insufficient"  # Cannot reliably interpret
 
 
 class LocationIntent(BaseModel):
     """Structured location extracted from customer input."""
+
     raw: str | None = None
     city: str | None = None
     state: str | None = None
@@ -39,6 +41,7 @@ class LocationIntent(BaseModel):
 
 class ServiceIntent(BaseModel):
     """Structured service/category intent extracted from customer input."""
+
     service_name: str | None = Field(
         default=None,
         description="Name or description of the requested service",
@@ -68,6 +71,7 @@ class DiscoveryIntent(BaseModel):
     - availability
     - policies
     """
+
     status: IntentStatus = IntentStatus.COMPLETE
     raw_query: str = Field(min_length=1, max_length=5000)
     service: ServiceIntent = Field(default_factory=ServiceIntent)
@@ -92,6 +96,7 @@ class DiscoveryIntent(BaseModel):
 
 class MatchedServiceOffer(BaseModel):
     """A single ACTIVE service offer that matches the discovery intent."""
+
     id: str
     name: str
     slug: str
@@ -108,6 +113,7 @@ class MatchedServiceOffer(BaseModel):
 
 class MatchedBusiness(BaseModel):
     """A business that has at least one matching ACTIVE service offer."""
+
     business_id: str
     business_name: str
     business_slug: str
@@ -126,6 +132,7 @@ class DiscoveryResult(BaseModel):
     Contains matched businesses with their relevant active service offers.
     All data originates from actual database records — never from AI invention.
     """
+
     intent: DiscoveryIntent
     matches: list[MatchedBusiness] = Field(default_factory=list)
     total_matches: int = 0

@@ -12,13 +12,14 @@ AI interpretation is used ONLY to extract structured search parameters.
 
 from __future__ import annotations
 
-import uuid
+import contextlib
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adapters.ai.stub import StubAIProvider
 from app.database import get_db_session
 from app.domain.discovery import (
     DiscoveryIntent,
@@ -29,9 +30,7 @@ from app.domain.discovery import (
 )
 from app.domain.discovery.interpreter import DiscoveryInterpreter
 from app.domain.discovery.matching import DiscoveryMatchingService
-from app.exceptions import ValidationError
-from app.security.authorization import get_current_user, get_optional_user
-from app.adapters.ai.stub import StubAIProvider
+from app.security.authorization import get_optional_user
 
 router = APIRouter()
 
@@ -41,6 +40,7 @@ router = APIRouter()
 
 class DiscoverySearchRequest(BaseModel):
     """Natural-language discovery request."""
+
     query: str = Field(
         min_length=1,
         max_length=5000,
@@ -53,6 +53,7 @@ class DiscoverySearchRequest(BaseModel):
 
 class DiscoveryStructuredRequest(BaseModel):
     """Structured discovery request — skip AI interpretation."""
+
     category_slug: str | None = Field(default=None, max_length=255)
     keywords: list[str] = Field(default_factory=list, max_length=10)
     location_city: str | None = Field(default=None, max_length=100)
@@ -62,6 +63,7 @@ class DiscoveryStructuredRequest(BaseModel):
 
 class DiscoveryResponse(BaseModel):
     """Discovery response — matched businesses with active service offers."""
+
     status: str
     matches: list[dict[str, Any]] = []
     total_matches: int = 0
@@ -88,29 +90,33 @@ def _result_to_response(result: DiscoveryResult) -> DiscoveryResponse:
     for m in result.matches:
         offers = []
         for o in m.service_offers:
-            offers.append({
-                "id": o.id,
-                "name": o.name,
-                "slug": o.slug,
-                "description": o.description,
-                "delivery_mode": o.delivery_mode,
-                "pricing_model": o.pricing_model,
-                "category_name": o.category_name,
-                "category_slug": o.category_slug,
-                "match_reason": o.match_reason,
-            })
-        matches.append({
-            "business_id": m.business_id,
-            "business_name": m.business_name,
-            "business_slug": m.business_slug,
-            "description": m.description,
-            "city": m.city,
-            "state": m.state,
-            "country": m.country,
-            "is_verified": m.is_verified,
-            "logo_url": m.logo_url,
-            "service_offers": offers,
-        })
+            offers.append(
+                {
+                    "id": o.id,
+                    "name": o.name,
+                    "slug": o.slug,
+                    "description": o.description,
+                    "delivery_mode": o.delivery_mode,
+                    "pricing_model": o.pricing_model,
+                    "category_name": o.category_name,
+                    "category_slug": o.category_slug,
+                    "match_reason": o.match_reason,
+                }
+            )
+        matches.append(
+            {
+                "business_id": m.business_id,
+                "business_name": m.business_name,
+                "business_slug": m.business_slug,
+                "description": m.description,
+                "city": m.city,
+                "state": m.state,
+                "country": m.country,
+                "is_verified": m.is_verified,
+                "logo_url": m.logo_url,
+                "service_offers": offers,
+            }
+        )
 
     intent_summary = {
         "status": result.intent.status,
@@ -202,12 +208,11 @@ async def structured_search(
 
     # Build intent directly from the structured request
     import uuid as uuid_mod
+
     parsed_customer_id = None
     if customer_id:
-        try:
+        with contextlib.suppress(ValueError, TypeError):
             parsed_customer_id = uuid_mod.UUID(customer_id)
-        except (ValueError, TypeError):
-            pass
 
     location = None
     if body.location_city or body.location_state or body.location_country:

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import secrets
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
@@ -143,7 +143,7 @@ async def register(
     verification = EmailVerification(
         user_id=user.id,
         token=_generate_token(),
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+        expires_at=datetime.now(UTC) + timedelta(hours=24),
     )
     db.add(verification)
     await db.flush()
@@ -217,8 +217,9 @@ async def logout(
             jti = claims.get("jti")
             exp = claims.get("exp")
             if jti and exp:
-                from datetime import datetime, timezone as tz
-                expires_at = datetime.fromtimestamp(exp, tz=tz.utc)
+                from datetime import datetime
+
+                expires_at = datetime.fromtimestamp(exp, tz=UTC)
                 revocation_store.revoke(jti, expires_at)
         except AuthenticationError:
             pass  # Token already invalid, nothing to revoke
@@ -246,8 +247,9 @@ async def refresh_token(
     old_jti = claims.get("jti")
     exp = claims.get("exp")
     if old_jti and exp:
-        from datetime import datetime, timezone as tz
-        expires_at = datetime.fromtimestamp(exp, tz=tz.utc)
+        from datetime import datetime
+
+        expires_at = datetime.fromtimestamp(exp, tz=UTC)
         revocation_store.revoke(old_jti, expires_at)
 
     # Verify user still exists and is active
@@ -317,12 +319,10 @@ async def verify_email(
         raise ValidationError("Verification token has expired")
 
     # Mark token as used
-    verification.used_at = datetime.now(timezone.utc)
+    verification.used_at = datetime.now(UTC)
 
     # Mark user as verified
-    result = await db.execute(
-        select(User).where(User.id == verification.user_id)
-    )
+    result = await db.execute(select(User).where(User.id == verification.user_id))
     user = result.scalar_one()
     user.is_verified = True
 
@@ -355,7 +355,7 @@ async def resend_verification(
     verification = EmailVerification(
         user_id=user.id,
         token=_generate_token(),
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+        expires_at=datetime.now(UTC) + timedelta(hours=24),
     )
     db.add(verification)
     await db.flush()
@@ -382,7 +382,7 @@ async def forgot_password(
         reset_token = PasswordResetToken(
             user_id=user.id,
             token=_generate_token(),
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         db.add(reset_token)
         await db.flush()
@@ -419,12 +419,10 @@ async def reset_password(
         raise ValidationError("Reset token has expired")
 
     # Mark token as used
-    reset_token.used_at = datetime.now(timezone.utc)
+    reset_token.used_at = datetime.now(UTC)
 
     # Update user's password
-    result = await db.execute(
-        select(User).where(User.id == reset_token.user_id)
-    )
+    result = await db.execute(select(User).where(User.id == reset_token.user_id))
     user = result.scalar_one()
     user.hashed_password = hash_password(body.new_password)
 

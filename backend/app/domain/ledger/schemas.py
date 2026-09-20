@@ -7,11 +7,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Annotated
 
-from pydantic import BaseModel, BeforeValidator, Field
-from typing_extensions import Annotated
-
+from pydantic import BaseModel, BeforeValidator
 
 # Allow Decimal or str to be serialized as str
 StrOrDecimal = Annotated[str, BeforeValidator(lambda v: str(v))]

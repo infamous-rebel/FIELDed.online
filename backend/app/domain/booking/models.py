@@ -13,7 +13,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String, Text
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -48,9 +48,7 @@ class Booking(BaseModel):
     )
 
     # Customer-friendly reference (e.g. BKG-a1b2c3d4)
-    reference: Mapped[str] = mapped_column(
-        String(50), unique=True, nullable=False, index=True
-    )
+    reference: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
 
     # Relationship anchors — server-resolved
     customer_id: Mapped[uuid.UUID] = mapped_column(
@@ -80,14 +78,10 @@ class Booking(BaseModel):
     )
 
     # Scheduled service time
-    requested_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     # Transaction currency (inherited from Quote at creation time)
-    currency: Mapped[str] = mapped_column(
-        String(3), nullable=False, default="GBP"
-    )
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GBP")
 
     # Lifecycle
     status: Mapped[str] = mapped_column(
@@ -108,11 +102,9 @@ class Booking(BaseModel):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
-    customer: Mapped["User"] = relationship(foreign_keys=[customer_id])
-    business: Mapped["Business"] = relationship(foreign_keys=[business_id])
-    quote: Mapped["Quote"] = relationship(back_populates="bookings", foreign_keys=[quote_id])
-    enquiry: Mapped["Enquiry"] = relationship(foreign_keys=[enquiry_id])
-    service_offer: Mapped["ServiceOffer"] = relationship(foreign_keys=[service_offer_id])
-    brain_version: Mapped["BrainVersion | None"] = relationship(
-        foreign_keys=[brain_version_id]
-    )
+    customer: Mapped[User] = relationship(foreign_keys=[customer_id])
+    business: Mapped[Business] = relationship(foreign_keys=[business_id])
+    quote: Mapped[Quote] = relationship(back_populates="bookings", foreign_keys=[quote_id])
+    enquiry: Mapped[Enquiry] = relationship(foreign_keys=[enquiry_id])
+    service_offer: Mapped[ServiceOffer] = relationship(foreign_keys=[service_offer_id])
+    brain_version: Mapped[BrainVersion | None] = relationship(foreign_keys=[brain_version_id])

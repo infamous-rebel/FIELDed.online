@@ -13,11 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.business.approval import (
     ApprovalDecision,
-    ApprovalPolicy,
-    DEFAULT_APPROVAL_POLICY,
     resolve_approval_policy,
 )
-from app.domain.business.models import BusinessBrain, BrainVersion, BusinessRule
+from app.domain.business.models import BrainVersion, BusinessBrain, BusinessRule
 from app.domain.business.registry import CURRENT_SCHEMA_VERSION, is_known_rule_type
 from app.domain.business.repository import (
     BrainVersionRepository,
@@ -29,20 +27,32 @@ from app.domain.business.validation import (
     validate_brain_version_config,
     validate_rule_data,
 )
-from app.domain.common.enums import BRAIN_VERSION_TRANSITIONS, BrainVersionStatus
-from app.exceptions import AuthorizationError, DomainError, NotFoundError, StateTransitionError, ValidationError
+from app.domain.common.enums import (
+    BRAIN_VERSION_TRANSITIONS,
+    BrainVersionStatus,
+    BusinessMemberRole,
+)
+from app.exceptions import (
+    AuthorizationError,
+    DomainError,
+    NotFoundError,
+    StateTransitionError,
+    ValidationError,
+)
 from app.logging import get_logger
 
 logger = get_logger(__name__)
 
 # States in which a BrainVersion's configuration is IMMUTABLE.
 # Only DRAFT versions may have their config or rules modified.
-_IMMUTABLE_STATUSES: frozenset[BrainVersionStatus] = frozenset({
-    BrainVersionStatus.REVIEW,
-    BrainVersionStatus.APPROVED,
-    BrainVersionStatus.ACTIVE,
-    BrainVersionStatus.SUPERSEDED,
-})
+_IMMUTABLE_STATUSES: frozenset[BrainVersionStatus] = frozenset(
+    {
+        BrainVersionStatus.REVIEW,
+        BrainVersionStatus.APPROVED,
+        BrainVersionStatus.ACTIVE,
+        BrainVersionStatus.SUPERSEDED,
+    }
+)
 
 
 class BrainService:
@@ -79,8 +89,7 @@ class BrainService:
         config_result = validate_brain_version_config(config)
         if not config_result.is_valid:
             raise ValidationError(
-                f"Brain configuration is invalid: "
-                f"{[e.message for e in config_result.errors]}"
+                f"Brain configuration is invalid: {[e.message for e in config_result.errors]}"
             )
 
         version = BrainVersion(
@@ -157,17 +166,25 @@ class BrainService:
         config = {
             k: getattr(version, f"{k}_config")
             for k in (
-                "identity", "services", "pricing", "availability",
-                "qualification", "policies", "escalation", "communication",
+                "identity",
+                "services",
+                "pricing",
+                "availability",
+                "qualification",
+                "policies",
+                "escalation",
+                "communication",
             )
             if getattr(version, f"{k}_config") is not None
         }
-        rules = [
-            {"rule_type": r.rule_type, "rule_data": r.rule_data}
-            for r in version.rules
-        ] if version.rules else []
+        rules = (
+            [{"rule_type": r.rule_type, "rule_data": r.rule_data} for r in version.rules]
+            if version.rules
+            else []
+        )
 
         from app.domain.business.validation import validate_brain_version_full
+
         return validate_brain_version_full(config, rules)
 
     async def update_version_config(
@@ -190,8 +207,7 @@ class BrainService:
         config_result = validate_brain_version_config(config)
         if not config_result.is_valid:
             raise ValidationError(
-                f"Brain configuration is invalid: "
-                f"{[e.message for e in config_result.errors]}"
+                f"Brain configuration is invalid: {[e.message for e in config_result.errors]}"
             )
 
         if "identity" in config:
@@ -229,9 +245,7 @@ class BrainService:
         # 1. Lock the brain row to prevent concurrent activation
         brain = await self.brain_repo.get_by_business_id_for_update(brain_id)
         if brain is None:
-            raise NotFoundError(
-                f"Business brain for business {brain_id} not found"
-            )
+            raise NotFoundError(f"Business brain for business {brain_id} not found")
 
         # 2. Validate the target version exists and is APPROVED or ACTIVE
         version = await self.version_repo.get_by_id(version_id)
@@ -248,9 +262,7 @@ class BrainService:
             )
 
         # 3. Supersede the currently active version (if any)
-        current_active = await self.version_repo.get_active_by_brain_id(
-            brain.id
-        )
+        current_active = await self.version_repo.get_active_by_brain_id(brain.id)
         if current_active is not None and current_active.id != version_id:
             current_active.status = BrainVersionStatus.SUPERSEDED
             await self.version_repo.update(current_active)
@@ -281,7 +293,7 @@ class BrainService:
     async def validate_version(
         self,
         version_id: uuid.UUID,
-    ) -> "ValidationResult":
+    ) -> ValidationResult:
         """Run structural validation on a brain version and return results."""
         version = await self.version_repo.get_by_id(version_id)
         if version is None:
@@ -292,7 +304,7 @@ class BrainService:
     async def approve_version(
         self,
         version_id: uuid.UUID,
-        approver_role: "BusinessMemberRole",
+        approver_role: BusinessMemberRole,
         is_author: bool = False,
     ) -> BrainVersion:
         """Approve a brain version according to the approval policy.
@@ -309,8 +321,7 @@ class BrainService:
         current_status = BrainVersionStatus(version.status)
         if current_status != BrainVersionStatus.REVIEW:
             raise DomainError(
-                f"Only REVIEW versions can be approved. "
-                f"Current status: {current_status.value}"
+                f"Only REVIEW versions can be approved. Current status: {current_status.value}"
             )
 
         # Resolve approval policy (default for now)
@@ -326,9 +337,7 @@ class BrainService:
         )
 
         if decision != ApprovalDecision.APPROVED:
-            raise AuthorizationError(
-                f"Approval denied: {decision.value}"
-            )
+            raise AuthorizationError(f"Approval denied: {decision.value}")
 
         version.status = BrainVersionStatus.APPROVED
         return await self.version_repo.update(version)
@@ -381,8 +390,7 @@ class BusinessRuleService:
             rule_result = validate_rule_data(rule_type, rule_data)
             if not rule_result.is_valid:
                 raise ValidationError(
-                    f"Rule data is invalid: "
-                    f"{[e.message for e in rule_result.errors]}"
+                    f"Rule data is invalid: {[e.message for e in rule_result.errors]}"
                 )
         else:
             # Category-level or unknown type — accept if rule_data is a dict.
@@ -403,9 +411,7 @@ class BusinessRuleService:
         )
         return await self.rule_repo.create(rule)
 
-    async def get_rules(
-        self, brain_version_id: uuid.UUID
-    ) -> list[BusinessRule]:
+    async def get_rules(self, brain_version_id: uuid.UUID) -> list[BusinessRule]:
         """Get all rules for a brain version."""
         return await self.rule_repo.get_by_brain_version_id(brain_version_id)
 
@@ -433,8 +439,7 @@ class BusinessRuleService:
             rule_result = validate_rule_data(rule.rule_type, updates["rule_data"])
             if not rule_result.is_valid:
                 raise ValidationError(
-                    f"Rule data is invalid: "
-                    f"{[e.message for e in rule_result.errors]}"
+                    f"Rule data is invalid: {[e.message for e in rule_result.errors]}"
                 )
 
         for key, value in updates.items():

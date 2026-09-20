@@ -10,14 +10,14 @@ Tests cover:
 from __future__ import annotations
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.domain.business.models import BusinessBrain, BrainVersion, BusinessRule
+from app.domain.business.models import BrainVersion, BusinessBrain
 from app.domain.business.repository import (
-    BusinessBrainRepository,
     BrainVersionRepository,
+    BusinessBrainRepository,
 )
 from app.domain.business.service import BrainService
 from app.domain.common.enums import (
@@ -25,7 +25,6 @@ from app.domain.common.enums import (
     BrainVersionStatus,
 )
 from app.exceptions import DomainError, NotFoundError
-
 
 # ---------------------------------------------------------------------------
 # Test: BrainVersion lifecycle — DRAFT → REVIEW shortcut
@@ -151,7 +150,7 @@ class TestBrainVersionActivation:
         version_repo.update = AsyncMock()
 
         # Execute
-        result = await brain_service.activate_version(brain_id, new_version_id)
+        await brain_service.activate_version(brain_id, new_version_id)
 
         # Verify old version was superseded
         assert old_version.status == BrainVersionStatus.SUPERSEDED
@@ -160,9 +159,7 @@ class TestBrainVersionActivation:
         # Verify new version became ACTIVE
         assert new_version.status == BrainVersionStatus.ACTIVE
 
-    async def test_activate_without_previous_active(
-        self, brain_service, brain_repo, version_repo
-    ):
+    async def test_activate_without_previous_active(self, brain_service, brain_repo, version_repo):
         """Activation works when there's no previous active version."""
         brain_id = uuid.uuid4()
         new_version_id = uuid.uuid4()
@@ -180,7 +177,7 @@ class TestBrainVersionActivation:
         version_repo.get_active_by_brain_id = AsyncMock(return_value=None)
         version_repo.update = AsyncMock()
 
-        result = await brain_service.activate_version(brain_id, new_version_id)
+        await brain_service.activate_version(brain_id, new_version_id)
 
         assert new_version.status == BrainVersionStatus.ACTIVE
         brain_repo.update_active_version.assert_called_once_with(brain, new_version_id)
@@ -204,9 +201,7 @@ class TestBrainVersionActivation:
         with pytest.raises(DomainError, match="Only APPROVED or ACTIVE"):
             await brain_service.activate_version(brain_id, version_id)
 
-    async def test_activate_raises_on_missing_brain(
-        self, brain_service, brain_repo
-    ):
+    async def test_activate_raises_on_missing_brain(self, brain_service, brain_repo):
         """Activation raises NotFoundError if brain doesn't exist."""
         brain_id = uuid.uuid4()
         version_id = uuid.uuid4()

@@ -18,7 +18,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.domain.common.base_model import BaseModel
 
 if TYPE_CHECKING:
-    from app.domain.business.models import BrainVersion
     from app.domain.identity.models import Business, User
     from app.domain.services.models import ServiceOffer
 
@@ -33,9 +32,7 @@ class Enquiry(BaseModel):
     __tablename__ = "enquiries"
 
     # Customer-friendly reference number (e.g. ENQ-a1b2c3d4)
-    reference: Mapped[str] = mapped_column(
-        String(50), unique=True, nullable=False, index=True
-    )
+    reference: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
 
     # Relationship anchors — server-resolved, never trusted from client
     customer_id: Mapped[uuid.UUID] = mapped_column(
@@ -80,9 +77,9 @@ class Enquiry(BaseModel):
     )
 
     # Relationships
-    customer: Mapped["User"] = relationship(foreign_keys=[customer_id])
-    business: Mapped["Business"] = relationship(foreign_keys=[business_id])
-    service_offer: Mapped["ServiceOffer"] = relationship(foreign_keys=[service_offer_id])
+    customer: Mapped[User] = relationship(foreign_keys=[customer_id])
+    business: Mapped[Business] = relationship(foreign_keys=[business_id])
+    service_offer: Mapped[ServiceOffer] = relationship(foreign_keys=[service_offer_id])
     conversation: Mapped[Conversation | None] = relationship(
         back_populates="enquiry", uselist=False, cascade="all, delete-orphan"
     )
@@ -96,9 +93,7 @@ class Conversation(BaseModel):
     """
 
     __tablename__ = "conversations"
-    __table_args__ = (
-        UniqueConstraint("enquiry_id", name="uq_conversation_enquiry"),
-    )
+    __table_args__ = (UniqueConstraint("enquiry_id", name="uq_conversation_enquiry"),)
 
     enquiry_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -164,9 +159,7 @@ class Message(BaseModel):
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Message classification (extensible for future types)
-    message_type: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="text"
-    )
+    message_type: Mapped[str] = mapped_column(String(50), nullable=False, default="text")
 
     # Delivery / read tracking
     delivered_at: Mapped[None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -174,4 +167,4 @@ class Message(BaseModel):
 
     # Relationships
     conversation: Mapped[Conversation] = relationship(back_populates="messages")
-    sender: Mapped["User"] = relationship(foreign_keys=[sender_id])
+    sender: Mapped[User] = relationship(foreign_keys=[sender_id])

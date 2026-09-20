@@ -12,11 +12,9 @@ Key invariants:
 
 from __future__ import annotations
 
-import json
+import contextlib
 import logging
 from typing import Any
-
-from pydantic import ValidationError as PydanticValidationError
 
 from app.adapters.ai.base import AIProvider
 from app.domain.discovery import (
@@ -70,15 +68,20 @@ _DISCOVERY_INTENT_SCHEMA: dict[str, Any] = {
     "required": ["status"],
 }
 
-_SYSTEM_PROMPT = """You are FIELDed's discovery interpreter. Your job is to convert a customer's natural-language request into structured data.
+_SYSTEM_PROMPT = """You are FIELDed's discovery interpreter. Your job is to convert a
+customer's natural-language request into structured data.
 
 STRICT RULES:
 1. You must ONLY extract information from the customer's message.
 2. You must NEVER invent or assume businesses, services, prices, or availability.
-3. If the request is too vague to interpret, set status to "insufficient" and explain what's missing in clarification_needed.
-4. If multiple interpretations are plausible, set status to "ambiguous" and explain in clarification_needed.
-5. For category_slug, use lowercase-hyphenated format (e.g., "electrical", "legal", "accounting", "home-services"). Only set if you're confident.
-6. Keywords should be individual words or short phrases extracted from the request that could match service offer names or descriptions.
+3. If the request is too vague to interpret, set status to "insufficient" and explain
+   what's missing in clarification_needed.
+4. If multiple interpretations are plausible, set status to "ambiguous" and explain in
+   clarification_needed.
+5. For category_slug, use lowercase-hyphenated format (e.g., "electrical", "legal",
+   "accounting", "home-services"). Only set if you're confident.
+6. Keywords should be individual words or short phrases extracted from the request that
+   could match service offer names or descriptions.
 7. Do NOT fabricate any business names, service names, or IDs.
 
 Output JSON with these fields:
@@ -155,7 +158,10 @@ class DiscoveryInterpreter:
 
         # Build location intent if any location data was extracted
         location = None
-        if any(ai_data.get(k) for k in ("location_city", "location_state", "location_country", "location_postal_code")):
+        if any(
+            ai_data.get(k)
+            for k in ("location_city", "location_state", "location_country", "location_postal_code")
+        ):
             location = LocationIntent(
                 city=ai_data.get("location_city"),
                 state=ai_data.get("location_state"),
@@ -168,18 +174,15 @@ class DiscoveryInterpreter:
         raw_dt = ai_data.get("requested_at")
         if raw_dt:
             from datetime import datetime
-            try:
+
+            with contextlib.suppress(ValueError, TypeError):
                 requested_at = datetime.fromisoformat(raw_dt)
-            except (ValueError, TypeError):
-                pass
 
         # Parse customer_id
         parsed_customer_id = None
         if customer_id:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 parsed_customer_id = uuid_mod.UUID(customer_id)
-            except (ValueError, TypeError):
-                pass
 
         return DiscoveryIntent(
             status=status,
@@ -202,13 +205,48 @@ class DiscoveryInterpreter:
 
         # Simple keyword extraction: split on whitespace, lowercase, filter stopwords
         stopwords = {
-            "i", "need", "a", "an", "the", "to", "for", "my", "is", "are",
-            "was", "want", "looking", "find", "help", "with", "in", "at",
-            "on", "by", "from", "and", "or", "of", "it", "this", "that",
-            "can", "you", "me", "do", "does", "some", "any", "please",
+            "i",
+            "need",
+            "a",
+            "an",
+            "the",
+            "to",
+            "for",
+            "my",
+            "is",
+            "are",
+            "was",
+            "want",
+            "looking",
+            "find",
+            "help",
+            "with",
+            "in",
+            "at",
+            "on",
+            "by",
+            "from",
+            "and",
+            "or",
+            "of",
+            "it",
+            "this",
+            "that",
+            "can",
+            "you",
+            "me",
+            "do",
+            "does",
+            "some",
+            "any",
+            "please",
         }
         words = raw_query.lower().split()
-        keywords = [w.strip(".,!?;:'\"") for w in words if w.strip(".,!?;:'\"") not in stopwords and len(w) > 2]
+        keywords = [
+            w.strip(".,!?;:'\"")
+            for w in words
+            if w.strip(".,!?;:'\"") not in stopwords and len(w) > 2
+        ]
 
         # Remove duplicates while preserving order
         seen = set()
@@ -220,10 +258,8 @@ class DiscoveryInterpreter:
 
         parsed_customer_id = None
         if customer_id:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 parsed_customer_id = uuid_mod.UUID(customer_id)
-            except (ValueError, TypeError):
-                pass
 
         return DiscoveryIntent(
             status=IntentStatus.PARTIAL,

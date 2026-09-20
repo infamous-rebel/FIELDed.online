@@ -22,9 +22,7 @@ class TestBusinessProfileAPI:
         db_session.add(business)
         await db_session.flush()
 
-        member = BusinessMember(
-            user_id=test_user.id, business_id=business.id, role="owner"
-        )
+        member = BusinessMember(user_id=test_user.id, business_id=business.id, role="owner")
         db_session.add(member)
 
         profile = BusinessProfile(business_id=business.id)
@@ -33,12 +31,8 @@ class TestBusinessProfileAPI:
 
         return business
 
-    async def test_get_profile_requires_auth(
-        self, client: AsyncClient, owner_business: Business
-    ):
-        response = await client.get(
-            f"/api/v1/businesses/{owner_business.id}/profile"
-        )
+    async def test_get_profile_requires_auth(self, client: AsyncClient, owner_business: Business):
+        response = await client.get(f"/api/v1/businesses/{owner_business.id}/profile")
         assert response.status_code == 401
 
     async def test_get_own_profile(

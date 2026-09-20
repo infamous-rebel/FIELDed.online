@@ -82,9 +82,7 @@ class LedgerService:
         date_to: datetime | None = None,
     ) -> dict:
         """Get ledger summary/totals for a business."""
-        return await self.ledger_repo.get_summary(
-            business_id, date_from=date_from, date_to=date_to
-        )
+        return await self.ledger_repo.get_summary(business_id, date_from=date_from, date_to=date_to)
 
     # --- Export ---
 
@@ -130,20 +128,22 @@ class LedgerService:
         writer.writerow([])
 
         # Column headers
-        writer.writerow([
-            "Date",
-            "Service",
-            "Customer ID",
-            "Booking ID",
-            "Invoice ID",
-            "Gross Amount",
-            "Discount",
-            "Tax",
-            "Net Amount",
-            "Currency",
-            "Payment Status",
-            "Transaction Reference",
-        ])
+        writer.writerow(
+            [
+                "Date",
+                "Service",
+                "Customer ID",
+                "Booking ID",
+                "Invoice ID",
+                "Gross Amount",
+                "Discount",
+                "Tax",
+                "Net Amount",
+                "Currency",
+                "Payment Status",
+                "Transaction Reference",
+            ]
+        )
 
         # Data rows
         total_gross = Decimal("0")
@@ -152,20 +152,24 @@ class LedgerService:
         total_net = Decimal("0")
 
         for entry in entries:
-            writer.writerow([
-                entry.completion_date.strftime("%Y-%m-%d %H:%M") if entry.completion_date else "",
-                str(entry.service_offer_id),
-                str(entry.customer_id),
-                str(entry.booking_id),
-                str(entry.invoice_id) if entry.invoice_id else "",
-                str(entry.gross_amount),
-                str(entry.discount),
-                str(entry.tax),
-                str(entry.net_amount),
-                entry.currency,
-                entry.payment_status,
-                entry.transaction_reference or "",
-            ])
+            writer.writerow(
+                [
+                    entry.completion_date.strftime("%Y-%m-%d %H:%M")
+                    if entry.completion_date
+                    else "",
+                    str(entry.service_offer_id),
+                    str(entry.customer_id),
+                    str(entry.booking_id),
+                    str(entry.invoice_id) if entry.invoice_id else "",
+                    str(entry.gross_amount),
+                    str(entry.discount),
+                    str(entry.tax),
+                    str(entry.net_amount),
+                    entry.currency,
+                    entry.payment_status,
+                    entry.transaction_reference or "",
+                ]
+            )
             total_gross += Decimal(str(entry.gross_amount))
             total_discount += Decimal(str(entry.discount))
             total_tax += Decimal(str(entry.tax))
@@ -173,20 +177,22 @@ class LedgerService:
 
         # Totals row
         writer.writerow([])
-        writer.writerow([
-            "TOTALS",
-            "",
-            "",
-            "",
-            "",
-            str(total_gross),
-            str(total_discount),
-            str(total_tax),
-            str(total_net),
-            "",
-            "",
-            "",
-        ])
+        writer.writerow(
+            [
+                "TOTALS",
+                "",
+                "",
+                "",
+                "",
+                str(total_gross),
+                str(total_discount),
+                str(total_tax),
+                str(total_net),
+                "",
+                "",
+                "",
+            ]
+        )
         writer.writerow([f"Total Entries: {len(entries)}"])
 
         return output.getvalue()
@@ -299,11 +305,11 @@ def _build_ledger_pdf(
         from reportlab.lib.styles import getSampleStyleSheet
         from reportlab.lib.units import mm
         from reportlab.platypus import (
+            Paragraph,
             SimpleDocTemplate,
+            Spacer,
             Table,
             TableStyle,
-            Paragraph,
-            Spacer,
         )
 
         buffer = io.BytesIO()
@@ -339,41 +345,73 @@ def _build_ledger_pdf(
             ["Outstanding:", summary["outstanding_amount"]],
         ]
         summary_table = Table(summary_data, colWidths=[35 * mm, 50 * mm])
-        summary_table.setStyle(TableStyle([
-            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 9),
-        ]))
+        summary_table.setStyle(
+            TableStyle(
+                [
+                    ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ]
+            )
+        )
         elements.append(summary_table)
         elements.append(Spacer(1, 5 * mm))
 
         # Entries table
         table_data = [
-            ["Date", "Service", "Customer", "Invoice", "Gross", "Discount", "Tax", "Net", "Currency", "Status"],
+            [
+                "Date",
+                "Service",
+                "Customer",
+                "Invoice",
+                "Gross",
+                "Discount",
+                "Tax",
+                "Net",
+                "Currency",
+                "Status",
+            ],
         ]
         for entry in entries:
-            table_data.append([
-                entry.completion_date.strftime("%Y-%m-%d") if entry.completion_date else "",
-                str(entry.service_offer_id)[:8],
-                str(entry.customer_id)[:8],
-                str(entry.invoice_id)[:8] if entry.invoice_id else "",
-                str(entry.gross_amount),
-                str(entry.discount),
-                str(entry.tax),
-                str(entry.net_amount),
-                entry.currency,
-                entry.payment_status,
-            ])
+            table_data.append(
+                [
+                    entry.completion_date.strftime("%Y-%m-%d") if entry.completion_date else "",
+                    str(entry.service_offer_id)[:8],
+                    str(entry.customer_id)[:8],
+                    str(entry.invoice_id)[:8] if entry.invoice_id else "",
+                    str(entry.gross_amount),
+                    str(entry.discount),
+                    str(entry.tax),
+                    str(entry.net_amount),
+                    entry.currency,
+                    entry.payment_status,
+                ]
+            )
 
-        col_widths = [22 * mm, 25 * mm, 25 * mm, 25 * mm, 20 * mm, 18 * mm, 18 * mm, 20 * mm, 18 * mm, 22 * mm]
+        col_widths = [
+            22 * mm,
+            25 * mm,
+            25 * mm,
+            25 * mm,
+            20 * mm,
+            18 * mm,
+            18 * mm,
+            20 * mm,
+            18 * mm,
+            22 * mm,
+        ]
         entry_table = Table(table_data, colWidths=col_widths)
-        entry_table.setStyle(TableStyle([
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 7),
-            ("BACKGROUND", (0, 0), (-1, 0), colors.Color(0.9, 0.9, 0.9)),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("ALIGN", (4, 0), (-1, -1), "RIGHT"),
-        ]))
+        entry_table.setStyle(
+            TableStyle(
+                [
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 7),
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.Color(0.9, 0.9, 0.9)),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("ALIGN", (4, 0), (-1, -1), "RIGHT"),
+                ]
+            )
+        )
         elements.append(entry_table)
 
         doc.build(elements)
@@ -381,25 +419,35 @@ def _build_ledger_pdf(
 
     except ImportError:
         # Fallback: minimal PDF
-        content = f"FIELDed Operational Service Ledger\nBusiness: {business_id}\nEntries: {len(entries)}\n"
-        pdf = f"""%PDF-1.4
+        content = (
+            f"FIELDed Operational Service Ledger\n"
+            f"Business: {business_id}\n"
+            f"Entries: {len(entries)}\n"
+        )
+        pdf_head = f"""%PDF-1.4
 1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
-3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj
+3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]
+/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj
 4 0 obj<</Length {len(content) + 44}>>
 stream
 BT /F1 10 Tf 50 750 Td ({content}) Tj ET
 endstream
 endobj
 5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Courier>>endobj
-xref
-0 6
-0000000000 65535 f 
-0000000009 00000 n 
-0000000058 00000 n 
-0000000115 00000 n 
-0000000266 00000 n 
-trailer<</Size 6/Root 1 0 R>>
-startxref 0
-%%EOF"""
-        return pdf.encode("utf-8")
+"""
+        # Xref entries REQUIRE a trailing space before the EOL (fixed-width
+        # 20-byte entries per PDF spec) — explicit literals, never stripped.
+        pdf_tail = (
+            "xref\n"
+            "0 6\n"
+            "0000000000 65535 f \n"
+            "0000000009 00000 n \n"
+            "0000000058 00000 n \n"
+            "0000000115 00000 n \n"
+            "0000000266 00000 n \n"
+            "trailer<</Size 6/Root 1 0 R>>\n"
+            "startxref 0\n"
+            "%%EOF"
+        )
+        return (pdf_head + pdf_tail).encode("utf-8")

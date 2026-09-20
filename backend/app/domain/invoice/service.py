@@ -9,18 +9,15 @@ used to calculate totals.
 
 from __future__ import annotations
 
-import csv
 import io
 import uuid
-from datetime import datetime, timedelta, timezone
-from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.common.enums import InvoicePaymentStatus, InvoiceStatus
 from app.domain.invoice.models import Invoice
 from app.domain.invoice.repository import InvoiceRepository
-from app.exceptions import AuthorizationError, NotFoundError, StateTransitionError, ValidationError
+from app.exceptions import AuthorizationError, NotFoundError, StateTransitionError
 from app.logging import get_logger
 
 logger = get_logger(__name__)
@@ -42,18 +39,14 @@ class InvoiceService:
             raise NotFoundError("Invoice not found")
         return invoice
 
-    async def get_business_invoice(
-        self, invoice_id: uuid.UUID, business_id: uuid.UUID
-    ) -> Invoice:
+    async def get_business_invoice(self, invoice_id: uuid.UUID, business_id: uuid.UUID) -> Invoice:
         """Get an invoice, verifying it belongs to the business."""
         invoice = await self.get_invoice(invoice_id)
         if invoice.business_id != business_id:
             raise AuthorizationError("Invoice does not belong to this business")
         return invoice
 
-    async def get_customer_invoice(
-        self, invoice_id: uuid.UUID, customer_id: uuid.UUID
-    ) -> Invoice:
+    async def get_customer_invoice(self, invoice_id: uuid.UUID, customer_id: uuid.UUID) -> Invoice:
         """Get an invoice, verifying customer ownership."""
         invoice = await self.get_invoice(invoice_id)
         if invoice.customer_id != customer_id:
@@ -103,9 +96,7 @@ class InvoiceService:
 
         # VOID is a terminal state
         if InvoicePaymentStatus(old_status) == InvoicePaymentStatus.VOID:
-            raise StateTransitionError(
-                "Cannot change payment status of a voided invoice"
-            )
+            raise StateTransitionError("Cannot change payment status of a voided invoice")
 
         invoice.payment_status = new_status
 
@@ -151,14 +142,14 @@ def _build_invoice_pdf(invoice: Invoice) -> bytes:
     try:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.lib.units import mm
         from reportlab.platypus import (
+            Paragraph,
             SimpleDocTemplate,
+            Spacer,
             Table,
             TableStyle,
-            Paragraph,
-            Spacer,
         )
     except ImportError:
         # Fallback: generate a simple text-based PDF using basic PDF structure
@@ -205,12 +196,16 @@ def _build_invoice_pdf(invoice: Invoice) -> bytes:
         ["Status:", invoice.status.upper()],
     ]
     details_table = Table(details_data, colWidths=[40 * mm, 80 * mm])
-    details_table.setStyle(TableStyle([
-        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 9),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-    ]))
+    details_table.setStyle(
+        TableStyle(
+            [
+                ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ]
+        )
+    )
     elements.append(details_table)
     elements.append(Spacer(1, 8 * mm))
 
@@ -226,26 +221,32 @@ def _build_invoice_pdf(invoice: Invoice) -> bytes:
         ["Description", "Qty", "Unit Price", "Discount", "Tax", "Total"],
     ]
     for item in invoice.line_items:
-        table_data.append([
-            item.description,
-            str(item.quantity),
-            f"{item.currency} {item.unit_price}",
-            f"{item.unit_price}",  # show discount amount
-            f"{item.tax}",
-            f"{item.currency} {item.line_total}",
-        ])
+        table_data.append(
+            [
+                item.description,
+                str(item.quantity),
+                f"{item.currency} {item.unit_price}",
+                f"{item.unit_price}",  # show discount amount
+                f"{item.tax}",
+                f"{item.currency} {item.line_total}",
+            ]
+        )
 
     line_table = Table(table_data, colWidths=[60 * mm, 15 * mm, 25 * mm, 20 * mm, 20 * mm, 25 * mm])
-    line_table.setStyle(TableStyle([
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 8),
-        ("BACKGROUND", (0, 0), (-1, 0), colors.Color(0.9, 0.9, 0.9)),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-    ]))
+    line_table.setStyle(
+        TableStyle(
+            [
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.Color(0.9, 0.9, 0.9)),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ]
+        )
+    )
     elements.append(line_table)
     elements.append(Spacer(1, 8 * mm))
 
@@ -257,14 +258,18 @@ def _build_invoice_pdf(invoice: Invoice) -> bytes:
         ["TOTAL:", f"{invoice.currency} {invoice.total}"],
     ]
     totals_table = Table(totals_data, colWidths=[40 * mm, 50 * mm])
-    totals_table.setStyle(TableStyle([
-        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-        ("FONTNAME", (1, -1), (1, -1), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 10),
-        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-        ("LINEABOVE", (0, -1), (-1, -1), 1, colors.black),
-    ]))
+    totals_table.setStyle(
+        TableStyle(
+            [
+                ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+                ("FONTNAME", (1, -1), (1, -1), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 10),
+                ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ("LINEABOVE", (0, -1), (-1, -1), 1, colors.black),
+            ]
+        )
+    )
     elements.append(totals_table)
 
     # Notes
@@ -297,13 +302,15 @@ def _build_simple_pdf(invoice: Invoice) -> bytes:
     for item in invoice.line_items:
         lines.append(f"  - {item.description}: {item.currency} {item.line_total}")
 
-    lines.extend([
-        "",
-        f"Subtotal: {invoice.currency} {invoice.subtotal}",
-        f"Discount: {invoice.currency} {invoice.discount}",
-        f"Tax: {invoice.currency} {invoice.tax}",
-        f"TOTAL: {invoice.currency} {invoice.total}",
-    ])
+    lines.extend(
+        [
+            "",
+            f"Subtotal: {invoice.currency} {invoice.subtotal}",
+            f"Discount: {invoice.currency} {invoice.discount}",
+            f"Tax: {invoice.currency} {invoice.tax}",
+            f"TOTAL: {invoice.currency} {invoice.total}",
+        ]
+    )
 
     if invoice.notes:
         lines.extend(["", f"Notes: {invoice.notes}"])
@@ -311,7 +318,7 @@ def _build_simple_pdf(invoice: Invoice) -> bytes:
     content = "\n".join(lines)
 
     # Minimal valid PDF
-    pdf_content = f"""%PDF-1.4
+    pdf_head = f"""%PDF-1.4
 1 0 obj
 << /Type /Catalog /Pages 2 0 R >>
 endobj
@@ -319,7 +326,8 @@ endobj
 << /Type /Pages /Kids [3 0 R] /Count 1 >>
 endobj
 3 0 obj
-<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R
+   /Resources << /Font << /F1 5 0 R >> >> >>
 endobj
 4 0 obj
 << /Length {len(content) + 44} >>
@@ -334,16 +342,21 @@ endobj
 5 0 obj
 << /Type /Font /Subtype /Type1 /BaseFont /Courier >>
 endobj
-xref
-0 6
-0000000000 65535 f 
-0000000009 00000 n 
-0000000058 00000 n 
-0000000115 00000 n 
-0000000266 00000 n 
-trailer
-<< /Size 6 /Root 1 0 R >>
-startxref
-0
-%%EOF"""
-    return pdf_content.encode("utf-8")
+"""
+    # Xref entries REQUIRE a trailing space before the EOL (fixed-width 20-byte
+    # entries per PDF spec) — kept as explicit literals so linters never strip them.
+    pdf_tail = (
+        "xref\n"
+        "0 6\n"
+        "0000000000 65535 f \n"
+        "0000000009 00000 n \n"
+        "0000000058 00000 n \n"
+        "0000000115 00000 n \n"
+        "0000000266 00000 n \n"
+        "trailer\n"
+        "<< /Size 6 /Root 1 0 R >>\n"
+        "startxref\n"
+        "0\n"
+        "%%EOF"
+    )
+    return (pdf_head + pdf_tail).encode("utf-8")

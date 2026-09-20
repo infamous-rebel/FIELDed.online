@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.domain.business.evaluator import ConditionEvaluator, DecisionContext
@@ -28,6 +28,7 @@ logger = get_logger(__name__)
 @dataclass
 class AvailabilityResult:
     """Result of an availability evaluation."""
+
     available: bool
     requested_at: datetime
     reason: str = ""
@@ -84,9 +85,9 @@ class AvailabilityEvaluator:
             AvailabilityResult — deterministic, traceable.
         """
         if requested_at.tzinfo is None:
-            requested_at = requested_at.replace(tzinfo=timezone.utc)
+            requested_at = requested_at.replace(tzinfo=UTC)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         blocked_by: list[str] = []
         matched_rules: list[dict[str, Any]] = []
         brain_version_id = brain_version.id if brain_version else None
@@ -102,7 +103,8 @@ class AvailabilityEvaluator:
 
         # Collect availability rules
         availability_rules = [
-            r for r in (brain_version.rules or [])
+            r
+            for r in (brain_version.rules or [])
             if r.rule_type in _AVAILABILITY_RULE_TYPES and r.is_active
         ]
 
@@ -112,15 +114,20 @@ class AvailabilityEvaluator:
                 conditions = rule_data.get("conditions", [])
 
                 # Check if rule conditions match
-                if conditions and context is not None:
-                    if not self._condition_eval.evaluate(conditions, context):
-                        continue
+                if (
+                    conditions
+                    and context is not None
+                    and not self._condition_eval.evaluate(conditions, context)
+                ):
+                    continue
 
-                matched_rules.append({
-                    "rule_id": str(rule.id),
-                    "rule_type": rule.rule_type,
-                    "name": rule.name,
-                })
+                matched_rules.append(
+                    {
+                        "rule_id": str(rule.id),
+                        "rule_type": rule.rule_type,
+                        "name": rule.name,
+                    }
+                )
 
                 # Evaluate the rule
                 block = self._evaluate_rule(
@@ -224,8 +231,13 @@ class AvailabilityEvaluator:
 
         # Map day names to weekday numbers (Monday=0)
         day_map = {
-            "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
-            "friday": 4, "saturday": 5, "sunday": 6,
+            "monday": 0,
+            "tuesday": 1,
+            "wednesday": 2,
+            "thursday": 3,
+            "friday": 4,
+            "saturday": 5,
+            "sunday": 6,
         }
         expected_day = day_map.get(str(day_of_week).lower())
         if expected_day is None:
@@ -354,27 +366,29 @@ def _parse_datetime(value: Any) -> datetime | None:
         return None
     if isinstance(value, datetime):
         if value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
+            return value.replace(tzinfo=UTC)
         return value
     try:
         dt = datetime.fromisoformat(str(value))
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
         return dt
     except (ValueError, TypeError):
         return None
 
 
 # Availability rule types recognized by the evaluator
-_AVAILABILITY_RULE_TYPES = frozenset({
-    "operating_hours",
-    "minimum_notice",
-    "maximum_advance",
-    "capacity_limit",
-    "blackout_period",
-    "slot_configuration",
-    "concurrent_limit",
-})
+_AVAILABILITY_RULE_TYPES = frozenset(
+    {
+        "operating_hours",
+        "minimum_notice",
+        "maximum_advance",
+        "capacity_limit",
+        "blackout_period",
+        "slot_configuration",
+        "concurrent_limit",
+    }
+)
 
 
 # Module-level convenience instance

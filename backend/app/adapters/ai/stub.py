@@ -7,7 +7,6 @@ end-to-end without external AI dependencies.
 
 from __future__ import annotations
 
-import json
 import re
 from typing import Any
 
@@ -51,11 +50,48 @@ class StubAIProvider(AIProvider):
 
         # Simple keyword extraction
         stopwords = {
-            "i", "need", "a", "an", "the", "to", "for", "my", "is", "are",
-            "was", "want", "looking", "find", "help", "with", "in", "at",
-            "on", "by", "from", "and", "or", "of", "it", "this", "that",
-            "can", "you", "me", "do", "does", "some", "any", "please",
-            "someone", "who", "what", "where", "when", "how", "much",
+            "i",
+            "need",
+            "a",
+            "an",
+            "the",
+            "to",
+            "for",
+            "my",
+            "is",
+            "are",
+            "was",
+            "want",
+            "looking",
+            "find",
+            "help",
+            "with",
+            "in",
+            "at",
+            "on",
+            "by",
+            "from",
+            "and",
+            "or",
+            "of",
+            "it",
+            "this",
+            "that",
+            "can",
+            "you",
+            "me",
+            "do",
+            "does",
+            "some",
+            "any",
+            "please",
+            "someone",
+            "who",
+            "what",
+            "where",
+            "when",
+            "how",
+            "much",
         }
         words = text.split()
         keywords = [

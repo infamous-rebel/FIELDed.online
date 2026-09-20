@@ -36,9 +36,7 @@ class ReviewRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_service_execution(
-        self, service_execution_id: uuid.UUID
-    ) -> Review | None:
+    async def get_by_service_execution(self, service_execution_id: uuid.UUID) -> Review | None:
         """Fetch the review for a service execution (UNIQUE constraint)."""
         result = await self.session.execute(
             select(Review).where(
@@ -101,7 +99,7 @@ class ReviewRepository:
         offset: int = 0,
     ) -> list[Review]:
         """Fetch visible reviews for a business by slug (public)."""
-        from app.domain.identity.models import Business, BusinessProfile
+        from app.domain.identity.models import Business
 
         stmt = (
             select(Review)

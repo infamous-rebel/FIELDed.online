@@ -33,8 +33,7 @@ class StubWhatsAppProvider(WhatsAppProvider):
         so the communication pipeline can track the gap.
         """
         logger.warning(
-            "WhatsApp provider is not configured. "
-            "Message to %s was not delivered.",
+            "WhatsApp provider is not configured. Message to %s was not delivered.",
             message.to,
         )
         return ProviderResult.failure(

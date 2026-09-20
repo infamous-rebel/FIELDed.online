@@ -7,23 +7,22 @@ All queries enforce soft-delete filtering and tenant isolation.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
 
-from sqlalchemy import func, select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.domain.communication.models import (
+    BusinessCommunicationChannel,
+    BusinessCommunicationPurpose,
     Communication,
     CommunicationAttempt,
     CommunicationAuditEvent,
     CommunicationRecipient,
     CommunicationTemplate,
     CommunicationTemplateVersion,
-    BusinessCommunicationChannel,
-    BusinessCommunicationPurpose,
-    CustomerCommunicationPreference,
     CommunicationWebhook,
+    CustomerCommunicationPreference,
 )
 
 
@@ -57,13 +56,10 @@ class CommunicationRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_idempotency_key(
-        self, idempotency_key: str
-    ) -> Communication | None:
+    async def get_by_idempotency_key(self, idempotency_key: str) -> Communication | None:
         """Fetch a communication by idempotency key."""
         result = await self.session.execute(
-            select(Communication)
-            .where(
+            select(Communication).where(
                 Communication.idempotency_key == idempotency_key,
                 Communication.deleted_at.is_(None),
             )
@@ -106,25 +102,19 @@ class CommunicationRepository:
         await self.session.flush()
         return communication
 
-    async def add_recipient(
-        self, recipient: CommunicationRecipient
-    ) -> CommunicationRecipient:
+    async def add_recipient(self, recipient: CommunicationRecipient) -> CommunicationRecipient:
         """Add a recipient to a communication."""
         self.session.add(recipient)
         await self.session.flush()
         return recipient
 
-    async def add_attempt(
-        self, attempt: CommunicationAttempt
-    ) -> CommunicationAttempt:
+    async def add_attempt(self, attempt: CommunicationAttempt) -> CommunicationAttempt:
         """Record a provider delivery attempt."""
         self.session.add(attempt)
         await self.session.flush()
         return attempt
 
-    async def list_attempts(
-        self, communication_id: uuid.UUID
-    ) -> list[CommunicationAttempt]:
+    async def list_attempts(self, communication_id: uuid.UUID) -> list[CommunicationAttempt]:
         """List attempts for a communication."""
         result = await self.session.execute(
             select(CommunicationAttempt)
@@ -151,8 +141,7 @@ class CommunicationTemplateRepository:
     ) -> CommunicationTemplate | None:
         """Fetch a template by ID (tenant-scoped)."""
         result = await self.session.execute(
-            select(CommunicationTemplate)
-            .where(
+            select(CommunicationTemplate).where(
                 CommunicationTemplate.id == template_id,
                 CommunicationTemplate.business_id == business_id,
                 CommunicationTemplate.deleted_at.is_(None),
@@ -196,9 +185,7 @@ class CommunicationTemplateRepository:
         await self.session.flush()
         return version
 
-    async def list_versions(
-        self, template_id: uuid.UUID
-    ) -> list[CommunicationTemplateVersion]:
+    async def list_versions(self, template_id: uuid.UUID) -> list[CommunicationTemplateVersion]:
         """List all versions for a template."""
         result = await self.session.execute(
             select(CommunicationTemplateVersion)
@@ -207,13 +194,12 @@ class CommunicationTemplateRepository:
         )
         return list(result.scalars().all())
 
-    async def get_version(
-        self, version_id: uuid.UUID
-    ) -> CommunicationTemplateVersion | None:
+    async def get_version(self, version_id: uuid.UUID) -> CommunicationTemplateVersion | None:
         """Fetch a specific template version."""
         result = await self.session.execute(
-            select(CommunicationTemplateVersion)
-            .where(CommunicationTemplateVersion.id == version_id)
+            select(CommunicationTemplateVersion).where(
+                CommunicationTemplateVersion.id == version_id
+            )
         )
         return result.scalar_one_or_none()
 
@@ -234,8 +220,7 @@ class CommunicationConfigRepository:
     ) -> BusinessCommunicationChannel | None:
         """Get channel configuration for a business."""
         result = await self.session.execute(
-            select(BusinessCommunicationChannel)
-            .where(
+            select(BusinessCommunicationChannel).where(
                 BusinessCommunicationChannel.business_id == business_id,
                 BusinessCommunicationChannel.channel == channel,
                 BusinessCommunicationChannel.deleted_at.is_(None),
@@ -248,8 +233,7 @@ class CommunicationConfigRepository:
     ) -> list[BusinessCommunicationChannel]:
         """List all channel configs for a business."""
         result = await self.session.execute(
-            select(BusinessCommunicationChannel)
-            .where(
+            select(BusinessCommunicationChannel).where(
                 BusinessCommunicationChannel.business_id == business_id,
                 BusinessCommunicationChannel.deleted_at.is_(None),
             )
@@ -279,8 +263,7 @@ class CommunicationConfigRepository:
     ) -> BusinessCommunicationPurpose | None:
         """Get purpose configuration for a business."""
         result = await self.session.execute(
-            select(BusinessCommunicationPurpose)
-            .where(
+            select(BusinessCommunicationPurpose).where(
                 BusinessCommunicationPurpose.business_id == business_id,
                 BusinessCommunicationPurpose.purpose == purpose,
                 BusinessCommunicationPurpose.deleted_at.is_(None),
@@ -293,8 +276,7 @@ class CommunicationConfigRepository:
     ) -> list[BusinessCommunicationPurpose]:
         """List all purpose configs for a business."""
         result = await self.session.execute(
-            select(BusinessCommunicationPurpose)
-            .where(
+            select(BusinessCommunicationPurpose).where(
                 BusinessCommunicationPurpose.business_id == business_id,
                 BusinessCommunicationPurpose.deleted_at.is_(None),
             )
@@ -332,13 +314,10 @@ class ConsentRepository:
         purpose: str | None = None,
     ) -> CustomerCommunicationPreference | None:
         """Get a specific preference."""
-        stmt = (
-            select(CustomerCommunicationPreference)
-            .where(
-                CustomerCommunicationPreference.customer_id == customer_id,
-                CustomerCommunicationPreference.business_id == business_id,
-                CustomerCommunicationPreference.deleted_at.is_(None),
-            )
+        stmt = select(CustomerCommunicationPreference).where(
+            CustomerCommunicationPreference.customer_id == customer_id,
+            CustomerCommunicationPreference.business_id == business_id,
+            CustomerCommunicationPreference.deleted_at.is_(None),
         )
         if channel is None:
             stmt = stmt.where(CustomerCommunicationPreference.channel.is_(None))
@@ -357,8 +336,7 @@ class ConsentRepository:
     ) -> list[CustomerCommunicationPreference]:
         """List all preferences for a customer at a business."""
         result = await self.session.execute(
-            select(CustomerCommunicationPreference)
-            .where(
+            select(CustomerCommunicationPreference).where(
                 CustomerCommunicationPreference.customer_id == customer_id,
                 CustomerCommunicationPreference.business_id == business_id,
                 CustomerCommunicationPreference.deleted_at.is_(None),
@@ -366,13 +344,23 @@ class ConsentRepository:
         )
         return list(result.scalars().all())
 
-    async def upsert(self, pref: CustomerCommunicationPreference) -> CustomerCommunicationPreference:
+    async def upsert(
+        self, pref: CustomerCommunicationPreference
+    ) -> CustomerCommunicationPreference:
         """Create or update a preference."""
         existing = await self.get_preference(
             pref.customer_id, pref.business_id, pref.channel, pref.purpose
         )
         if existing:
-            for attr in ("consent_state", "opt_in", "suppression", "suppression_reason", "do_not_contact", "source", "consented_at"):
+            for attr in (
+                "consent_state",
+                "opt_in",
+                "suppression",
+                "suppression_reason",
+                "do_not_contact",
+                "source",
+                "consented_at",
+            ):
                 val = getattr(pref, attr, None)
                 if val is not None:
                     setattr(existing, attr, val)
@@ -400,8 +388,7 @@ class WebhookRepository:
     ) -> CommunicationWebhook | None:
         """Fetch a webhook by provider + external event ID (idempotency)."""
         result = await self.session.execute(
-            select(CommunicationWebhook)
-            .where(
+            select(CommunicationWebhook).where(
                 CommunicationWebhook.provider == provider,
                 CommunicationWebhook.external_event_id == external_event_id,
             )
@@ -432,9 +419,7 @@ class AuditRepository:
         """List audit events for a communication."""
         result = await self.session.execute(
             select(CommunicationAuditEvent)
-            .where(
-                CommunicationAuditEvent.communication_id == communication_id
-            )
+            .where(CommunicationAuditEvent.communication_id == communication_id)
             .order_by(CommunicationAuditEvent.created_at.asc())
         )
         return list(result.scalars().all())

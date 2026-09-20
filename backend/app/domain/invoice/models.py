@@ -75,22 +75,14 @@ class Invoice(BaseModel):
     )
 
     # Invoice identification
-    invoice_number: Mapped[str] = mapped_column(
-        String(50), nullable=False
-    )
+    invoice_number: Mapped[str] = mapped_column(String(50), nullable=False)
 
     # Dates
-    issue_date: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    due_date: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    issue_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    due_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Currency (ISO 4217)
-    currency: Mapped[str] = mapped_column(
-        String(3), nullable=False, default="GBP"
-    )
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GBP")
 
     # Financial totals — derived from line items
     subtotal: Mapped[str] = mapped_column(
@@ -99,9 +91,7 @@ class Invoice(BaseModel):
     discount: Mapped[str] = mapped_column(
         Numeric(precision=12, scale=2), nullable=False, default="0.00"
     )
-    tax: Mapped[str] = mapped_column(
-        Numeric(precision=12, scale=2), nullable=False, default="0.00"
-    )
+    tax: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False, default="0.00")
     total: Mapped[str] = mapped_column(
         Numeric(precision=12, scale=2), nullable=False, default="0.00"
     )
@@ -120,13 +110,13 @@ class Invoice(BaseModel):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
-    business: Mapped["Business"] = relationship(foreign_keys=[business_id])
-    customer: Mapped["User"] = relationship(foreign_keys=[customer_id])
-    service_execution: Mapped["ServiceExecution"] = relationship(
+    business: Mapped[Business] = relationship(foreign_keys=[business_id])
+    customer: Mapped[User] = relationship(foreign_keys=[customer_id])
+    service_execution: Mapped[ServiceExecution] = relationship(
         back_populates="invoices", foreign_keys=[service_execution_id]
     )
-    booking: Mapped["Booking"] = relationship(foreign_keys=[booking_id])  # noqa: F821
-    quote: Mapped["Quote | None"] = relationship(foreign_keys=[quote_id])
+    booking: Mapped[Booking] = relationship(foreign_keys=[booking_id])  # noqa: F821
+    quote: Mapped[Quote | None] = relationship(foreign_keys=[quote_id])
     line_items: Mapped[list[InvoiceLineItem]] = relationship(
         back_populates="invoice", cascade="all, delete-orphan"
     )
@@ -140,9 +130,7 @@ class InvoiceLineItem(BaseModel):
     """
 
     __tablename__ = "invoice_line_items"
-    __table_args__ = (
-        Index("ix_invoice_line_items_invoice_id", "invoice_id"),
-    )
+    __table_args__ = (Index("ix_invoice_line_items_invoice_id", "invoice_id"),)
 
     invoice_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -158,27 +146,19 @@ class InvoiceLineItem(BaseModel):
     quantity: Mapped[str] = mapped_column(
         Numeric(precision=10, scale=2), nullable=False, default="1.00"
     )
-    unit_price: Mapped[str] = mapped_column(
-        Numeric(precision=12, scale=2), nullable=False
-    )
+    unit_price: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False)
 
     # Line-level adjustments
     discount: Mapped[str] = mapped_column(
         Numeric(precision=12, scale=2), nullable=False, default="0.00"
     )
-    tax: Mapped[str] = mapped_column(
-        Numeric(precision=12, scale=2), nullable=False, default="0.00"
-    )
+    tax: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False, default="0.00")
 
     # Line total (deterministic: quantity * unit_price - discount + tax)
-    line_total: Mapped[str] = mapped_column(
-        Numeric(precision=12, scale=2), nullable=False
-    )
+    line_total: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False)
 
     # Currency
-    currency: Mapped[str] = mapped_column(
-        String(3), nullable=False, default="GBP"
-    )
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GBP")
 
     # Sort order
     sort_order: Mapped[int] = mapped_column(default=0, nullable=False)

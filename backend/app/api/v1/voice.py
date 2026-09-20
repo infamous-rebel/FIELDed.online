@@ -31,7 +31,6 @@ from app.adapters.voice.base import VoiceProvider
 from app.database import get_db_session
 from app.domain.common.enums import (
     BusinessMemberRole,
-    CallSessionStatus,
     CallStatus,
     CampaignStatus,
 )
@@ -235,9 +234,7 @@ async def request_call(
     if body.initiate:
         orchestration = VoiceProviderOrchestrationService(db, _voice_provider(request))
         twiml_url = _twiml_url(request, call.id)
-        call = await orchestration.initiate_call(
-            call, actor_id=member.user_id, twiml_url=twiml_url
-        )
+        call = await orchestration.initiate_call(call, actor_id=member.user_id, twiml_url=twiml_url)
     await db.refresh(call)
     return VoiceCallRead.model_validate(call)
 
@@ -763,24 +760,28 @@ async def receive_voice_webhook(
 
 
 # Call statuses where the TwiML transport may proceed with conversation.
-_TWIML_ACTIVE_STATUSES: frozenset[str] = frozenset({
-    CallStatus.INITIATING.value,
-    CallStatus.RINGING.value,
-    CallStatus.CONNECTED.value,
-    CallStatus.IN_PROGRESS.value,
-})
+_TWIML_ACTIVE_STATUSES: frozenset[str] = frozenset(
+    {
+        CallStatus.INITIATING.value,
+        CallStatus.RINGING.value,
+        CallStatus.CONNECTED.value,
+        CallStatus.IN_PROGRESS.value,
+    }
+)
 
 # Call statuses that are terminal — no further conversation possible.
-_TWIML_TERMINAL_STATUSES: frozenset[str] = frozenset({
-    CallStatus.COMPLETED.value,
-    CallStatus.FAILED.value,
-    CallStatus.NO_ANSWER.value,
-    CallStatus.BUSY.value,
-    CallStatus.DECLINED.value,
-    CallStatus.CANCELLED.value,
-    CallStatus.EXPIRED.value,
-    CallStatus.ESCALATED.value,
-})
+_TWIML_TERMINAL_STATUSES: frozenset[str] = frozenset(
+    {
+        CallStatus.COMPLETED.value,
+        CallStatus.FAILED.value,
+        CallStatus.NO_ANSWER.value,
+        CallStatus.BUSY.value,
+        CallStatus.DECLINED.value,
+        CallStatus.CANCELLED.value,
+        CallStatus.EXPIRED.value,
+        CallStatus.ESCALATED.value,
+    }
+)
 
 
 async def _resolve_call_for_twiml(
@@ -795,20 +796,17 @@ async def _resolve_call_for_twiml(
     the CallSid from Twilio POST data is the provider-controlled
     truth.  If both are present, they must match.
     """
-    from app.domain.voice.repository import VoiceCallRepository as _Repo
-
-    repo = _Repo(db)
+    from app.domain.voice.models import VoiceCall
 
     # Resolve by provider_reference (CallSid) — tenant-unscoped
     # because Twilio callbacks are system-authority events.
     if call_sid:
         from sqlalchemy import select as _select
-        from app.domain.voice.models import VoiceCall as _VC
 
         result = await db.execute(
-            _select(_VC).where(
-                _VC.provider_reference == call_sid,
-                _VC.deleted_at.is_(None),
+            _select(VoiceCall).where(
+                VoiceCall.provider_reference == call_sid,
+                VoiceCall.deleted_at.is_(None),
             )
         )
         call = result.scalars().first()
@@ -851,10 +849,13 @@ async def twilio_twiml_webhook(
     settings = request.app.state.settings
 
     # Signature verification (fail-closed for non-mock providers)
-    if settings.voice_provider == "twilio" and settings.twilio_auth_token:
-        if not await _verify_twilio_request(request, call_id, settings):
-            logger.warning("twilio_twiml_invalid_signature", extra={"call_id": str(call_id)})
-            return _twilio_xml(error_response(message="Unauthorized."))
+    if (
+        settings.voice_provider == "twilio"
+        and settings.twilio_auth_token
+        and not await _verify_twilio_request(request, call_id, settings)
+    ):
+        logger.warning("twilio_twiml_invalid_signature", extra={"call_id": str(call_id)})
+        return _twilio_xml(error_response(message="Unauthorized."))
 
     form = await request.form()
     call_sid = form.get("CallSid") or form.get("CallUUID")
@@ -899,19 +900,14 @@ async def twilio_twiml_webhook(
                 "twilio_twiml_agent_begin_failed",
                 extra={"call_id": str(call_id), "error": str(exc)},
             )
-            return _twilio_xml(
-                error_response(message="Sorry, the call agent is unavailable.")
-            )
+            return _twilio_xml(error_response(message="Sorry, the call agent is unavailable."))
 
     # Deterministic greeting — not LLM-generated
     from app.domain.identity.models import Business
 
     business = await db.get(Business, call.business_id)
     business_name = business.name if business else "the business"
-    greeting = (
-        f"Hello, this is {business_name}. "
-        "Please tell me how I can help you today."
-    )
+    greeting = f"Hello, this is {business_name}. Please tell me how I can help you today."
 
     gather_url = _gather_url(request, call.id)
     twiml = gather_response(say_text=greeting, gather_action_url=gather_url)
@@ -933,10 +929,13 @@ async def twilio_gather_callback(
     settings = request.app.state.settings
 
     # Signature verification
-    if settings.voice_provider == "twilio" and settings.twilio_auth_token:
-        if not await _verify_twilio_request(request, call_id, settings):
-            logger.warning("twilio_gather_invalid_signature", extra={"call_id": str(call_id)})
-            return _twilio_xml(error_response(message="Unauthorized."))
+    if (
+        settings.voice_provider == "twilio"
+        and settings.twilio_auth_token
+        and not await _verify_twilio_request(request, call_id, settings)
+    ):
+        logger.warning("twilio_gather_invalid_signature", extra={"call_id": str(call_id)})
+        return _twilio_xml(error_response(message="Unauthorized."))
 
     form = await request.form()
     call_sid = form.get("CallSid") or form.get("CallUUID")
@@ -1011,9 +1010,12 @@ async def twilio_status_callback(
     call_status = str(form.get("CallStatus") or "unknown")
 
     # Verify signature
-    if settings.voice_provider == "twilio" and settings.twilio_auth_token:
-        if not await _verify_twilio_request(request, call_id, settings):
-            raise HTTPException(status_code=401, detail="Invalid webhook signature")
+    if (
+        settings.voice_provider == "twilio"
+        and settings.twilio_auth_token
+        and not await _verify_twilio_request(request, call_id, settings)
+    ):
+        raise HTTPException(status_code=401, detail="Invalid webhook signature")
 
     external_event_id = compose_voice_event_id(call_sid, call_status)
 

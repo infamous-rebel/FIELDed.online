@@ -10,7 +10,6 @@ dependencies.  No cross-tenant access is possible.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
@@ -24,7 +23,7 @@ from app.domain.business.auth import (
     require_brain_version_access,
     require_brain_version_modify,
 )
-from app.domain.business.models import BusinessBrain, BrainVersion, BusinessRule
+from app.domain.business.models import BrainVersion, BusinessBrain
 from app.domain.business.schemas import (
     ApprovalRequest,
     ApprovalResultRead,
@@ -41,13 +40,13 @@ from app.domain.business.schemas import (
     BusinessRuleUpdate,
     ProvenanceEntryRead,
     ProvenanceRead,
-    ValidationResultRead,
     ValidationErrorDetail,
+    ValidationResultRead,
 )
 from app.domain.business.service import BrainService, BusinessRuleService
 from app.domain.common.enums import BrainVersionStatus, BusinessMemberRole
-from app.domain.identity.models import BusinessMember, User
-from app.exceptions import AuthorizationError, DomainError, NotFoundError
+from app.domain.identity.models import User
+from app.exceptions import NotFoundError
 from app.security.authorization import get_current_user
 
 router = APIRouter()
@@ -57,11 +56,10 @@ router = APIRouter()
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _version_to_read(version: BrainVersion) -> BrainVersionRead:
     """Convert a BrainVersion model to the detail read schema."""
-    rules = [
-        BusinessRuleRead.model_validate(r) for r in (version.rules or [])
-    ]
+    rules = [BusinessRuleRead.model_validate(r) for r in (version.rules or [])]
     return BrainVersionRead(
         id=version.id,
         brain_id=version.brain_id,
@@ -106,6 +104,7 @@ def _version_to_summary(version: BrainVersion) -> BrainVersionSummaryRead:
 # GET /brain — Retrieve brain summary + active version
 # ---------------------------------------------------------------------------
 
+
 @router.get(
     "/{business_id}/brain",
     response_model=BusinessBrainDetailRead,
@@ -118,22 +117,21 @@ async def get_brain(
 
     Any authorized business member (staff+) can read.
     """
-    service = BrainService(db)
-
     # Find the active version if set
     active_version = None
     if brain.active_version_id:
         from app.domain.business.repository import BrainVersionRepository
+
         version_repo = BrainVersionRepository(db)
         active_version = await version_repo.get_by_id(brain.active_version_id)
 
     # Count versions via explicit query (async doesn't support lazy loading)
+    from sqlalchemy import func, select
+
     from app.domain.business.models import BrainVersion
-    from sqlalchemy import select, func
+
     result = await db.execute(
-        select(func.count()).select_from(BrainVersion).where(
-            BrainVersion.brain_id == brain.id
-        )
+        select(func.count()).select_from(BrainVersion).where(BrainVersion.brain_id == brain.id)
     )
     version_count = result.scalar() or 0
 
@@ -152,6 +150,7 @@ async def get_brain(
 # GET /brain/versions — List all versions
 # ---------------------------------------------------------------------------
 
+
 @router.get(
     "/{business_id}/brain/versions",
     response_model=list[BrainVersionSummaryRead],
@@ -162,6 +161,7 @@ async def list_versions(
 ) -> list[BrainVersionSummaryRead]:
     """List all BrainVersions for this business, newest first."""
     from app.domain.business.repository import BrainVersionRepository
+
     version_repo = BrainVersionRepository(db)
     versions = await version_repo.get_by_brain_id(brain.id)
     return [_version_to_summary(v) for v in versions]
@@ -170,6 +170,7 @@ async def list_versions(
 # ---------------------------------------------------------------------------
 # GET /brain/versions/{version_id} — Get one version with rules
 # ---------------------------------------------------------------------------
+
 
 @router.get(
     "/{business_id}/brain/versions/{version_id}",
@@ -190,6 +191,7 @@ async def get_version(
 # POST /brain/versions — Create a new DRAFT version
 # ---------------------------------------------------------------------------
 
+
 @router.post(
     "/{business_id}/brain/versions",
     response_model=BrainVersionRead,
@@ -205,6 +207,7 @@ async def create_version(
     version = await service.create_version(brain.id, config=body.config)
     # Reload with rules relationship
     from app.domain.business.repository import BrainVersionRepository
+
     version_repo = BrainVersionRepository(db)
     version = await version_repo.get_by_id(version.id)
     return _version_to_read(version)
@@ -213,6 +216,7 @@ async def create_version(
 # ---------------------------------------------------------------------------
 # PATCH /brain/versions/{version_id} — Update DRAFT configuration
 # ---------------------------------------------------------------------------
+
 
 @router.patch(
     "/{business_id}/brain/versions/{version_id}",
@@ -244,6 +248,7 @@ async def update_version(
 
     # Reload with rules
     from app.domain.business.repository import BrainVersionRepository
+
     version_repo = BrainVersionRepository(db)
     updated = await version_repo.get_by_id(updated.id)
     return _version_to_read(updated)
@@ -252,6 +257,7 @@ async def update_version(
 # ---------------------------------------------------------------------------
 # POST /brain/versions/{version_id}/rules — Add a rule
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/{business_id}/brain/versions/{version_id}/rules",
@@ -286,6 +292,7 @@ async def add_rule(
 # POST /brain/versions/{version_id}/rules/{rule_id} — Update a rule
 # ---------------------------------------------------------------------------
 
+
 @router.post(
     "/{business_id}/brain/versions/{version_id}/rules/{rule_id}",
     response_model=BusinessRuleRead,
@@ -304,6 +311,7 @@ async def update_rule(
 
     # Verify the rule belongs to this version
     from app.domain.business.repository import BusinessRuleRepository
+
     rule_repo = BusinessRuleRepository(db)
     rule = await rule_repo.get_by_id(rule_id)
     if rule is None or rule.brain_version_id != version.id:
@@ -320,6 +328,7 @@ async def update_rule(
 # ---------------------------------------------------------------------------
 # DELETE /brain/versions/{version_id}/rules/{rule_id} — Remove a rule
 # ---------------------------------------------------------------------------
+
 
 @router.delete(
     "/{business_id}/brain/versions/{version_id}/rules/{rule_id}",
@@ -342,6 +351,7 @@ async def delete_rule(
 
     # Verify the rule belongs to this version
     from app.domain.business.repository import BusinessRuleRepository
+
     rule_repo = BusinessRuleRepository(db)
     rule = await rule_repo.get_by_id(rule_id)
     if rule is None or rule.brain_version_id != version.id:
@@ -354,6 +364,7 @@ async def delete_rule(
 # ---------------------------------------------------------------------------
 # POST /brain/versions/{version_id}/validate — Structural validation
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/{business_id}/brain/versions/{version_id}/validate",
@@ -376,8 +387,7 @@ async def validate_version(
     result = await service.validate_version(version.id)
 
     errors = [
-        ValidationErrorDetail(field=e.field, message=e.message, code=e.code)
-        for e in result.errors
+        ValidationErrorDetail(field=e.field, message=e.message, code=e.code) for e in result.errors
     ]
     return ValidationResultRead(
         valid=result.is_valid,
@@ -389,6 +399,7 @@ async def validate_version(
 # ---------------------------------------------------------------------------
 # POST /brain/versions/{version_id}/transition — Lifecycle transition
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/{business_id}/brain/versions/{version_id}/transition",
@@ -426,6 +437,7 @@ async def transition_version(
 # POST /brain/versions/{version_id}/approve — Approval
 # ---------------------------------------------------------------------------
 
+
 @router.post(
     "/{business_id}/brain/versions/{version_id}/approve",
     response_model=ApprovalResultRead,
@@ -445,6 +457,7 @@ async def approve_version(
     """
     # Resolve the version within this brain
     from app.domain.business.repository import BrainVersionRepository
+
     version_repo = BrainVersionRepository(db)
     version = await version_repo.get_by_id(version_id)
     if version is None or version.brain_id != brain.id:
@@ -473,6 +486,7 @@ async def approve_version(
 # POST /brain/versions/{version_id}/activate — Activation
 # ---------------------------------------------------------------------------
 
+
 @router.post(
     "/{business_id}/brain/versions/{version_id}/activate",
     response_model=BusinessBrainRead,
@@ -490,6 +504,7 @@ async def activate_version(
     """
     # Resolve the version within this brain
     from app.domain.business.repository import BrainVersionRepository
+
     version_repo = BrainVersionRepository(db)
     version = await version_repo.get_by_id(version_id)
     if version is None or version.brain_id != brain.id:
@@ -507,6 +522,7 @@ async def activate_version(
 # ---------------------------------------------------------------------------
 # GET /brain/versions/{version_id}/provenance — Provenance/audit
 # ---------------------------------------------------------------------------
+
 
 @router.get(
     "/{business_id}/brain/versions/{version_id}/provenance",
@@ -529,36 +545,42 @@ async def get_provenance(
     entries: list[ProvenanceEntryRead] = []
 
     # Creation entry
-    entries.append(ProvenanceEntryRead(
-        action="version_created",
-        timestamp=version.created_at,
-        details={
-            "version_number": version.version_number,
-            "initial_status": "draft",
-        },
-    ))
+    entries.append(
+        ProvenanceEntryRead(
+            action="version_created",
+            timestamp=version.created_at,
+            details={
+                "version_number": version.version_number,
+                "initial_status": "draft",
+            },
+        )
+    )
 
     # Current status entry
     if version.status != BrainVersionStatus.DRAFT:
-        entries.append(ProvenanceEntryRead(
-            action=f"status_changed_to_{version.status}",
-            timestamp=version.updated_at,
-            details={
-                "version_number": version.version_number,
-                "current_status": version.status,
-            },
-        ))
+        entries.append(
+            ProvenanceEntryRead(
+                action=f"status_changed_to_{version.status}",
+                timestamp=version.updated_at,
+                details={
+                    "version_number": version.version_number,
+                    "current_status": version.status,
+                },
+            )
+        )
 
     # Active version marker
     if brain.active_version_id == version.id:
-        entries.append(ProvenanceEntryRead(
-            action="version_is_active",
-            timestamp=version.updated_at,
-            details={
-                "brain_id": str(brain.id),
-                "active_since": str(version.updated_at),
-            },
-        ))
+        entries.append(
+            ProvenanceEntryRead(
+                action="version_is_active",
+                timestamp=version.updated_at,
+                details={
+                    "brain_id": str(brain.id),
+                    "active_since": str(version.updated_at),
+                },
+            )
+        )
 
     return ProvenanceRead(
         version_id=version.id,

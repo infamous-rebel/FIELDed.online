@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.domain.invoice.models import Invoice, InvoiceLineItem
+from app.domain.invoice.models import Invoice
 
 
 class InvoiceRepository:
@@ -34,9 +34,7 @@ class InvoiceRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_service_execution_id(
-        self, service_execution_id: uuid.UUID
-    ) -> Invoice | None:
+    async def get_by_service_execution_id(self, service_execution_id: uuid.UUID) -> Invoice | None:
         """Fetch an invoice by its service execution ID."""
         result = await self.session.execute(
             select(Invoice)

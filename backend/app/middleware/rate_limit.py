@@ -7,10 +7,9 @@ replace with a Redis-backed implementation.
 
 from __future__ import annotations
 
-import time
 import threading
+import time
 from collections import defaultdict
-from collections.abc import Callable
 from typing import Any
 
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -38,9 +37,7 @@ class SlidingWindowRateLimiter:
 
         with self._lock:
             # Clean old entries
-            self._requests[key] = [
-                ts for ts in self._requests[key] if ts > window_start
-            ]
+            self._requests[key] = [ts for ts in self._requests[key] if ts > window_start]
 
             if len(self._requests[key]) >= self.max_requests:
                 return False
@@ -57,7 +54,9 @@ class SlidingWindowRateLimiter:
 # Pre-configured limiters for auth endpoints
 auth_login_limiter = SlidingWindowRateLimiter(max_requests=10, window_seconds=300)  # 10 per 5 min
 auth_register_limiter = SlidingWindowRateLimiter(max_requests=5, window_seconds=600)  # 5 per 10 min
-auth_forgot_password_limiter = SlidingWindowRateLimiter(max_requests=3, window_seconds=900)  # 3 per 15 min
+auth_forgot_password_limiter = SlidingWindowRateLimiter(
+    max_requests=3, window_seconds=900
+)  # 3 per 15 min
 
 
 def _get_client_ip(request: Request) -> str:
@@ -79,9 +78,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             "/api/v1/auth/forgot-password": auth_forgot_password_limiter,
         }
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         path = request.url.path
         limiter = self._limiters.get(path)
 

@@ -18,23 +18,21 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from sqlalchemy.orm import selectinload
 
 from app.adapters import ProviderFactory
 from app.adapters.payment.base import PaymentProvider
 from app.database import get_db_session
 from app.domain.identity.models import User
+from app.domain.payment.models import Payment
 from app.domain.payment.schemas import (
     InvoicePaymentStatusRead,
     PaymentCreateRequest,
     PaymentRead,
     PaymentRefundRequest,
 )
-from app.domain.payment.models import Payment
 from app.domain.payment.service import PaymentService
 from app.security.authorization import (
-    get_current_user,
     require_business_member,
     require_customer,
 )
@@ -48,9 +46,7 @@ def _payment_provider(request: Request) -> PaymentProvider:
     return factory.payment_provider
 
 
-def _payment_service(
-    db: AsyncSession, request: Request
-) -> PaymentService:
+def _payment_service(db: AsyncSession, request: Request) -> PaymentService:
     """Create a PaymentService with the configured provider."""
     return PaymentService(db, payment_provider=_payment_provider(request))
 
@@ -60,9 +56,7 @@ async def _refresh_payment(db: AsyncSession, payment: Payment) -> Payment:
     from sqlalchemy import select
 
     result = await db.execute(
-        select(Payment)
-        .where(Payment.id == payment.id)
-        .options(selectinload(Payment.attempts))
+        select(Payment).where(Payment.id == payment.id).options(selectinload(Payment.attempts))
     )
     return result.scalar_one()
 
@@ -195,10 +189,12 @@ async def get_invoice_payment_status(
     """Get payment status and balance for an invoice."""
     service = _payment_service(db, request)
     status = await service.get_invoice_payment_status(invoice_id)
-    return InvoicePaymentStatusRead(**{
-        **status,
-        "payments": [_payment_to_read(p) for p in status["payments"]],
-    })
+    return InvoicePaymentStatusRead(
+        **{
+            **status,
+            "payments": [_payment_to_read(p) for p in status["payments"]],
+        }
+    )
 
 
 @router.get(
@@ -302,9 +298,7 @@ async def payment_webhook(
 
     # Verify signature if secret is configured
     if webhook_secret and signature:
-        is_valid = await payment_prov.verify_webhook_signature(
-            body, signature, webhook_secret
-        )
+        is_valid = await payment_prov.verify_webhook_signature(body, signature, webhook_secret)
         if not is_valid:
             return JSONResponse(
                 status_code=401,
@@ -342,18 +336,16 @@ async def payment_webhook(
 # --- Helpers ---
 
 
-async def _resolve_invoice_customer(
-    db: AsyncSession, invoice_id: uuid.UUID
-) -> uuid.UUID:
+async def _resolve_invoice_customer(db: AsyncSession, invoice_id: uuid.UUID) -> uuid.UUID:
     """Resolve the customer_id from an invoice."""
-    from app.domain.invoice.models import Invoice
     from sqlalchemy import select
 
-    result = await db.execute(
-        select(Invoice.customer_id).where(Invoice.id == invoice_id)
-    )
+    from app.domain.invoice.models import Invoice
+
+    result = await db.execute(select(Invoice.customer_id).where(Invoice.id == invoice_id))
     customer_id = result.scalar_one_or_none()
     if customer_id is None:
         from app.exceptions import NotFoundError
+
         raise NotFoundError("Invoice not found")
     return customer_id

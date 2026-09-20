@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from app.domain.common.enums import (
     BOOKING_TRANSITIONS,
     BRAIN_VERSION_TRANSITIONS,
@@ -57,7 +55,7 @@ class TestEnquiryStateMachine:
 
     def test_reserved_states_unreachable(self):
         """Phase 12 states are only reachable from IN_REVIEW (via QUOTED).
-        
+
         Early Phase 05 states (DRAFT, SUBMITTED, RECEIVED) cannot reach
         Phase 12 states directly.
         """
@@ -76,9 +74,7 @@ class TestEnquiryStateMachine:
         }
         for status in early_states:
             for target in ENQUIRY_TRANSITIONS.get(status, set()):
-                assert target not in phase12_states, (
-                    f"{status} -> {target} should not be valid"
-                )
+                assert target not in phase12_states, f"{status} -> {target} should not be valid"
 
     def test_all_statuses_have_transition_entries(self):
         """Every EnquiryStatus has an entry in the transitions map."""

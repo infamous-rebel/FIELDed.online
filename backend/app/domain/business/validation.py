@@ -13,32 +13,31 @@ API responses.
 
 from __future__ import annotations
 
-import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
 from app.domain.business.registry import (
     CURRENT_SCHEMA_VERSION,
+    SUPPORTED_OPERATORS,
+    SUPPORTED_SCHEMA_VERSIONS,
+    SUPPORTED_SCOPES,
     ConfigCategory,
-    RuleTypeDefinition,
     get_rule_type,
     is_known_rule_type,
     is_supported_operator,
     is_supported_schema_version,
     is_supported_scope,
-    SUPPORTED_SCHEMA_VERSIONS,
-    SUPPORTED_OPERATORS,
-    SUPPORTED_SCOPES,
 )
-
 
 # ---------------------------------------------------------------------------
 # Validation error structure
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class ValidationErrorDetail:
     """A single validation error."""
+
     field: str
     message: str
     code: str  # Machine-readable error code
@@ -51,6 +50,7 @@ class ValidationResult:
     Use `is_valid` to check pass/fail.
     Use `errors` to inspect individual issues.
     """
+
     errors: list[ValidationErrorDetail] = field(default_factory=list)
 
     @property
@@ -58,9 +58,13 @@ class ValidationResult:
         return len(self.errors) == 0
 
     def add_error(self, field_name: str, message: str, code: str = "invalid") -> None:
-        self.errors.append(ValidationErrorDetail(
-            field=field_name, message=message, code=code,
-        ))
+        self.errors.append(
+            ValidationErrorDetail(
+                field=field_name,
+                message=message,
+                code=code,
+            )
+        )
 
     def to_dict(self) -> dict:
         """Serialize for API response."""
@@ -68,8 +72,7 @@ class ValidationResult:
             "valid": self.is_valid,
             "error_count": len(self.errors),
             "errors": [
-                {"field": e.field, "message": e.message, "code": e.code}
-                for e in self.errors
+                {"field": e.field, "message": e.message, "code": e.code} for e in self.errors
             ],
         }
 
@@ -95,6 +98,7 @@ SUPPORTED_CONFIG_AREAS: frozenset[str] = frozenset(CONFIG_AREA_FIELDS.keys())
 # ---------------------------------------------------------------------------
 # BrainVersion config validation
 # ---------------------------------------------------------------------------
+
 
 def validate_brain_version_config(
     config: dict[str, Any] | None,
@@ -131,13 +135,16 @@ def validate_brain_version_config(
 
     # Check each area's value type
     for area_name in SUPPORTED_CONFIG_AREAS:
-        if area_name in config and config[area_name] is not None:
-            if not isinstance(config[area_name], dict):
-                result.add_error(
-                    f"config.{area_name}",
-                    f"Configuration area '{area_name}' must be a dictionary or null",
-                    "type_error",
-                )
+        if (
+            area_name in config
+            and config[area_name] is not None
+            and not isinstance(config[area_name], dict)
+        ):
+            result.add_error(
+                f"config.{area_name}",
+                f"Configuration area '{area_name}' must be a dictionary or null",
+                "type_error",
+            )
 
     # Check schema_version if present
     if "schema_version" in config:
@@ -162,6 +169,7 @@ def validate_brain_version_config(
 # ---------------------------------------------------------------------------
 # BusinessRule validation
 # ---------------------------------------------------------------------------
+
 
 def validate_rule_data(
     rule_type: str,
@@ -303,8 +311,7 @@ def _validate_conditions(
             if not isinstance(op, str) or not is_supported_operator(op):
                 result.add_error(
                     f"rule_data.conditions[{i}].operator",
-                    f"Unknown operator: '{op}'. "
-                    f"Supported: {sorted(SUPPORTED_OPERATORS)}",
+                    f"Unknown operator: '{op}'. Supported: {sorted(SUPPORTED_OPERATORS)}",
                     "unknown_operator",
                 )
 
@@ -349,11 +356,11 @@ def _validate_actions(
         else:
             outcome = action["outcome"]
             from app.domain.business.registry import SUPPORTED_OUTCOMES
+
             if not isinstance(outcome, str) or outcome not in SUPPORTED_OUTCOMES:
                 result.add_error(
                     f"rule_data.actions[{i}].outcome",
-                    f"Unknown action outcome: '{outcome}'. "
-                    f"Supported: {sorted(SUPPORTED_OUTCOMES)}",
+                    f"Unknown action outcome: '{outcome}'. Supported: {sorted(SUPPORTED_OUTCOMES)}",
                     "unknown_outcome",
                 )
 
@@ -379,6 +386,7 @@ def _validate_date_string(
 # ---------------------------------------------------------------------------
 # Full BrainVersion validation (config + rules)
 # ---------------------------------------------------------------------------
+
 
 def validate_brain_version_full(
     config: dict[str, Any] | None,

@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 class BookingCreate(BaseModel):
     """Request to create a booking from an accepted quote."""
+
     quote_id: uuid.UUID
     requested_at: datetime
     notes: str | None = None
@@ -20,6 +21,7 @@ class BookingCreate(BaseModel):
 
 class BookingRead(BaseModel):
     """Booking response."""
+
     id: uuid.UUID
     reference: str
     customer_id: uuid.UUID
@@ -41,6 +43,7 @@ class BookingRead(BaseModel):
 
 class BookingTransitionRequest(BaseModel):
     """Request to transition a booking's lifecycle status."""
+
     target_status: str = Field(
         pattern=r"^(proposed|accepted|confirmed|in_progress|completed|declined|cancelled|expired|no_show)$",
         description="Target lifecycle status",
@@ -49,12 +52,14 @@ class BookingTransitionRequest(BaseModel):
 
 class AvailabilityCheckRequest(BaseModel):
     """Request to check availability for a proposed booking time."""
+
     service_offer_id: uuid.UUID
     requested_at: datetime
 
 
 class AvailabilityCheckResponse(BaseModel):
     """Response from an availability evaluation."""
+
     available: bool
     requested_at: datetime
     reason: str
@@ -65,6 +70,7 @@ class AvailabilityCheckResponse(BaseModel):
 
 class BookingListRead(BaseModel):
     """Summary booking for list views."""
+
     id: uuid.UUID
     reference: str
     quote_id: uuid.UUID

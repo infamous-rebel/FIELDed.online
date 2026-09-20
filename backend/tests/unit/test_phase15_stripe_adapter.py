@@ -24,17 +24,14 @@ from typing import Any
 from urllib.parse import parse_qs
 
 import pytest
-import stripe
 from stripe._http_client import HTTPClient
 
-from app.adapters.common import ProviderResult
+from app.adapters.payment.base import PaymentRequest, RefundRequest
 from app.adapters.payment.stripe_provider import (
     StripePaymentProvider,
     _amount_from_stripe,
     _amount_to_stripe,
 )
-from app.adapters.payment.base import PaymentRequest, RefundRequest
-
 
 # ---------------------------------------------------------------------------
 # Mock Stripe HTTP transport
@@ -74,10 +71,7 @@ class MockStripeHTTPClient(HTTPClient):
                 # Fall back to URL-encoded form data
                 parsed = parse_qs(post_data, keep_blank_values=True)
                 # Flatten single-value lists
-                return {
-                    k: v[0] if len(v) == 1 else v
-                    for k, v in parsed.items()
-                }
+                return {k: v[0] if len(v) == 1 else v for k, v in parsed.items()}
         if isinstance(post_data, dict):
             return post_data
         return {}
@@ -134,7 +128,9 @@ class MockStripeHTTPClient(HTTPClient):
         if "payment_intents" in url and method_lower == "post":
             if self.fail_with_rate_limit:
                 self.fail_with_rate_limit = False
-                body = json.dumps({"error": {"type": "rate_limit_error", "message": "Rate limit exceeded"}})
+                body = json.dumps(
+                    {"error": {"type": "rate_limit_error", "message": "Rate limit exceeded"}}
+                )
                 return body, 429, {}
             pi = self._make_pi(params)
             return json.dumps(pi), 200, {}
@@ -146,12 +142,14 @@ class MockStripeHTTPClient(HTTPClient):
             if pi:
                 return json.dumps(pi), 200, {}
             # Simulate a not-found with a Stripe error
-            body = json.dumps({
-                "error": {
-                    "type": "invalid_request_error",
-                    "message": f"No such payment_intent: '{pi_id}'",
+            body = json.dumps(
+                {
+                    "error": {
+                        "type": "invalid_request_error",
+                        "message": f"No such payment_intent: '{pi_id}'",
+                    }
                 }
-            })
+            )
             return body, 404, {}
 
         # POST /v1/refunds — create
@@ -403,14 +401,10 @@ class TestStripeWebhookSignature:
         import hmac
 
         signed_payload = f"{timestamp}.{payload.decode()}"
-        signature = hmac.new(
-            secret.encode(), signed_payload.encode(), hashlib.sha256
-        ).hexdigest()
+        signature = hmac.new(secret.encode(), signed_payload.encode(), hashlib.sha256).hexdigest()
         sig_header = f"t={timestamp},v1={signature}"
 
-        is_valid = await provider.verify_webhook_signature(
-            payload, sig_header, secret
-        )
+        is_valid = await provider.verify_webhook_signature(payload, sig_header, secret)
         assert is_valid is True
 
     async def test_invalid_signature_rejected(self):
@@ -421,9 +415,7 @@ class TestStripeWebhookSignature:
         payload = json.dumps({"type": "payment_intent.succeeded"}).encode()
         bad_sig = "t=1234567890,v1=deadbeef00000000000000000000000000000000000000000000000000000000"
 
-        is_valid = await provider.verify_webhook_signature(
-            payload, bad_sig, secret
-        )
+        is_valid = await provider.verify_webhook_signature(payload, bad_sig, secret)
         assert is_valid is False
 
     async def test_empty_signature_rejected(self):

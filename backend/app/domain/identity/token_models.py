@@ -7,9 +7,9 @@ for email verification and password recovery flows.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String
+from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -31,15 +31,9 @@ class EmailVerification(BaseModel):
         nullable=False,
         index=True,
     )
-    token: Mapped[str] = mapped_column(
-        String(128), unique=True, nullable=False, index=True
-    )
-    expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    used_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    token: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     @property
     def is_used(self) -> bool:
@@ -47,9 +41,8 @@ class EmailVerification(BaseModel):
 
     @property
     def is_expired(self) -> bool:
-        from datetime import timezone
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return now > self.expires_at
 
 
@@ -68,15 +61,9 @@ class PasswordResetToken(BaseModel):
         nullable=False,
         index=True,
     )
-    token: Mapped[str] = mapped_column(
-        String(128), unique=True, nullable=False, index=True
-    )
-    expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    used_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    token: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     @property
     def is_used(self) -> bool:
@@ -84,9 +71,8 @@ class PasswordResetToken(BaseModel):
 
     @property
     def is_expired(self) -> bool:
-        from datetime import timezone
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return now > self.expires_at
 
 
@@ -110,20 +96,14 @@ class MemberInvitation(BaseModel):
     )
     email: Mapped[str] = mapped_column(String(320), nullable=False, index=True)
     role: Mapped[str] = mapped_column(String(50), nullable=False, default="staff")
-    token: Mapped[str] = mapped_column(
-        String(128), unique=True, nullable=False, index=True
-    )
+    token: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
     invited_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    used_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     @property
     def is_used(self) -> bool:
@@ -131,7 +111,6 @@ class MemberInvitation(BaseModel):
 
     @property
     def is_expired(self) -> bool:
-        from datetime import timezone
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return now > self.expires_at

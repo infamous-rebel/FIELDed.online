@@ -148,8 +148,7 @@ def _resolve_ai_provider(settings: object) -> AIProvider:
         base_url = getattr(settings, "ai_base_url", "") or None
         if not api_key:
             logger.warning(
-                "OpenAI AI provider selected but AI_API_KEY is empty. "
-                "AI calls will fail."
+                "OpenAI AI provider selected but AI_API_KEY is empty. AI calls will fail."
             )
         kwargs: dict[str, Any] = {"api_key": api_key, "model": model}
         if base_url:

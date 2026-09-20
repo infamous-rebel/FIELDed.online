@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.notification.models import Notification
@@ -32,8 +32,7 @@ class NotificationRepository:
     ) -> Notification | None:
         """Fetch a notification by ID (tenant-scoped)."""
         result = await self.session.execute(
-            select(Notification)
-            .where(
+            select(Notification).where(
                 Notification.id == notification_id,
                 Notification.business_id == business_id,
                 Notification.deleted_at.is_(None),
@@ -41,13 +40,10 @@ class NotificationRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_idempotency_key(
-        self, idempotency_key: str
-    ) -> Notification | None:
+    async def get_by_idempotency_key(self, idempotency_key: str) -> Notification | None:
         """Fetch a notification by idempotency key."""
         result = await self.session.execute(
-            select(Notification)
-            .where(
+            select(Notification).where(
                 Notification.idempotency_key == idempotency_key,
                 Notification.deleted_at.is_(None),
             )
@@ -122,8 +118,7 @@ class NotificationRepository:
     ) -> Notification | None:
         """Mark a notification as read."""
         result = await self.session.execute(
-            select(Notification)
-            .where(
+            select(Notification).where(
                 Notification.id == notification_id,
                 Notification.customer_id == customer_id,
                 Notification.deleted_at.is_(None),

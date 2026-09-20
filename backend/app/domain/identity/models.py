@@ -10,12 +10,16 @@ BusinessMember links a User to a Business with a specific role.
 from __future__ import annotations
 
 import uuid
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.common.base_model import BaseModel
+
+if TYPE_CHECKING:
+    from app.domain.services.models import ServiceOffer
 
 
 class User(BaseModel):
@@ -27,9 +31,7 @@ class User(BaseModel):
 
     __tablename__ = "users"
 
-    email: Mapped[str] = mapped_column(
-        String(320), unique=True, nullable=False, index=True
-    )
+    email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False, index=True)
     hashed_password: Mapped[str] = mapped_column(String(128), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -84,18 +86,14 @@ class Business(BaseModel):
     __tablename__ = "businesses"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    slug: Mapped[str] = mapped_column(
-        String(255), unique=True, nullable=False, index=True
-    )
+    slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     status: Mapped[str] = mapped_column(
         String(50), nullable=False, default="pending"
     )  # BusinessStatus enum value
 
     # Operational currency — the business's default currency for transactions.
     # ISO 4217 code (e.g. "GBP", "USD", "EUR").  Must be explicit; no silent defaults.
-    currency: Mapped[str] = mapped_column(
-        String(3), nullable=False, default="GBP"
-    )
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GBP")
 
     # Relationships
     members: Mapped[list[BusinessMember]] = relationship(
@@ -104,7 +102,7 @@ class Business(BaseModel):
     profile: Mapped[BusinessProfile | None] = relationship(
         back_populates="business", uselist=False, cascade="all, delete-orphan"
     )
-    service_offers: Mapped[list["ServiceOffer"]] = relationship(
+    service_offers: Mapped[list[ServiceOffer]] = relationship(
         back_populates="business", cascade="all, delete-orphan"
     )
 

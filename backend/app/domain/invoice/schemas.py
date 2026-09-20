@@ -7,13 +7,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from decimal import Decimal
-from typing import Any
+from typing import Annotated
 
 from pydantic import BaseModel, BeforeValidator
 from pydantic.fields import Field
-from typing_extensions import Annotated
-
 
 # Allow Decimal or str to be serialized as str
 StrOrDecimal = Annotated[str, BeforeValidator(lambda v: str(v))]
@@ -67,7 +64,9 @@ class InvoiceRead(BaseModel):
 class InvoicePaymentUpdateRequest(BaseModel):
     """Request schema for updating invoice payment status."""
 
-    payment_status: str = Field(..., description="New payment status (unpaid, partially_paid, paid, void)")
+    payment_status: str = Field(
+        ..., description="New payment status (unpaid, partially_paid, paid, void)"
+    )
     notes: str | None = None
 
 

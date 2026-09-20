@@ -93,8 +93,7 @@ class BookingRepository:
     async def get_by_quote(self, quote_id: uuid.UUID) -> list[Booking]:
         """Fetch bookings for a quote."""
         result = await self.session.execute(
-            select(Booking)
-            .where(
+            select(Booking).where(
                 Booking.quote_id == quote_id,
                 Booking.deleted_at.is_(None),
             )

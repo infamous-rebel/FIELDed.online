@@ -7,9 +7,8 @@ Verifies authorization, tenant isolation, and correct API responses.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,9 +16,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.booking.models import Booking
 from app.domain.common.enums import BookingStatus
 from app.domain.enquiry.models import Enquiry
-from app.domain.identity.models import Business, BusinessMember, CustomerProfile, User
+from app.domain.identity.models import Business, CustomerProfile, User
 from app.domain.quote.models import Quote
-from app.domain.services.models import ServiceCategory, ServiceOffer
+from app.domain.services.models import ServiceOffer
 from app.security.password import hash_password
 from tests.factories import (
     business_factory,
@@ -111,7 +110,7 @@ async def booking_for_api(
         quote_id=quote.id,
         enquiry_id=enquiry.id,
         service_offer_id=offer.id,
-        requested_at=datetime.now(timezone.utc) + timedelta(days=2),
+        requested_at=datetime.now(UTC) + timedelta(days=2),
         currency="GBP",
         status=BookingStatus.CONFIRMED,
     )

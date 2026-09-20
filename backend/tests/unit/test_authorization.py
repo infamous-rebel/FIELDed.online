@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from app.domain.common.enums import BusinessMemberRole
 from app.exceptions import AuthorizationError, TenantIsolationError
 
@@ -35,5 +33,6 @@ class TestAuthorization:
     def test_authentication_error_status_code(self):
         """AuthenticationError returns 401."""
         from app.exceptions import AuthenticationError
+
         error = AuthenticationError()
         assert error.status_code == 401

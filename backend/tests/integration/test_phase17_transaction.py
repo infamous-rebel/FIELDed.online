@@ -13,7 +13,7 @@ Tests the full customer transaction lifecycle over HTTP:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 import pytest_asyncio
@@ -30,14 +30,11 @@ from app.domain.payment.models import Payment
 from app.domain.quote.models import Quote
 from app.domain.service_execution.models import ServiceExecution
 from app.domain.services.models import ServiceCategory, ServiceOffer
-from app.security.password import hash_password
 from tests.factories import business_member_factory
 
 
 @pytest_asyncio.fixture
-async def biz_context(
-    db_session: AsyncSession, second_user: User
-) -> dict:
+async def biz_context(db_session: AsyncSession, second_user: User) -> dict:
     """Active business owned by second_user, with an active priced offer."""
     biz = Business(
         name=f"Txn Biz {uuid.uuid4().hex[:6]}",
@@ -48,9 +45,7 @@ async def biz_context(
     await db_session.flush()
 
     db_session.add(
-        business_member_factory(
-            user_id=second_user.id, business_id=biz.id, role="owner"
-        )
+        business_member_factory(user_id=second_user.id, business_id=biz.id, role="owner")
     )
     db_session.add(BusinessProfile(business_id=biz.id, public_status="active"))
     await db_session.flush()
@@ -85,9 +80,7 @@ async def biz_auth_headers(client: AsyncClient, second_user: User) -> dict:
     return {"Authorization": f"Bearer {tokens['access_token']}"}
 
 
-async def _submit_review(
-    client: AsyncClient, auth: dict, execution_id, rating: int = 5
-):
+async def _submit_review(client: AsyncClient, auth: dict, execution_id, rating: int = 5):
     return await client.post(
         "/api/v1/my-reviews",
         headers=auth,
@@ -111,9 +104,7 @@ async def _drive_to_completed_execution(
     biz, offer = biz_context["biz"], biz_context["offer"]
 
     # Enquiry (customer) — business_id resolved from the public slug page
-    resp = await client.get(
-        f"/api/v1/public/business/{biz.slug}/services/{offer.slug}"
-    )
+    resp = await client.get(f"/api/v1/public/business/{biz.slug}/services/{offer.slug}")
     assert resp.status_code == 200
     business_id = resp.json()["business_id"]
 
@@ -168,9 +159,7 @@ async def _drive_to_completed_execution(
         headers=customer_auth,
         json={
             "quote_id": quote_id,
-            "requested_at": (
-                datetime.now(timezone.utc) + timedelta(days=2)
-            ).isoformat(),
+            "requested_at": (datetime.now(UTC) + timedelta(days=2)).isoformat(),
         },
     )
     assert resp.status_code == 201, resp.text
@@ -236,9 +225,7 @@ class TestFullHappyPath:
             biz_auth=biz_auth_headers,
         )
 
-        response = await _submit_review(
-            client, auth_headers, chain["execution_id"]
-        )
+        response = await _submit_review(client, auth_headers, chain["execution_id"])
         assert response.status_code == 201, response.text
         review = response.json()
         assert review["rating"] == 5
@@ -254,9 +241,7 @@ class TestFullHappyPath:
     ):
         biz, offer = biz_context["biz"], biz_context["offer"]
 
-        response = await client.get(
-            f"/api/v1/public/business/{biz.slug}/services/{offer.slug}"
-        )
+        response = await client.get(f"/api/v1/public/business/{biz.slug}/services/{offer.slug}")
         assert response.status_code == 200
         data = response.json()
         business_id = data["business_id"]
@@ -322,7 +307,7 @@ class TestReviewTrustBoundaries:
             quote_id=quote.id,
             enquiry_id=enquiry.id,
             service_offer_id=offer.id,
-            requested_at=datetime.now(timezone.utc) + timedelta(days=1),
+            requested_at=datetime.now(UTC) + timedelta(days=1),
             currency="GBP",
             status=BookingStatus.CONFIRMED,
         )
@@ -336,7 +321,7 @@ class TestReviewTrustBoundaries:
             service_offer_id=offer.id,
             quote_id=quote.id,
             status="completed",
-            completed_at=datetime.now(timezone.utc),
+            completed_at=datetime.now(UTC),
             completed_by=second_user.id,
         )
         db_session.add(execution)
@@ -391,7 +376,7 @@ class TestReviewTrustBoundaries:
             quote_id=quote.id,
             enquiry_id=enquiry.id,
             service_offer_id=offer.id,
-            requested_at=datetime.now(timezone.utc) + timedelta(days=1),
+            requested_at=datetime.now(UTC) + timedelta(days=1),
             currency="GBP",
             status=BookingStatus.CONFIRMED,
         )
@@ -405,16 +390,14 @@ class TestReviewTrustBoundaries:
             service_offer_id=offer.id,
             quote_id=quote.id,
             status="completed",
-            completed_at=datetime.now(timezone.utc),
+            completed_at=datetime.now(UTC),
             completed_by=second_user.id,
         )
         db_session.add(execution)
         await db_session.flush()
 
         # second_user owns the business but did NOT receive the service
-        response = await _submit_review(
-            client, second_auth_headers, execution.id
-        )
+        response = await _submit_review(client, second_auth_headers, execution.id)
         assert response.status_code == 422
         assert "does not own" in response.text
 
@@ -435,14 +418,10 @@ class TestReviewTrustBoundaries:
             customer_auth=auth_headers,
             biz_auth=biz_auth_headers,
         )
-        response = await _submit_review(
-            client, auth_headers, chain["execution_id"], rating=4
-        )
+        response = await _submit_review(client, auth_headers, chain["execution_id"], rating=4)
         assert response.status_code == 201
 
-        response = await client.get(
-            f"/api/v1/public/business/{biz.slug}/reviews"
-        )
+        response = await client.get(f"/api/v1/public/business/{biz.slug}/reviews")
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 1
@@ -501,7 +480,7 @@ class TestCustomerPayment:
             quote_id=quote.id,
             enquiry_id=enquiry.id,
             service_offer_id=offer.id,
-            requested_at=datetime.now(timezone.utc) + timedelta(days=1),
+            requested_at=datetime.now(UTC) + timedelta(days=1),
             currency="GBP",
             status=BookingStatus.CONFIRMED,
         )
@@ -515,7 +494,7 @@ class TestCustomerPayment:
             service_offer_id=offer.id,
             quote_id=quote.id,
             status="completed",
-            completed_at=datetime.now(timezone.utc),
+            completed_at=datetime.now(UTC),
             completed_by=second_user.id,
         )
         db_session.add(execution)
@@ -528,7 +507,7 @@ class TestCustomerPayment:
             booking_id=booking.id,
             quote_id=quote.id,
             invoice_number=f"INV-{uuid.uuid4().hex[:6].upper()}",
-            issue_date=datetime.now(timezone.utc),
+            issue_date=datetime.now(UTC),
             currency="GBP",
             subtotal="150.00",
             discount="0.00",
@@ -598,7 +577,7 @@ class TestCustomerPayment:
             quote_id=quote.id,
             enquiry_id=enquiry.id,
             service_offer_id=offer.id,
-            requested_at=datetime.now(timezone.utc) + timedelta(days=1),
+            requested_at=datetime.now(UTC) + timedelta(days=1),
             currency="GBP",
             status=BookingStatus.CONFIRMED,
         )

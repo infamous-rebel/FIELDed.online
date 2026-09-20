@@ -54,16 +54,16 @@ async def _get_user_business(
 ) -> tuple[Business, BusinessMember]:
     """Get a business and the user's membership, enforcing tenant isolation."""
     from sqlalchemy import select
+
     from app.domain.identity.models import Business, BusinessMember
 
     result = await db.execute(
-        select(Business).where(
-            Business.id == business_id, Business.deleted_at.is_(None)
-        )
+        select(Business).where(Business.id == business_id, Business.deleted_at.is_(None))
     )
     business = result.scalar_one_or_none()
     if business is None:
         from app.exceptions import NotFoundError
+
         raise NotFoundError("Business not found")
 
     result = await db.execute(
@@ -189,9 +189,7 @@ async def list_business_enquiry_messages(
     enquiry = await service.get_business_enquiry(enquiry_id, business_id)
     conversation = await service.get_enquiry_conversation(enquiry.id)
 
-    messages = await service.list_messages(
-        conversation.id, limit=limit, offset=offset
-    )
+    messages = await service.list_messages(conversation.id, limit=limit, offset=offset)
 
     # Mark messages as read for this business user
     await service.mark_messages_read(conversation.id, user.id)

@@ -68,8 +68,7 @@ async def process_outbox_events(
             if event.event_type.startswith("voice."):
                 if voice_orchestrator is None:
                     raise RuntimeError(
-                        "voice outbox event encountered but no voice "
-                        "orchestrator is configured"
+                        "voice outbox event encountered but no voice orchestrator is configured"
                     )
                 await voice_orchestrator.process_event(
                     business_id=event.business_id,
@@ -102,27 +101,21 @@ async def process_outbox_events(
             )
 
         except Exception as exc:
-            logger.exception(
-                "Failed to process outbox event %s", event.id
-            )
+            logger.exception("Failed to process outbox event %s", event.id)
 
             # Roll back any partial state from orchestration
             await session.rollback()
 
             # Update event status
             if event.attempt_count >= max_attempts:
-                await repo.mark_failed(
-                    event.id, error=str(exc)[:1000]
-                )
+                await repo.mark_failed(event.id, error=str(exc)[:1000])
                 logger.error(
                     "Outbox event %s permanently failed after %d attempts",
                     event.id,
                     event.attempt_count,
                 )
             else:
-                await repo.mark_retryable(
-                    event.id, error=str(exc)[:1000]
-                )
+                await repo.mark_retryable(event.id, error=str(exc)[:1000])
 
             try:
                 await session.commit()
