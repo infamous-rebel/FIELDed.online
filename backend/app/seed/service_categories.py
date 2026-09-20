@@ -20,13 +20,12 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.config import get_settings
-from app.database import build_engine
-
 # Register related mappers first: ServiceOffer references Business via
 # relationship(), so identity models must be in the registry before
 # SQLAlchemy configures mappers on first use.
 import app.domain.identity.models  # noqa: F401,E402
+from app.config import get_settings
+from app.database import build_engine
 from app.domain.services.models import ServiceCategory  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
