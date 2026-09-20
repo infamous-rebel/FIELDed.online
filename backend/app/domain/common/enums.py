@@ -289,6 +289,26 @@ class BusinessProfileStatus(StrEnum):
     SUSPENDED = "suspended"
 
 
+# Business account lifecycle transitions.
+# PENDING businesses must be explicitly activated (by an owner/admin) before
+# they can receive enquiries or appear in discovery.
+BUSINESS_TRANSITIONS: dict[BusinessStatus, set[BusinessStatus]] = {
+    BusinessStatus.PENDING: {BusinessStatus.ACTIVE, BusinessStatus.DEACTIVATED},
+    BusinessStatus.ACTIVE: {BusinessStatus.SUSPENDED, BusinessStatus.DEACTIVATED},
+    BusinessStatus.SUSPENDED: {BusinessStatus.ACTIVE, BusinessStatus.DEACTIVATED},
+    # Terminal state
+    BusinessStatus.DEACTIVATED: set(),
+}
+
+
+# Public profile visibility transitions.
+BUSINESS_PROFILE_TRANSITIONS: dict[BusinessProfileStatus, set[BusinessProfileStatus]] = {
+    BusinessProfileStatus.INCOMPLETE: {BusinessProfileStatus.ACTIVE},
+    BusinessProfileStatus.ACTIVE: {BusinessProfileStatus.SUSPENDED},
+    BusinessProfileStatus.SUSPENDED: {BusinessProfileStatus.ACTIVE},
+}
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Phase 13 — Service Execution, Invoice, Ledger
 # ──────────────────────────────────────────────────────────────────────────────
@@ -552,6 +572,9 @@ class AuditEventType(StrEnum):
     # Phase 17 — Settings
     BUSINESS_SETTINGS_UPDATED = "BUSINESS_SETTINGS_UPDATED"
     COMMUNICATION_CONFIG_UPDATED = "COMMUNICATION_CONFIG_UPDATED"
+    # Phase 18 — Business lifecycle
+    BUSINESS_STATUS_CHANGED = "BUSINESS_STATUS_CHANGED"
+    BUSINESS_PROFILE_STATUS_CHANGED = "BUSINESS_PROFILE_STATUS_CHANGED"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -918,12 +941,14 @@ class CallOutcome(StrEnum):
 # Outcomes reserved for transactional calls — a marketing call may
 # never report these (the recipient cannot "confirm" a booking they
 # were called about promotionally).
-TRANSACTIONAL_ONLY_OUTCOMES: frozenset[CallOutcome] = frozenset({
-    CallOutcome.CONFIRMED,
-    CallOutcome.RESCHEDULE_REQUESTED,
-    CallOutcome.CANCELLATION_REQUESTED,
-    CallOutcome.PAYMENT_ARRANGED,
-})
+TRANSACTIONAL_ONLY_OUTCOMES: frozenset[CallOutcome] = frozenset(
+    {
+        CallOutcome.CONFIRMED,
+        CallOutcome.RESCHEDULE_REQUESTED,
+        CallOutcome.CANCELLATION_REQUESTED,
+        CallOutcome.PAYMENT_ARRANGED,
+    }
+)
 
 
 class AgentAction(StrEnum):
@@ -943,11 +968,13 @@ class AgentAction(StrEnum):
 
 # Default collectible information keys when the Brain does not
 # declare its own.  Everything else is rejected (fail-closed).
-DEFAULT_COLLECTIBLE_FIELDS: frozenset[str] = frozenset({
-    "callback_number",
-    "preferred_time",
-    "notes",
-})
+DEFAULT_COLLECTIBLE_FIELDS: frozenset[str] = frozenset(
+    {
+        "callback_number",
+        "preferred_time",
+        "notes",
+    }
+)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

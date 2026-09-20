@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 import secrets
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
@@ -20,7 +20,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db_session
-from app.domain.common.enums import AuditEventType, BusinessMemberRole, BusinessProfileStatus
+from app.domain.common.enums import (
+    BUSINESS_PROFILE_TRANSITIONS,
+    BUSINESS_TRANSITIONS,
+    AuditEventType,
+    BusinessMemberRole,
+    BusinessProfileStatus,
+    BusinessStatus,
+)
 from app.domain.identity.models import (
     Business,
     BusinessMember,
@@ -29,7 +36,13 @@ from app.domain.identity.models import (
 )
 from app.domain.identity.token_models import MemberInvitation
 from app.domain.outbox.models import OutboxEvent
-from app.exceptions import AuthorizationError, ConflictError, NotFoundError, ValidationError
+from app.exceptions import (
+    AuthorizationError,
+    ConflictError,
+    NotFoundError,
+    StateTransitionError,
+    ValidationError,
+)
 from app.security.authorization import get_current_user
 
 router = APIRouter()
@@ -48,6 +61,7 @@ class BusinessCreateRequest(BaseModel):
 
 class SocialLinksUpdate(BaseModel):
     """Structured social media links."""
+
     website: str | None = Field(default=None, max_length=500)
     facebook: str | None = Field(default=None, max_length=500)
     instagram: str | None = Field(default=None, max_length=500)
@@ -63,6 +77,7 @@ class SocialLinksUpdate(BaseModel):
 
 class BusinessProfileUpdateRequest(BaseModel):
     """Full business profile update."""
+
     description: str | None = Field(default=None, max_length=2000)
     phone: str | None = Field(default=None, max_length=20)
     email: str | None = Field(default=None, max_length=320)
@@ -93,7 +108,14 @@ class BusinessProfileUpdateRequest(BaseModel):
 
 class BusinessUpdateRequest(BaseModel):
     """Update business entity fields (name, etc)."""
+
     name: str | None = Field(default=None, min_length=1, max_length=255)
+
+
+class BusinessTransitionRequest(BaseModel):
+    """Business lifecycle transition request."""
+
+    target_status: str = Field(pattern=r"^(active|suspended|deactivated)$")
 
 
 class SocialLinksRead(BaseModel):
@@ -239,9 +261,7 @@ def _check_minimum_role(membership: BusinessMember, minimum: BusinessMemberRole)
     member_level = ROLE_HIERARCHY.get(BusinessMemberRole(membership.role), 0)
     required_level = ROLE_HIERARCHY.get(minimum, 0)
     if member_level < required_level:
-        raise AuthorizationError(
-            f"Requires {minimum.value} role or higher"
-        )
+        raise AuthorizationError(f"Requires {minimum.value} role or higher")
 
 
 def _profile_to_read(profile: BusinessProfile) -> BusinessProfileRead:
@@ -299,9 +319,7 @@ async def create_business(
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> BusinessRead:
     """Create a new business. The authenticated user becomes the owner."""
-    result = await db.execute(
-        select(Business).where(Business.slug == body.slug)
-    )
+    result = await db.execute(select(Business).where(Business.slug == body.slug))
     if result.scalar_one_or_none() is not None:
         raise ConflictError("A business with this slug already exists")
 
@@ -310,7 +328,9 @@ async def create_business(
     await db.flush()
 
     member = BusinessMember(
-        user_id=user.id, business_id=business.id, role=BusinessMemberRole.OWNER,
+        user_id=user.id,
+        business_id=business.id,
+        role=BusinessMemberRole.OWNER,
     )
     db.add(member)
 
@@ -349,8 +369,12 @@ async def list_businesses(
 
     return [
         BusinessRead(
-            id=str(b.id), name=b.name, slug=b.slug, status=b.status,
-            created_at=b.created_at.isoformat(), updated_at=b.updated_at.isoformat(),
+            id=str(b.id),
+            name=b.name,
+            slug=b.slug,
+            status=b.status,
+            created_at=b.created_at.isoformat(),
+            updated_at=b.updated_at.isoformat(),
         )
         for b in businesses
     ]
@@ -393,12 +417,64 @@ async def update_business(
             },
             idempotency_key=(
                 f"BUSINESS_SETTINGS_UPDATED:business:{business_id}"
-                f":{int(datetime.now(timezone.utc).timestamp())}"
+                f":{int(datetime.now(UTC).timestamp())}"
             ),
         )
 
     await db.flush()
     await db.refresh(business, attribute_names=["profile"])
+    return _business_to_read(business)
+
+
+@router.post("/{business_id}/transition", response_model=BusinessDetailRead)
+async def transition_business(
+    business_id: uuid.UUID,
+    body: BusinessTransitionRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> BusinessDetailRead:
+    """Transition the business lifecycle status. Requires owner role.
+
+    Valid transitions:
+    - PENDING -> ACTIVE, DEACTIVATED
+    - ACTIVE -> SUSPENDED, DEACTIVATED
+    - SUSPENDED -> ACTIVE, DEACTIVATED
+    - DEACTIVATED -> (terminal)
+    """
+    business, membership = await _get_user_business(business_id, user, db)
+    _check_minimum_role(membership, BusinessMemberRole.OWNER)
+
+    current = BusinessStatus(business.status)
+    target = BusinessStatus(body.target_status)
+    allowed = BUSINESS_TRANSITIONS.get(current, set())
+    if target not in allowed:
+        raise StateTransitionError(
+            f"Cannot transition business from '{current.value}' to '{target.value}'. "
+            f"Allowed: {[s.value for s in allowed] or 'none (terminal state)'}"
+        )
+
+    previous = current.value
+    business.status = target
+    await db.flush()
+    await db.refresh(business, attribute_names=["profile"])
+
+    await _emit_business_outbox_event(
+        db,
+        business_id=business_id,
+        event_type=AuditEventType.BUSINESS_STATUS_CHANGED,
+        aggregate_type="business",
+        aggregate_id=business_id,
+        payload={
+            "previous_status": previous,
+            "new_status": target.value,
+            "changed_by": str(user.id),
+        },
+        idempotency_key=(
+            f"BUSINESS_STATUS_CHANGED:business:{business_id}"
+            f":{previous}:{target.value}:{int(datetime.now(UTC).timestamp())}"
+        ),
+    )
+
     return _business_to_read(business)
 
 
@@ -432,6 +508,23 @@ async def update_business_profile(
     profile = business.profile
     update_data = body.model_dump(exclude_unset=True, exclude={"social_links"})
 
+    # public_status is a state-machine-governed field — validate the
+    # transition instead of assigning it like a plain profile field.
+    if "public_status" in update_data:
+        raw_status = update_data.pop("public_status")
+        if raw_status is not None:
+            current_public = BusinessProfileStatus(profile.public_status)
+            target_public = BusinessProfileStatus(raw_status)
+            if target_public is not current_public:
+                allowed_public = BUSINESS_PROFILE_TRANSITIONS.get(current_public, set())
+                if target_public not in allowed_public:
+                    raise StateTransitionError(
+                        f"Cannot transition public profile from "
+                        f"'{current_public.value}' to '{target_public.value}'. "
+                        f"Allowed: {[s.value for s in allowed_public] or 'none'}"
+                    )
+            profile.public_status = target_public
+
     for field, value in update_data.items():
         setattr(profile, field, value)
 
@@ -459,11 +552,13 @@ async def update_business_profile(
         payload={
             "notification_title": "Business settings updated",
             "notification_body": "Business profile settings were updated.",
-            "updated_fields": sorted(set(update_data) | ({"social_links"} if body.social_links is not None else set())),
+            "updated_fields": sorted(
+                set(update_data) | ({"social_links"} if body.social_links is not None else set())
+            ),
         },
         idempotency_key=(
             f"BUSINESS_SETTINGS_UPDATED:business_profile:{profile.id}"
-            f":{int(datetime.now(timezone.utc).timestamp())}"
+            f":{int(datetime.now(UTC).timestamp())}"
         ),
     )
 
@@ -495,8 +590,11 @@ async def list_members(
 
     return [
         MemberRead(
-            id=str(m.id), user_id=str(m.user_id), business_id=str(m.business_id),
-            role=m.role, user_email=m.user.email if m.user else None,
+            id=str(m.id),
+            user_id=str(m.user_id),
+            business_id=str(m.business_id),
+            role=m.role,
+            user_email=m.user.email if m.user else None,
             created_at=m.created_at.isoformat(),
         )
         for m in members
@@ -532,15 +630,20 @@ async def add_member(
         raise ConflictError("User is already a member of this business")
 
     new_member = BusinessMember(
-        user_id=target_user.id, business_id=business_id, role=body.role,
+        user_id=target_user.id,
+        business_id=business_id,
+        role=body.role,
     )
     db.add(new_member)
     await db.flush()
 
     return MemberRead(
-        id=str(new_member.id), user_id=str(new_member.user_id),
-        business_id=str(new_member.business_id), role=new_member.role,
-        user_email=target_user.email, created_at=new_member.created_at.isoformat(),
+        id=str(new_member.id),
+        user_id=str(new_member.user_id),
+        business_id=str(new_member.business_id),
+        role=new_member.role,
+        user_email=target_user.email,
+        created_at=new_member.created_at.isoformat(),
     )
 
 
@@ -583,7 +686,7 @@ async def remove_member(
         if len(owners) <= 1:
             raise ConflictError("Cannot remove the last owner of a business")
 
-    target_member.deleted_at = datetime.now(timezone.utc)
+    target_member.deleted_at = datetime.now(UTC)
     await db.flush()
 
     await _emit_business_outbox_event(
@@ -600,8 +703,7 @@ async def remove_member(
             ),
         },
         idempotency_key=(
-            f"MEMBER_REMOVED:member:{target_member.id}"
-            f":{int(datetime.now(timezone.utc).timestamp())}"
+            f"MEMBER_REMOVED:member:{target_member.id}:{int(datetime.now(UTC).timestamp())}"
         ),
     )
 
@@ -630,7 +732,7 @@ async def _emit_business_outbox_event(
         payload=payload,
         idempotency_key=idempotency_key,
         status="PENDING",
-        available_at=datetime.now(timezone.utc),
+        available_at=datetime.now(UTC),
     )
     db.add(event)
     await db.flush()
@@ -689,7 +791,7 @@ async def invite_member(
         role=body.role,
         token=secrets.token_urlsafe(48),
         invited_by=user.id,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        expires_at=datetime.now(UTC) + timedelta(days=7),
     )
     db.add(invitation)
     await db.flush()
@@ -702,9 +804,7 @@ async def invite_member(
         aggregate_id=invitation.id,
         payload={
             "notification_title": "Member invited",
-            "notification_body": (
-                f"{email} was invited to join {business.name} as {body.role}."
-            ),
+            "notification_body": (f"{email} was invited to join {business.name} as {body.role}."),
             "communication_targets": [
                 {
                     "channel": "email",
@@ -744,14 +844,16 @@ async def list_member_invitations(
     """List pending (unused, unexpired) member invitations."""
     await _get_user_business(business_id, user, db)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     result = await db.execute(
-        select(MemberInvitation).where(
+        select(MemberInvitation)
+        .where(
             MemberInvitation.business_id == business_id,
             MemberInvitation.used_at.is_(None),
             MemberInvitation.expires_at > now,
             MemberInvitation.deleted_at.is_(None),
-        ).order_by(MemberInvitation.created_at)
+        )
+        .order_by(MemberInvitation.created_at)
     )
     invitations = result.scalars().all()
 
@@ -796,10 +898,7 @@ async def update_member_role(
     new_role = BusinessMemberRole(body.role)
 
     # Guard: cannot demote the last owner
-    if (
-        target_member.role == BusinessMemberRole.OWNER
-        and new_role != BusinessMemberRole.OWNER
-    ):
+    if target_member.role == BusinessMemberRole.OWNER and new_role != BusinessMemberRole.OWNER:
         result = await db.execute(
             select(BusinessMember).where(
                 BusinessMember.business_id == business_id,
@@ -830,7 +929,7 @@ async def update_member_role(
             },
             idempotency_key=(
                 f"MEMBER_ROLE_CHANGED:member:{target_member.id}"
-                f":{new_role.value}:{int(datetime.now(timezone.utc).timestamp())}"
+                f":{new_role.value}:{int(datetime.now(UTC).timestamp())}"
             ),
         )
 
@@ -876,9 +975,7 @@ async def accept_invitation(
         raise ValidationError("Invitation has expired")
 
     if user.email.strip().lower() != invitation.email:
-        raise AuthorizationError(
-            "This invitation was issued to a different email address"
-        )
+        raise AuthorizationError("This invitation was issued to a different email address")
 
     # Already a member?
     result = await db.execute(
@@ -897,7 +994,7 @@ async def accept_invitation(
         role=invitation.role,
     )
     db.add(new_member)
-    invitation.used_at = datetime.now(timezone.utc)
+    invitation.used_at = datetime.now(UTC)
     await db.flush()
 
     await _emit_business_outbox_event(
@@ -908,9 +1005,7 @@ async def accept_invitation(
         aggregate_id=invitation.id,
         payload={
             "notification_title": "Member joined",
-            "notification_body": (
-                f"{user.email} joined as {invitation.role}."
-            ),
+            "notification_body": (f"{user.email} joined as {invitation.role}."),
         },
         idempotency_key=f"MEMBER_ACCEPTED:member_invitation:{invitation.id}",
     )

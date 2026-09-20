@@ -12,10 +12,11 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.adapters import ProviderFactory
 from app.config import get_settings
+from app.database import build_engine
 from app.domain.communication.orchestration import OrchestrationService
 from app.domain.voice.outbox_integration import VoiceEventOrchestrator
 from app.workers import process_outbox_events
@@ -28,14 +29,12 @@ async def main() -> None:
     """Run a single outbox processing pass."""
     settings = get_settings()
 
-    engine = create_async_engine(
+    engine = build_engine(
         settings.database_url,
         pool_size=5,
         max_overflow=5,
     )
-    session_factory = async_sessionmaker(
-        bind=engine, class_=AsyncSession, expire_on_commit=False
-    )
+    session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
     # Build providers
     factory = ProviderFactory.from_settings(settings)

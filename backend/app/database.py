@@ -6,7 +6,8 @@ Uses SQLAlchemy 2.0 async with asyncpg driver.
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
-from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+from typing import Any
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
@@ -48,14 +49,16 @@ def _prepare_neon_url(url: str) -> tuple[str, dict]:
 
     # Rebuild URL without sslmode/channel_binding
     new_query = urlencode(query_params, doseq=True)
-    clean_url = urlunparse((
-        parsed.scheme,
-        parsed.netloc,
-        parsed.path,
-        parsed.params,
-        new_query,
-        parsed.fragment,
-    ))
+    clean_url = urlunparse(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            parsed.params,
+            new_query,
+            parsed.fragment,
+        )
+    )
 
     return clean_url, connect_args
 
@@ -83,6 +86,19 @@ def init_db(settings: Settings) -> AsyncEngine:
 
     logger.info("database_engine_created", url=settings.database_url.split("@")[-1])
     return _engine
+
+
+def build_engine(url: str, **engine_kwargs: Any) -> AsyncEngine:
+    """Build a standalone engine with asyncpg SSL compatibility applied.
+
+    Use this for CLI entry points (workers, seed scripts) that create
+    their own engine outside the application lifecycle.
+    """
+    clean_url, connect_args = _prepare_neon_url(url)
+    extra_connect_args = engine_kwargs.pop("connect_args", {})
+    connect_args.update(extra_connect_args)
+    engine_kwargs.setdefault("pool_pre_ping", True)
+    return create_async_engine(clean_url, connect_args=connect_args, **engine_kwargs)
 
 
 def get_engine() -> AsyncEngine:
