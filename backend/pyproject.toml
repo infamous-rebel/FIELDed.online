@@ -40,6 +40,13 @@ filterwarnings = [
     "ignore::DeprecationWarning",
 ]
 
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100
