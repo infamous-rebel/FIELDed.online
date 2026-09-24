@@ -111,12 +111,20 @@ async def _resolve_brain_with_membership(
     if member_level < required_level:
         raise AuthorizationError(f"Requires {minimum_role.value} role or higher (current: {membership.role})")
 
-    # 4. Resolve brain (get or create)
+    # 4. Resolve brain (get or create — handles concurrent creation)
+    from sqlalchemy.exc import IntegrityError
+
     brain_repo = BusinessBrainRepository(db)
     brain = await brain_repo.get_by_business_id(business_id)
     if brain is None:
         brain = BusinessBrain(business_id=business_id)
-        brain = await brain_repo.create(brain)
+        try:
+            brain = await brain_repo.create(brain)
+        except IntegrityError:
+            await db.rollback()
+            brain = await brain_repo.get_by_business_id(business_id)
+            if brain is None:
+                raise NotFoundError("Business brain not found after concurrent creation")
 
     return brain, membership
 

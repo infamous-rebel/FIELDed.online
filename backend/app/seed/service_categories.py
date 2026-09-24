@@ -33,7 +33,14 @@ logger = logging.getLogger(__name__)
 
 # Canonical platform taxonomy (slug, name, description).
 # Must stay aligned with the discovery interpreter's category map.
+#
+# The taxonomy is intentionally broad: FIELDed is a service-agnostic
+# platform and businesses may offer any legitimate service worldwide.
+# These seed categories provide useful defaults for discovery; the
+# POST /categories endpoint lets businesses create additional
+# categories on the fly for services not covered here.
 SERVICE_CATEGORIES: list[tuple[str, str, str]] = [
+    # Original trade categories (discovery stub keyword map references these slugs)
     ("electrical", "Electrical", "Electrical installation, repair, and maintenance work."),
     ("plumbing", "Plumbing", "Plumbing installation, repair, and maintenance work."),
     ("legal", "Legal Services", "Legal advice, contracts, and representation."),
@@ -42,6 +49,17 @@ SERVICE_CATEGORIES: list[tuple[str, str, str]] = [
     ("painting", "Painting", "Interior and exterior painting and decorating."),
     ("repair", "Repair & Maintenance", "General repairs and property maintenance."),
     ("inspection", "Inspection", "Property, safety, and compliance inspections."),
+    # Broad service-agnostic categories
+    ("professional-services", "Professional Services", "Consulting, advisory, and professional business services."),
+    ("technology-digital", "Technology & Digital", "Software development, IT, digital marketing, and technology services."),
+    ("health-wellness", "Health & Wellness", "Healthcare, therapy, fitness, and wellness services."),
+    ("education-training", "Education & Training", "Teaching, tutoring, coaching, and professional development."),
+    ("creative-media", "Creative & Media", "Design, photography, video production, and creative services."),
+    ("events-hospitality", "Events & Hospitality", "Event planning, catering, venue, and hospitality services."),
+    ("transport-logistics", "Transport & Logistics", "Delivery, freight, moving, and logistics services."),
+    ("real-estate-property", "Real Estate & Property", "Property management, real estate, and property-related services."),
+    ("manufacturing-industrial", "Manufacturing & Industrial", "Manufacturing, fabrication, and industrial services."),
+    ("personal-services", "Personal Services", "Personal care, lifestyle, and household services."),
 ]
 
 

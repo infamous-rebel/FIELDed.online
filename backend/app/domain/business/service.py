@@ -65,10 +65,20 @@ class BrainService:
 
     async def get_or_create_brain(self, business_id: uuid.UUID) -> BusinessBrain:
         """Get the brain for a business, creating it if it doesn't exist."""
+        from sqlalchemy.exc import IntegrityError
+
         brain = await self.brain_repo.get_by_business_id(business_id)
         if brain is None:
             brain = BusinessBrain(business_id=business_id)
-            brain = await self.brain_repo.create(brain)
+            try:
+                brain = await self.brain_repo.create(brain)
+            except IntegrityError:
+                await self.session.rollback()
+                brain = await self.brain_repo.get_by_business_id(business_id)
+                if brain is None:
+                    from app.exceptions import NotFoundError
+
+                    raise NotFoundError("Business brain not found after concurrent creation")
         return brain
 
     async def create_version(

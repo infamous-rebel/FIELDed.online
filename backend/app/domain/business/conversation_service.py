@@ -86,7 +86,7 @@ When the owner provides information that should become a business rule, output a
 
 [PROPOSAL]
 ```json
-{
+{{
   "proposal_type": "pricing_rule|policy_rule|availability_rule|qualification_rule|new_service|identity_update|communication_update|escalation_rule",
   "summary": "One-line description of the change",
   "reasoning": "Why this matters for the business",
@@ -94,8 +94,8 @@ When the owner provides information that should become a business rule, output a
   "affected_area": "pricing|policies|availability|qualification|services|identity|communication|escalation",
   "rule_type": "surcharge|base_pricing|operating_hours|cancellation_policy|service_definition|etc (use the correct registry type)",
   "rule_name": "Human-readable rule name",
-  "rule_data": { ... structured data matching the rule type schema ... }
-}
+  "rule_data": {{ ... structured data matching the rule type schema ... }}
+}}
 ```
 [/PROPOSAL]
 
@@ -612,7 +612,7 @@ class BrainConversationService:
         # Build conversation history for multi-turn chat
         history = await self.message_repo.list_by_conversation_id(conversation.id, limit=20)
         chat_messages = [
-            {"role": "assistant" if m.role == "brain" else m.role, "content": m.content}
+            {"role": "assistant" if m.role == "brain" else "user", "content": m.content}
             for m in history
             if m.role in ("brain", "owner")
         ]
@@ -626,7 +626,7 @@ class BrainConversationService:
             return response_text, proposal_data
 
         except Exception as e:
-            logger.error("Brain response generation failed", error=str(e))
+            logger.error(f"Brain response generation failed: {e}")
             return (
                 "I'm having trouble processing that right now. Could you try again?",
                 None,
@@ -748,7 +748,7 @@ class BrainConversationService:
         # Unpaid invoices
         unpaid_invoices = await invoice_repo.get_by_business(business_id, payment_status="unpaid", limit=5)
         if unpaid_invoices:
-            total_unpaid = sum(float(inv.total_amount or 0) for inv in unpaid_invoices)
+            total_unpaid = sum(float(inv.total or 0) for inv in unpaid_invoices)
             parts.append(f"Unpaid invoices: {len(unpaid_invoices)} outstanding, total A${total_unpaid:.2f}")
 
         return "\n".join(parts)

@@ -53,6 +53,8 @@ export default function BusinessServicesPage() {
   const [formPricingModel, setFormPricingModel] = useState("quote_required");
   const [formSaving, setFormSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const [showNewCategory, setShowNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
 
   useEffect(() => {
     setAuthed(isAuthenticated());
@@ -94,6 +96,8 @@ export default function BusinessServicesPage() {
     setFormError("");
     setEditingOffer(null);
     setShowForm(false);
+    setShowNewCategory(false);
+    setNewCategoryName("");
   };
 
   const startEdit = (offer: ServiceOffer) => {
@@ -103,6 +107,8 @@ export default function BusinessServicesPage() {
     setFormCategoryId(offer.category_id || "");
     setFormDeliveryMode(offer.delivery_mode);
     setFormPricingModel(offer.pricing_model);
+    setShowNewCategory(false);
+    setNewCategoryName("");
     setShowForm(true);
   };
 
@@ -114,10 +120,20 @@ export default function BusinessServicesPage() {
       setFormSaving(true);
       setFormError("");
 
+      let categoryId = formCategoryId || undefined;
+
+      // If user chose to create a new category, create it first
+      if (showNewCategory && newCategoryName.trim()) {
+        const newCat = await categories.create(newCategoryName.trim());
+        categoryId = newCat.id;
+        // Refresh the category list so the new one appears in the dropdown
+        setAllCategories((prev) => [...prev, newCat]);
+      }
+
       const data = {
         name: formName,
         description: formDescription || undefined,
-        category_id: formCategoryId || undefined,
+        category_id: categoryId,
         delivery_mode: formDeliveryMode,
         pricing_model: formPricingModel,
       };
@@ -238,15 +254,34 @@ export default function BusinessServicesPage() {
                 <label htmlFor="offerCat" className="block text-sm font-medium text-[var(--text-primary)]">Category</label>
                 <select
                   id="offerCat"
-                  value={formCategoryId}
-                  onChange={(e) => setFormCategoryId(e.target.value)}
+                  value={showNewCategory ? "__new__" : formCategoryId}
+                  onChange={(e) => {
+                    if (e.target.value === "__new__") {
+                      setShowNewCategory(true);
+                      setFormCategoryId("");
+                    } else {
+                      setShowNewCategory(false);
+                      setNewCategoryName("");
+                      setFormCategoryId(e.target.value);
+                    }
+                  }}
                   className="mt-1 block w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2 text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
                 >
                   <option value="">No category</option>
                   {allCategories.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
+                  <option value="__new__">+ Create new category...</option>
                 </select>
+                {showNewCategory && (
+                  <input
+                    type="text"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="Enter category name (e.g. Business Consulting)"
+                    className="mt-2 block w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                  />
+                )}
               </div>
               <div>
                 <label htmlFor="offerDelivery" className="block text-sm font-medium text-[var(--text-primary)]">Delivery Mode</label>

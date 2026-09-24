@@ -353,6 +353,13 @@ export const categories = {
   listRoots(): Promise<ServiceCategory[]> {
     return request("/categories/roots");
   },
+
+  create(name: string, description?: string): Promise<ServiceCategory> {
+    return request("/categories", {
+      method: "POST",
+      body: JSON.stringify({ name, description }),
+    });
+  },
 };
 
 // --- Service Offers ---
