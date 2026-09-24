@@ -353,3 +353,87 @@ class TestDirectiveInjection:
         assert proposal_data is not None
         assert proposal_data["proposal_type"] == "qualification_rule"
         assert proposal_data["summary"] == "Require budget range"
+
+
+# ---------------------------------------------------------------------------
+# Empty display text fallback
+# ---------------------------------------------------------------------------
+
+
+class TestEmptyDisplayTextFallback:
+    """When the AI response is entirely a [PROPOSAL] block, show a fallback."""
+
+    @pytest.mark.asyncio
+    async def test_empty_display_gets_fallback_text(self):
+        """If the AI response is only a [PROPOSAL] block, display_text should
+        contain a meaningful fallback message."""
+        proposal_json = json.dumps({
+            "proposal_type": "qualification_rule",
+            "summary": "Require site address",
+            "confidence": 0.8,
+        })
+        # AI response is ONLY the [PROPOSAL] block — nothing else
+        ai_content = f"[PROPOSAL]\n```json\n{proposal_json}\n```\n[/PROPOSAL]"
+
+        mock_session = MagicMock()
+        from app.adapters.ai.groq import GroqProvider
+        service = BrainConversationService(mock_session, MagicMock(spec=AIProvider))
+        service.ai_provider = MagicMock(spec=GroqProvider)
+        service.ai_provider.chat = AsyncMock(
+            return_value=AIResponse(
+                content=ai_content,
+                model="test-model",
+                usage={"prompt_tokens": 0, "completion_tokens": 0},
+            )
+        )
+        service.ai_provider.provider_name = "groq"
+
+        owner_message = "Create a proposal."
+        chat_messages = [{"role": "user", "content": owner_message}]
+
+        display_text, proposal_data = await service._ai_response_with_proposal(
+            "system", chat_messages, owner_message
+        )
+
+        # display_text should NOT be empty
+        assert display_text.strip() != ""
+        assert "proposal" in display_text.lower()
+        assert "Require site address" in display_text
+
+    @pytest.mark.asyncio
+    async def test_nonempty_display_preserved(self):
+        """If the AI response has text outside the [PROPOSAL] block, that text
+        should be preserved as-is."""
+        proposal_json = json.dumps({
+            "proposal_type": "pricing_rule",
+            "summary": "Base rate",
+            "confidence": 0.7,
+        })
+        ai_content = (
+            f"Here's what I suggest:\n\n"
+            f"[PROPOSAL]\n```json\n{proposal_json}\n```\n[/PROPOSAL]\n\n"
+            f"Let me know if this works."
+        )
+
+        mock_session = MagicMock()
+        from app.adapters.ai.groq import GroqProvider
+        service = BrainConversationService(mock_session, MagicMock(spec=AIProvider))
+        service.ai_provider = MagicMock(spec=GroqProvider)
+        service.ai_provider.chat = AsyncMock(
+            return_value=AIResponse(
+                content=ai_content,
+                model="test-model",
+                usage={"prompt_tokens": 0, "completion_tokens": 0},
+            )
+        )
+        service.ai_provider.provider_name = "groq"
+
+        display_text, proposal_data = await service._ai_response_with_proposal(
+            "system",
+            [{"role": "user", "content": "Propose pricing"}],
+            "Propose pricing",
+        )
+
+        assert "Here's what I suggest:" in display_text
+        assert "Let me know if this works." in display_text
+        assert "[PROPOSAL]" not in display_text

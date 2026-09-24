@@ -690,6 +690,16 @@ class BrainConversationService:
         # Clean the response text (remove proposal block for display)
         display_text = self._clean_proposal_from_text(content)
 
+        # If the entire response was a [PROPOSAL] block, the display text
+        # will be empty.  Provide a meaningful fallback so the owner sees
+        # a Brain message alongside the proposal card.
+        if not display_text.strip() and proposal_data is not None:
+            summary = proposal_data.get("summary", "")
+            if summary:
+                display_text = f"I've prepared a proposal for your review: {summary}"
+            else:
+                display_text = "I've prepared a proposal for your review."
+
         return display_text, proposal_data
 
     async def _build_business_context(self, business_id: uuid.UUID) -> str:
