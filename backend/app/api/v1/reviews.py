@@ -9,6 +9,7 @@ Public:
     GET  /public/business/{slug}/reviews — Public reviews for a business
 
 Business-facing:
+    GET  /businesses/{business_id}/reviews — List reviews for a business
     POST /businesses/{business_id}/reviews/{id}/respond — Business response
 
 All authorization is server-side.  Review eligibility is deterministic.
@@ -149,7 +150,32 @@ async def get_public_business_reviews(
     )
 
 
-# --- Business response endpoint ---
+# --- Business-facing endpoints ---
+
+
+@router.get(
+    "/businesses/{business_id}/reviews",
+    response_model=ReviewListRead,
+)
+async def list_business_reviews(
+    business_id: uuid.UUID,
+    user: Annotated[User, Depends(require_business_member)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+) -> ReviewListRead:
+    """List visible reviews for a business.
+
+    Requires authenticated business membership (tenant-scoped).
+    """
+    repo = ReviewRepository(db)
+    reviews = await repo.get_by_business(
+        business_id, status="visible", limit=limit, offset=offset
+    )
+    return ReviewListRead(
+        items=[ReviewRead.model_validate(r) for r in reviews],
+        total=len(reviews),
+    )
 
 
 @router.post(
