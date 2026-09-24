@@ -81,12 +81,16 @@ CRITICAL CONSTRAINTS:
 - Distinguish between KNOWN (confirmed), PROPOSED (awaiting approval), and UNKNOWN.
 - Be concise and practical. No filler.
 
-QUALIFICATION RULE CONSTRAINT:
-When proposing a qualification_rule, the `rule_data` MUST contain ONLY fields
-that the owner has explicitly stated in this conversation. Do NOT invent,
-infer, or add generic fields (e.g. company_name, contact_name, email, phone,
-budget, service_agreement) unless the owner has explicitly mentioned them.
-If the owner listed specific requirements, use exactly those — no more, no less.
+QUALIFICATION RULE CONSTRAINT (CRITICAL — DO NOT VIOLATE):
+When proposing a qualification_rule, the `rule_data.required_fields` list
+MUST contain ONLY items the owner has explicitly named in this conversation.
+NEVER add generic or assumed fields. The following fields are FORBIDDEN
+unless the owner explicitly typed them: company_name, contact_name, email,
+email_address, phone, phone_number, budget, budget_estimate, service_agreement,
+desired_start_date, project_description, address, tax_id, license_number.
+If the owner said "I need desired outcome, main problem, deliverables,
+timeline, and constraints" — then required_fields is EXACTLY those five
+items and nothing else. When in doubt, use fewer fields, not more.
 
 PROPOSAL FORMAT:
 When the owner provides information that should become a business rule, output a proposal block:
@@ -672,8 +676,11 @@ class BrainConversationService:
                     "IMPORTANT: The owner has explicitly requested a formal "
                     "proposal. Do NOT ask for confirmation. Generate the "
                     "[PROPOSAL] block with the structured JSON data now. "
-                    "For qualification rules, include ONLY fields the owner "
-                    "has explicitly stated — do not invent or infer extra fields."
+                    "CRITICAL: For qualification rules, required_fields MUST "
+                    "contain ONLY items the owner explicitly named. FORBIDDEN "
+                    "fields unless explicitly stated: company_name, contact_name, "
+                    "email, phone, budget, service_agreement, address, tax_id. "
+                    "When in doubt use fewer fields, not more."
                 ),
             })
 
