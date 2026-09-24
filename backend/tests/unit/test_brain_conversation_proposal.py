@@ -494,6 +494,21 @@ class TestNestedJsonStripping:
         assert "Here is my response." in cleaned
         assert "End of message." in cleaned
 
+    def test_orphan_proposal_marker_stripped(self):
+        """AI sometimes emits [PROPOSAL] without the closing marker or JSON."""
+        content = "[PROPOSAL]"
+        service = self._make_service()
+        cleaned = service._clean_proposal_from_text(content)
+        assert cleaned == ""
+
+    def test_orphan_closing_proposal_marker_stripped(self):
+        content = "Some text [/PROPOSAL] more text"
+        service = self._make_service()
+        cleaned = service._clean_proposal_from_text(content)
+        assert "[/PROPOSAL]" not in cleaned
+        assert "Some text" in cleaned
+        assert "more text" in cleaned
+
 
 # ---------------------------------------------------------------------------
 # Fix 2: System prompt contains qualification constraint
@@ -538,7 +553,7 @@ class TestQualificationConstraintInPrompt:
         call_args = service.ai_provider.chat.call_args
         messages_sent = call_args[0][0]
         directive = messages_sent[-1]["content"]
-        assert "FORBIDDEN" in directive
-        assert "company_name" in directive
+        assert "Do NOT leave" in directive
+        assert "required_fields empty" in directive
         assert "desired_outcome" in directive
-        assert "main_problem" in directive
+        assert "company_name" in directive

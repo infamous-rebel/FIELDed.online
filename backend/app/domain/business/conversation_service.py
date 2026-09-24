@@ -680,11 +680,12 @@ class BrainConversationService:
                     "IMPORTANT: The owner has explicitly requested a formal "
                     "proposal. Do NOT ask for confirmation. Generate the "
                     "[PROPOSAL] block with the structured JSON data now. "
-                    "For qualification rules, use these default required_fields "
-                    "for consulting services: desired_outcome, main_problem, "
-                    "expected_deliverables, desired_timeline, important_constraints. "
-                    "FORBIDDEN unless explicitly stated: company_name, contact_name, "
-                    "email, phone, budget, service_agreement. Max 6 fields."
+                    "For qualification rules, you MUST include 3-5 items in "
+                    "required_fields. For consulting services use exactly: "
+                    "desired_outcome, main_problem, expected_deliverables, "
+                    "desired_timeline, important_constraints. Do NOT leave "
+                    "required_fields empty. Do NOT add company_name, email, "
+                    "phone, budget, or service_agreement."
                 ),
             })
 
@@ -977,7 +978,8 @@ class BrainConversationService:
         Strips everything between [PROPOSAL] and [/PROPOSAL] markers,
         including the markers themselves and any surrounding whitespace.
         Handles nested JSON objects correctly by matching on the markers
-        rather than on brace depth.
+        rather than on brace depth. Also strips orphan [PROPOSAL] markers
+        and bare JSON code fences as defence in depth.
         """
         import re
 
@@ -990,7 +992,11 @@ class BrainConversationService:
             flags=re.DOTALL,
         )
 
-        # Also strip any leftover bare ```json ... ``` blocks that were
+        # Strip orphan [PROPOSAL] or [/PROPOSAL] markers (AI sometimes emits
+        # the marker without its pair).
+        cleaned = re.sub(r"\[/?PROPOSAL\]", "", cleaned)
+
+        # Also strip any leftover bare ```json ... ``` code fences that were
         # outside [PROPOSAL] markers (defence in depth).
         cleaned = re.sub(
             r"```(?:json)?\s*\{[^`]*\}\s*```",
