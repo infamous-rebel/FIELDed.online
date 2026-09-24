@@ -83,14 +83,18 @@ CRITICAL CONSTRAINTS:
 
 QUALIFICATION RULE CONSTRAINT (CRITICAL — DO NOT VIOLATE):
 When proposing a qualification_rule, the `rule_data.required_fields` list
-MUST contain ONLY items the owner has explicitly named in this conversation.
-NEVER add generic or assumed fields. The following fields are FORBIDDEN
-unless the owner explicitly typed them: company_name, contact_name, email,
-email_address, phone, phone_number, budget, budget_estimate, service_agreement,
-desired_start_date, project_description, address, tax_id, license_number.
-If the owner said "I need desired outcome, main problem, deliverables,
-timeline, and constraints" — then required_fields is EXACTLY those five
-items and nothing else. When in doubt, use fewer fields, not more.
+MUST follow these rules in order:
+1. If the owner explicitly listed specific fields in this conversation, use
+   EXACTLY those fields — no more, no less.
+2. If the owner did NOT list specific fields but described their business
+   needs, use a minimal set of 3-5 generic fields relevant to their service
+   type. For consulting/professional services, appropriate defaults are:
+   desired_outcome, main_problem, expected_deliverables, desired_timeline,
+   important_constraints.
+3. The following fields are FORBIDDEN unless the owner explicitly typed them:
+   company_name, contact_name, email, email_address, phone, phone_number,
+   budget, budget_estimate, service_agreement, address, tax_id, license_number.
+4. When in doubt, use fewer fields, not more. Never exceed 6 required_fields.
 
 PROPOSAL FORMAT:
 When the owner provides information that should become a business rule, output a proposal block:
@@ -676,11 +680,11 @@ class BrainConversationService:
                     "IMPORTANT: The owner has explicitly requested a formal "
                     "proposal. Do NOT ask for confirmation. Generate the "
                     "[PROPOSAL] block with the structured JSON data now. "
-                    "CRITICAL: For qualification rules, required_fields MUST "
-                    "contain ONLY items the owner explicitly named. FORBIDDEN "
-                    "fields unless explicitly stated: company_name, contact_name, "
-                    "email, phone, budget, service_agreement, address, tax_id. "
-                    "When in doubt use fewer fields, not more."
+                    "For qualification rules, use these default required_fields "
+                    "for consulting services: desired_outcome, main_problem, "
+                    "expected_deliverables, desired_timeline, important_constraints. "
+                    "FORBIDDEN unless explicitly stated: company_name, contact_name, "
+                    "email, phone, budget, service_agreement. Max 6 fields."
                 ),
             })
 

@@ -509,12 +509,13 @@ class TestQualificationConstraintInPrompt:
         assert "QUALIFICATION RULE CONSTRAINT" in BRAIN_SYSTEM_PROMPT
         assert "FORBIDDEN" in BRAIN_SYSTEM_PROMPT
         assert "company_name" in BRAIN_SYSTEM_PROMPT
-        assert "explicitly named" in BRAIN_SYSTEM_PROMPT
+        assert "desired_outcome" in BRAIN_SYSTEM_PROMPT
+        assert "main_problem" in BRAIN_SYSTEM_PROMPT
 
     @pytest.mark.asyncio
     async def test_directive_includes_field_constraint(self):
-        """The injected directive for explicit proposal requests must mention
-        the forbidden fields list."""
+        """The injected directive for explicit proposal requests must include
+        the default fields and the forbidden list."""
         mock_session = MagicMock()
         from app.adapters.ai.groq import GroqProvider
         service = BrainConversationService(mock_session, MagicMock(spec=AIProvider))
@@ -539,4 +540,5 @@ class TestQualificationConstraintInPrompt:
         directive = messages_sent[-1]["content"]
         assert "FORBIDDEN" in directive
         assert "company_name" in directive
-        assert "fewer fields" in directive
+        assert "desired_outcome" in directive
+        assert "main_problem" in directive
