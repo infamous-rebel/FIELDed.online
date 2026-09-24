@@ -654,9 +654,23 @@ class BrainConversationService:
             "with the structured data. Otherwise, just respond conversationally."
         )
 
+        # When the owner explicitly requests a proposal, inject a directive
+        # that overrides the default "confirm first" behaviour so the AI
+        # emits the [PROPOSAL] block immediately.
+        effective_chat_messages = list(chat_messages)
+        if self._is_explicit_proposal_request(owner_message):
+            effective_chat_messages.append({
+                "role": "user",
+                "content": (
+                    "IMPORTANT: The owner has explicitly requested a formal "
+                    "proposal. Do NOT ask for confirmation. Generate the "
+                    "[PROPOSAL] block with the structured JSON data now."
+                ),
+            })
+
         if isinstance(self.ai_provider, GroqProvider):
             response = await self.ai_provider.chat(
-                chat_messages,
+                effective_chat_messages,
                 system=system_prompt,
                 max_tokens=2048,
                 temperature=0.7,
@@ -861,6 +875,8 @@ class BrainConversationService:
 
         Supports both [PROPOSAL]...[/PROPOSAL] blocks and
         ```json ... ``` code blocks after [PROPOSAL] markers.
+        Falls back to detecting bare JSON proposal blocks
+        when the AI omits the [PROPOSAL] wrapper.
         """
         import re
 
@@ -874,6 +890,12 @@ class BrainConversationService:
             match = re.search(pattern2, content, re.DOTALL)
 
         if not match:
+            # Pattern 3 (fallback): bare ```json {...} ``` block containing
+            # a ``proposal_type`` key — the AI may omit [PROPOSAL] markers.
+            pattern3 = r"```(?:json)?\s*(\{[^`]*\"proposal_type\"[^`]*\})\s*```"
+            match = re.search(pattern3, content, re.DOTALL)
+
+        if not match:
             return None
 
         try:
@@ -885,6 +907,39 @@ class BrainConversationService:
         except json.JSONDecodeError:
             logger.warning("Failed to parse proposal JSON from Brain response")
             return None
+
+    @staticmethod
+    def _is_explicit_proposal_request(message: str) -> bool:
+        """Detect when the owner explicitly asks for a formal proposal.
+
+        When the owner uses words like *create a proposal*, *propose a
+        rule*, or *submit a proposal*, the system should skip the
+        default "confirm understanding first" behaviour and instruct the
+        AI to emit the [PROPOSAL] block immediately.
+        """
+        lower = message.lower()
+        trigger_phrases = [
+            "create a",
+            "create formal",
+            "propose a",
+            "submit a proposal",
+            "submit it to me",
+            "formal proposal",
+            "proposed — not active",
+            "proposed not active",
+            "mark it explicitly as proposed",
+            "generate a proposal",
+            "draft a proposal",
+            "make a proposal",
+        ]
+        proposal_keywords = ["proposal", "propose", "proposed"]
+
+        has_proposal_word = any(kw in lower for kw in proposal_keywords)
+        has_trigger = any(phrase in lower for phrase in trigger_phrases)
+
+        # Require at least one trigger phrase AND a proposal keyword to
+        # avoid false positives on casual mentions.
+        return has_trigger and has_proposal_word
 
     def _clean_proposal_from_text(self, content: str) -> str:
         """Remove proposal blocks from display text."""
