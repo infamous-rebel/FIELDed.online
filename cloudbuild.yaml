@@ -54,7 +54,7 @@ steps:
       - "--env-vars-file"
       - "deploy/cloudrun-env.yaml"
       - "--set-secrets"
-      - "APP_SECRET_KEY=APP_SECRET_KEY:latest,JWT_SECRET_KEY=JWT_SECRET_KEY:latest,DATABASE_URL=DATABASE_URL:latest"
+      - "APP_SECRET_KEY=APP_SECRET_KEY:latest,JWT_SECRET_KEY=JWT_SECRET_KEY:latest,DATABASE_URL=DATABASE_URL:latest,BRAIN_AI_API_KEY=BRAIN_AI_API_KEY:latest,DISCOVERY_AI_API_KEY=DISCOVERY_AI_API_KEY:latest,CALL_AGENT_AI_API_KEY=CALL_AGENT_AI_API_KEY:latest"
 
 substitutions:
   _SERVICE: fielded-api
