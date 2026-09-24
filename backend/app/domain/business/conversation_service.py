@@ -140,6 +140,35 @@ PENDING PROPOSALS (awaiting owner decision):
 MISSING INFORMATION (needed for operations):
 {missing_info}"""
 
+# Default qualification fields for consulting/professional services.
+# Used when the AI returns empty required_fields for a qualification_rule
+# proposal and the owner hasn't explicitly listed specific fields.
+_DEFAULT_QUALIFICATION_FIELDS: list[str] = [
+    "desired_outcome",
+    "main_problem",
+    "expected_deliverables",
+    "desired_timeline",
+    "important_constraints",
+]
+
+# Fields that must NOT appear in qualification_rule required_fields
+# unless the owner explicitly typed them in the conversation.
+_FORBIDDEN_QUALIFICATION_FIELDS: frozenset[str] = frozenset({
+    "company_name",
+    "contact_name",
+    "email",
+    "email_address",
+    "phone",
+    "phone_number",
+    "budget",
+    "budget_estimate",
+    "desired_start_date",
+    "service_agreement",
+    "address",
+    "tax_id",
+    "license_number",
+})
+
 # Schema for structured proposal extraction
 PROPOSAL_EXTRACTION_SCHEMA = {
     "type": "object",
@@ -709,6 +738,12 @@ class BrainConversationService:
 
         # Extract proposal from response
         proposal_data = self._extract_proposal_from_response(content)
+
+        # Deterministic post-processing: enforce qualification field
+        # accuracy rules regardless of what the AI produced.
+        if proposal_data is not None:
+            proposal_data = self._sanitize_proposal_data(proposal_data)
+
         # Clean the response text (remove proposal block for display)
         display_text = self._clean_proposal_from_text(content)
 
@@ -1007,6 +1042,49 @@ class BrainConversationService:
         )
 
         return cleaned.strip()
+
+    @staticmethod
+    def _sanitize_proposal_data(proposal_data: dict) -> dict:
+        """Deterministically enforce proposal accuracy rules.
+
+        This post-processing step runs after AI extraction and before the
+        proposal is persisted.  It ensures that:
+
+        1. Qualification-rule proposals always have meaningful
+           ``required_fields`` — when the AI returns an empty list the
+           default consulting fields are injected.
+        2. Forbidden fields (contact PII, financial details, etc.) are
+           stripped from ``required_fields`` unless the owner explicitly
+           established them.
+
+        This aligns with the architectural principle that *deterministic
+        domain logic is authoritative* over AI output.
+        """
+        proposal_type = proposal_data.get("proposal_type", "")
+        if proposal_type != "qualification_rule":
+            return proposal_data
+
+        rule_data = proposal_data.get("rule_data")
+        if not isinstance(rule_data, dict):
+            return proposal_data
+
+        required_fields: list = rule_data.get("required_fields", [])
+
+        # Strip forbidden fields
+        if required_fields:
+            required_fields = [
+                f for f in required_fields
+                if f not in _FORBIDDEN_QUALIFICATION_FIELDS
+            ]
+
+        # If empty after filtering (or was empty to begin with), inject
+        # the default set.
+        if not required_fields:
+            required_fields = list(_DEFAULT_QUALIFICATION_FIELDS)
+
+        rule_data["required_fields"] = required_fields
+        proposal_data["rule_data"] = rule_data
+        return proposal_data
 
     async def _create_proposal_from_conversation(
         self,

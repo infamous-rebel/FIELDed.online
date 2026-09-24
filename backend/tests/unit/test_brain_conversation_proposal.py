@@ -557,3 +557,276 @@ class TestQualificationConstraintInPrompt:
         assert "main_problem" in directive
         assert "Do NOT leave" in directive
         assert "company_name" in directive
+
+
+# ---------------------------------------------------------------------------
+# Fix 2 (post-processing): _sanitize_proposal_data
+# ---------------------------------------------------------------------------
+
+
+class TestSanitizeProposalData:
+    """Deterministic post-processing of qualification_rule proposals.
+
+    The AI model cannot be trusted to honour field constraints via prompts
+    alone.  ``_sanitize_proposal_data`` enforces the rules in code:
+    - Strip forbidden fields from required_fields.
+    - If required_fields is empty after stripping (or was empty to begin
+      with), inject the default consulting fields.
+    """
+
+    def test_non_qualification_proposal_unchanged(self):
+        """Pricing, policy, and other proposal types pass through untouched."""
+        data = {
+            "proposal_type": "pricing_rule",
+            "rule_data": {"base_rate": 150, "currency": "ZAR"},
+        }
+        result = BrainConversationService._sanitize_proposal_data(data)
+        assert result is data  # same object, not modified
+
+    def test_empty_required_fields_gets_defaults(self):
+        """When the AI returns required_fields=[], defaults are injected."""
+        data = {
+            "proposal_type": "qualification_rule",
+            "rule_data": {"required_fields": []},
+        }
+        result = BrainConversationService._sanitize_proposal_data(data)
+        fields = result["rule_data"]["required_fields"]
+        assert len(fields) == 5
+        assert "desired_outcome" in fields
+        assert "main_problem" in fields
+        assert "expected_deliverables" in fields
+        assert "desired_timeline" in fields
+        assert "important_constraints" in fields
+
+    def test_missing_required_fields_gets_defaults(self):
+        """When rule_data has no required_fields key at all."""
+        data = {
+            "proposal_type": "qualification_rule",
+            "rule_data": {"some_other_key": "value"},
+        }
+        result = BrainConversationService._sanitize_proposal_data(data)
+        fields = result["rule_data"]["required_fields"]
+        assert len(fields) == 5
+        assert "desired_outcome" in fields
+
+    def test_forbidden_fields_stripped(self):
+        """AI-invented forbidden fields are removed."""
+        data = {
+            "proposal_type": "qualification_rule",
+            "rule_data": {
+                "required_fields": [
+                    "desired_outcome",
+                    "company_name",
+                    "email",
+                    "phone",
+                    "budget",
+                    "service_agreement",
+                    "main_problem",
+                ]
+            },
+        }
+        result = BrainConversationService._sanitize_proposal_data(data)
+        fields = result["rule_data"]["required_fields"]
+        assert "desired_outcome" in fields
+        assert "main_problem" in fields
+        assert "company_name" not in fields
+        assert "email" not in fields
+        assert "phone" not in fields
+        assert "budget" not in fields
+        assert "service_agreement" not in fields
+
+    def test_all_forbidden_fields_replaced_with_defaults(self):
+        """If ALL fields are forbidden, defaults are injected."""
+        data = {
+            "proposal_type": "qualification_rule",
+            "rule_data": {
+                "required_fields": [
+                    "company_name",
+                    "contact_name",
+                    "email",
+                    "phone",
+                    "budget",
+                ]
+            },
+        }
+        result = BrainConversationService._sanitize_proposal_data(data)
+        fields = result["rule_data"]["required_fields"]
+        assert len(fields) == 5
+        assert "desired_outcome" in fields
+        assert "company_name" not in fields
+
+    def test_valid_fields_preserved(self):
+        """Owner-established fields that aren't forbidden pass through."""
+        data = {
+            "proposal_type": "qualification_rule",
+            "rule_data": {
+                "required_fields": [
+                    "desired_outcome",
+                    "main_problem",
+                    "expected_deliverables",
+                    "desired_timeline",
+                    "important_constraints",
+                ]
+            },
+        }
+        result = BrainConversationService._sanitize_proposal_data(data)
+        fields = result["rule_data"]["required_fields"]
+        assert len(fields) == 5
+        assert "desired_outcome" in fields
+        assert "important_constraints" in fields
+
+    def test_no_rule_data_passes_through(self):
+        """Qualification proposal without rule_data is not modified."""
+        data = {
+            "proposal_type": "qualification_rule",
+            "summary": "Some rule",
+        }
+        result = BrainConversationService._sanitize_proposal_data(data)
+        assert "rule_data" not in result
+
+    def test_rule_data_not_dict_passes_through(self):
+        """If rule_data is not a dict (edge case), don't crash."""
+        data = {
+            "proposal_type": "qualification_rule",
+            "rule_data": "not a dict",
+        }
+        result = BrainConversationService._sanitize_proposal_data(data)
+        assert result["rule_data"] == "not a dict"
+
+
+# ---------------------------------------------------------------------------
+# Integration: _ai_response_with_proposal applies sanitization
+# ---------------------------------------------------------------------------
+
+
+class TestProposalSanitizationIntegration:
+    """End-to-end: AI returns bad data → sanitization fixes it."""
+
+    @pytest.mark.asyncio
+    async def test_ai_returns_forbidden_fields_they_get_stripped(self):
+        """AI returns forbidden fields in required_fields; post-processing
+        strips them and injects defaults."""
+        proposal_json = json.dumps({
+            "proposal_type": "qualification_rule",
+            "summary": "Client intake fields",
+            "confidence": 0.8,
+            "rule_type": "required_information",
+            "rule_name": "Client Intake",
+            "rule_data": {
+                "required_fields": [
+                    "company_name",
+                    "contact_name",
+                    "email",
+                    "phone",
+                    "budget",
+                    "desired_start_date",
+                    "service_agreement",
+                ]
+            },
+        })
+        ai_content = f"[PROPOSAL]\n```json\n{proposal_json}\n```\n[/PROPOSAL]"
+
+        mock_session = MagicMock()
+        from app.adapters.ai.groq import GroqProvider
+        service = BrainConversationService(mock_session, MagicMock(spec=AIProvider))
+        service.ai_provider = MagicMock(spec=GroqProvider)
+        service.ai_provider.chat = AsyncMock(
+            return_value=AIResponse(
+                content=ai_content,
+                model="test-model",
+                usage={"prompt_tokens": 0, "completion_tokens": 0},
+            )
+        )
+        service.ai_provider.provider_name = "groq"
+
+        _, proposal_data = await service._ai_response_with_proposal(
+            "system",
+            [{"role": "user", "content": "Create a proposal."}],
+            "Create a proposal.",
+        )
+
+        assert proposal_data is not None
+        fields = proposal_data["rule_data"]["required_fields"]
+        # Forbidden fields must be gone
+        assert "company_name" not in fields
+        assert "email" not in fields
+        assert "phone" not in fields
+        assert "budget" not in fields
+        assert "service_agreement" not in fields
+        assert "contact_name" not in fields
+        # Defaults must be present
+        assert "desired_outcome" in fields
+        assert "main_problem" in fields
+        assert "expected_deliverables" in fields
+        assert "desired_timeline" in fields
+        assert "important_constraints" in fields
+
+    @pytest.mark.asyncio
+    async def test_ai_returns_empty_fields_defaults_injected(self):
+        """AI returns empty required_fields; defaults are injected."""
+        proposal_json = json.dumps({
+            "proposal_type": "qualification_rule",
+            "summary": "Qualification rule",
+            "confidence": 0.7,
+            "rule_data": {"required_fields": []},
+        })
+        ai_content = f"[PROPOSAL]\n```json\n{proposal_json}\n```\n[/PROPOSAL]"
+
+        mock_session = MagicMock()
+        from app.adapters.ai.groq import GroqProvider
+        service = BrainConversationService(mock_session, MagicMock(spec=AIProvider))
+        service.ai_provider = MagicMock(spec=GroqProvider)
+        service.ai_provider.chat = AsyncMock(
+            return_value=AIResponse(
+                content=ai_content,
+                model="test-model",
+                usage={"prompt_tokens": 0, "completion_tokens": 0},
+            )
+        )
+        service.ai_provider.provider_name = "groq"
+
+        _, proposal_data = await service._ai_response_with_proposal(
+            "system",
+            [{"role": "user", "content": "Create a proposal."}],
+            "Create a proposal.",
+        )
+
+        assert proposal_data is not None
+        fields = proposal_data["rule_data"]["required_fields"]
+        assert len(fields) == 5
+        assert "desired_outcome" in fields
+        assert "main_problem" in fields
+
+    @pytest.mark.asyncio
+    async def test_non_qualification_proposal_not_sanitized(self):
+        """Pricing proposals pass through sanitization unchanged."""
+        proposal_json = json.dumps({
+            "proposal_type": "pricing_rule",
+            "summary": "Base rate",
+            "confidence": 0.9,
+            "rule_data": {"base_rate": 150, "currency": "ZAR"},
+        })
+        ai_content = f"[PROPOSAL]\n```json\n{proposal_json}\n```\n[/PROPOSAL]"
+
+        mock_session = MagicMock()
+        from app.adapters.ai.groq import GroqProvider
+        service = BrainConversationService(mock_session, MagicMock(spec=AIProvider))
+        service.ai_provider = MagicMock(spec=GroqProvider)
+        service.ai_provider.chat = AsyncMock(
+            return_value=AIResponse(
+                content=ai_content,
+                model="test-model",
+                usage={"prompt_tokens": 0, "completion_tokens": 0},
+            )
+        )
+        service.ai_provider.provider_name = "groq"
+
+        _, proposal_data = await service._ai_response_with_proposal(
+            "system",
+            [{"role": "user", "content": "Propose pricing"}],
+            "Propose pricing",
+        )
+
+        assert proposal_data is not None
+        assert proposal_data["proposal_type"] == "pricing_rule"
+        assert proposal_data["rule_data"]["base_rate"] == 150
