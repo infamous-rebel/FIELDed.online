@@ -679,13 +679,14 @@ class BrainConversationService:
                 "content": (
                     "IMPORTANT: The owner has explicitly requested a formal "
                     "proposal. Do NOT ask for confirmation. Generate the "
-                    "[PROPOSAL] block with the structured JSON data now. "
-                    "For qualification rules, you MUST include 3-5 items in "
-                    "required_fields. For consulting services use exactly: "
-                    "desired_outcome, main_problem, expected_deliverables, "
-                    "desired_timeline, important_constraints. Do NOT leave "
-                    "required_fields empty. Do NOT add company_name, email, "
-                    "phone, budget, or service_agreement."
+                    "[PROPOSAL] block now.\n\n"
+                    "For the rule_data, set required_fields to exactly this "
+                    "list for Business Consulting: "
+                    '["desired_outcome", "main_problem", '
+                    '"expected_deliverables", "desired_timeline", '
+                    '"important_constraints"].\n\n'
+                    "Do NOT leave required_fields empty. Do NOT add "
+                    "company_name, email, phone, budget, or service_agreement."
                 ),
             })
 

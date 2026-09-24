@@ -553,7 +553,7 @@ class TestQualificationConstraintInPrompt:
         call_args = service.ai_provider.chat.call_args
         messages_sent = call_args[0][0]
         directive = messages_sent[-1]["content"]
-        assert "Do NOT leave" in directive
-        assert "required_fields empty" in directive
         assert "desired_outcome" in directive
+        assert "main_problem" in directive
+        assert "Do NOT leave" in directive
         assert "company_name" in directive
