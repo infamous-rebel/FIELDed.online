@@ -14,26 +14,12 @@ Tests:
 from __future__ import annotations
 
 import json
-import uuid
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from app.adapters.ai.base import AIProvider, AIResponse
 from app.domain.business.conversation_service import BrainConversationService
-from app.domain.business.models import (
-    BrainConversation,
-    BrainMessage,
-    BrainProposal,
-)
-from app.domain.common.enums import (
-    BrainConversationStatus,
-    BrainMessageRole,
-    BrainProposalStatus,
-    BrainProposalType,
-)
-
 
 # ---------------------------------------------------------------------------
 # _is_explicit_proposal_request
@@ -58,7 +44,10 @@ class TestIsExplicitProposalRequest:
         assert BrainConversationService._is_explicit_proposal_request(msg) is True
 
     def test_generate_a_proposal(self):
-        assert BrainConversationService._is_explicit_proposal_request("Generate a proposal for cancellation policy") is True
+        assert (
+            BrainConversationService._is_explicit_proposal_request("Generate a proposal for cancellation policy")
+            is True
+        )
 
     def test_draft_a_proposal(self):
         assert BrainConversationService._is_explicit_proposal_request("Draft a proposal for a new service") is True
@@ -200,7 +189,7 @@ class TestCleanProposalFromText:
         return BrainConversationService(mock_session, mock_ai)
 
     def test_cleans_proposal_block_with_fence(self):
-        content = "Here is the plan:\n\n[PROPOSAL]\n```json\n{\"proposal_type\": \"x\"}\n```\n[/PROPOSAL]\n\nDone."
+        content = 'Here is the plan:\n\n[PROPOSAL]\n```json\n{"proposal_type": "x"}\n```\n[/PROPOSAL]\n\nDone.'
         service = self._make_service()
         cleaned = service._clean_proposal_from_text(content)
         assert "[PROPOSAL]" not in cleaned
@@ -222,9 +211,7 @@ class TestCleanProposalFromText:
 class TestDirectiveInjection:
     """Test that explicit proposal requests inject the directive override."""
 
-    def _make_service_with_mock_ai(
-        self, ai_response_content: str
-    ) -> BrainConversationService:
+    def _make_service_with_mock_ai(self, ai_response_content: str) -> BrainConversationService:
         """Create a service with a mock AI provider that returns fixed content."""
         mock_session = MagicMock()
         mock_ai = MagicMock(spec=AIProvider)
@@ -248,22 +235,25 @@ class TestDirectiveInjection:
     @pytest.mark.asyncio
     async def test_explicit_request_injects_directive(self):
         """When the owner explicitly requests a proposal, a directive is appended."""
-        proposal_json = json.dumps({
-            "proposal_type": "qualification_rule",
-            "summary": "Test rule",
-            "reasoning": "Test reasoning",
-            "confidence": 0.8,
-            "affected_area": "qualification",
-            "rule_type": "required_information",
-            "rule_name": "Test Rule",
-            "rule_data": {"fields": ["name"]},
-        })
+        proposal_json = json.dumps(
+            {
+                "proposal_type": "qualification_rule",
+                "summary": "Test rule",
+                "reasoning": "Test reasoning",
+                "confidence": 0.8,
+                "affected_area": "qualification",
+                "rule_type": "required_information",
+                "rule_name": "Test Rule",
+                "rule_data": {"fields": ["name"]},
+            }
+        )
         ai_content = f"[PROPOSAL]\n```json\n{proposal_json}\n```\n[/PROPOSAL]"
 
         service = self._make_service_with_mock_ai(ai_content)
 
         # Use GroqProvider isinstance check path — mock it
         from app.adapters.ai.groq import GroqProvider
+
         service.ai_provider = MagicMock(spec=GroqProvider)
         service.ai_provider.chat = AsyncMock(
             return_value=AIResponse(
@@ -299,6 +289,7 @@ class TestDirectiveInjection:
         service = self._make_service_with_mock_ai("Sure, tell me more.")
 
         from app.adapters.ai.groq import GroqProvider
+
         service.ai_provider = MagicMock(spec=GroqProvider)
         service.ai_provider.chat = AsyncMock(
             return_value=AIResponse(
@@ -321,17 +312,20 @@ class TestDirectiveInjection:
     @pytest.mark.asyncio
     async def test_bare_json_fallback_extracts_proposal(self):
         """When AI returns JSON without [PROPOSAL] markers, fallback extracts it."""
-        proposal_json = json.dumps({
-            "proposal_type": "qualification_rule",
-            "summary": "Require budget range",
-            "confidence": 0.75,
-        })
+        proposal_json = json.dumps(
+            {
+                "proposal_type": "qualification_rule",
+                "summary": "Require budget range",
+                "confidence": 0.75,
+            }
+        )
         # AI response with bare JSON block (no [PROPOSAL] markers)
         ai_content = f"Here's the proposal:\n\n```json\n{proposal_json}\n```\n\nLet me know."
 
         service = self._make_service_with_mock_ai(ai_content)
 
         from app.adapters.ai.groq import GroqProvider
+
         service.ai_provider = MagicMock(spec=GroqProvider)
         service.ai_provider.chat = AsyncMock(
             return_value=AIResponse(
@@ -345,9 +339,7 @@ class TestDirectiveInjection:
         owner_message = "Create a proposal for qualification."
         chat_messages = [{"role": "user", "content": owner_message}]
 
-        display_text, proposal_data = await service._ai_response_with_proposal(
-            "system", chat_messages, owner_message
-        )
+        display_text, proposal_data = await service._ai_response_with_proposal("system", chat_messages, owner_message)
 
         # Fallback pattern should extract the proposal
         assert proposal_data is not None
@@ -367,16 +359,19 @@ class TestEmptyDisplayTextFallback:
     async def test_empty_display_gets_fallback_text(self):
         """If the AI response is only a [PROPOSAL] block, display_text should
         contain a meaningful fallback message."""
-        proposal_json = json.dumps({
-            "proposal_type": "qualification_rule",
-            "summary": "Require site address",
-            "confidence": 0.8,
-        })
+        proposal_json = json.dumps(
+            {
+                "proposal_type": "qualification_rule",
+                "summary": "Require site address",
+                "confidence": 0.8,
+            }
+        )
         # AI response is ONLY the [PROPOSAL] block — nothing else
         ai_content = f"[PROPOSAL]\n```json\n{proposal_json}\n```\n[/PROPOSAL]"
 
         mock_session = MagicMock()
         from app.adapters.ai.groq import GroqProvider
+
         service = BrainConversationService(mock_session, MagicMock(spec=AIProvider))
         service.ai_provider = MagicMock(spec=GroqProvider)
         service.ai_provider.chat = AsyncMock(
@@ -391,9 +386,7 @@ class TestEmptyDisplayTextFallback:
         owner_message = "Create a proposal."
         chat_messages = [{"role": "user", "content": owner_message}]
 
-        display_text, proposal_data = await service._ai_response_with_proposal(
-            "system", chat_messages, owner_message
-        )
+        display_text, proposal_data = await service._ai_response_with_proposal("system", chat_messages, owner_message)
 
         # display_text should NOT be empty
         assert display_text.strip() != ""
@@ -404,11 +397,13 @@ class TestEmptyDisplayTextFallback:
     async def test_nonempty_display_preserved(self):
         """If the AI response has text outside the [PROPOSAL] block, that text
         should be preserved as-is."""
-        proposal_json = json.dumps({
-            "proposal_type": "pricing_rule",
-            "summary": "Base rate",
-            "confidence": 0.7,
-        })
+        proposal_json = json.dumps(
+            {
+                "proposal_type": "pricing_rule",
+                "summary": "Base rate",
+                "confidence": 0.7,
+            }
+        )
         ai_content = (
             f"Here's what I suggest:\n\n"
             f"[PROPOSAL]\n```json\n{proposal_json}\n```\n[/PROPOSAL]\n\n"
@@ -417,6 +412,7 @@ class TestEmptyDisplayTextFallback:
 
         mock_session = MagicMock()
         from app.adapters.ai.groq import GroqProvider
+
         service = BrainConversationService(mock_session, MagicMock(spec=AIProvider))
         service.ai_provider = MagicMock(spec=GroqProvider)
         service.ai_provider.chat = AsyncMock(
@@ -533,6 +529,7 @@ class TestQualificationConstraintInPrompt:
         the default fields and the forbidden list."""
         mock_session = MagicMock()
         from app.adapters.ai.groq import GroqProvider
+
         service = BrainConversationService(mock_session, MagicMock(spec=AIProvider))
         service.ai_provider = MagicMock(spec=GroqProvider)
         service.ai_provider.chat = AsyncMock(
@@ -706,28 +703,31 @@ class TestProposalSanitizationIntegration:
     async def test_ai_returns_forbidden_fields_they_get_stripped(self):
         """AI returns forbidden fields in required_fields; post-processing
         strips them and injects defaults."""
-        proposal_json = json.dumps({
-            "proposal_type": "qualification_rule",
-            "summary": "Client intake fields",
-            "confidence": 0.8,
-            "rule_type": "required_information",
-            "rule_name": "Client Intake",
-            "rule_data": {
-                "required_fields": [
-                    "company_name",
-                    "contact_name",
-                    "email",
-                    "phone",
-                    "budget",
-                    "desired_start_date",
-                    "service_agreement",
-                ]
-            },
-        })
+        proposal_json = json.dumps(
+            {
+                "proposal_type": "qualification_rule",
+                "summary": "Client intake fields",
+                "confidence": 0.8,
+                "rule_type": "required_information",
+                "rule_name": "Client Intake",
+                "rule_data": {
+                    "required_fields": [
+                        "company_name",
+                        "contact_name",
+                        "email",
+                        "phone",
+                        "budget",
+                        "desired_start_date",
+                        "service_agreement",
+                    ]
+                },
+            }
+        )
         ai_content = f"[PROPOSAL]\n```json\n{proposal_json}\n```\n[/PROPOSAL]"
 
         mock_session = MagicMock()
         from app.adapters.ai.groq import GroqProvider
+
         service = BrainConversationService(mock_session, MagicMock(spec=AIProvider))
         service.ai_provider = MagicMock(spec=GroqProvider)
         service.ai_provider.chat = AsyncMock(
@@ -764,16 +764,19 @@ class TestProposalSanitizationIntegration:
     @pytest.mark.asyncio
     async def test_ai_returns_empty_fields_defaults_injected(self):
         """AI returns empty required_fields; defaults are injected."""
-        proposal_json = json.dumps({
-            "proposal_type": "qualification_rule",
-            "summary": "Qualification rule",
-            "confidence": 0.7,
-            "rule_data": {"required_fields": []},
-        })
+        proposal_json = json.dumps(
+            {
+                "proposal_type": "qualification_rule",
+                "summary": "Qualification rule",
+                "confidence": 0.7,
+                "rule_data": {"required_fields": []},
+            }
+        )
         ai_content = f"[PROPOSAL]\n```json\n{proposal_json}\n```\n[/PROPOSAL]"
 
         mock_session = MagicMock()
         from app.adapters.ai.groq import GroqProvider
+
         service = BrainConversationService(mock_session, MagicMock(spec=AIProvider))
         service.ai_provider = MagicMock(spec=GroqProvider)
         service.ai_provider.chat = AsyncMock(
@@ -800,16 +803,19 @@ class TestProposalSanitizationIntegration:
     @pytest.mark.asyncio
     async def test_non_qualification_proposal_not_sanitized(self):
         """Pricing proposals pass through sanitization unchanged."""
-        proposal_json = json.dumps({
-            "proposal_type": "pricing_rule",
-            "summary": "Base rate",
-            "confidence": 0.9,
-            "rule_data": {"base_rate": 150, "currency": "ZAR"},
-        })
+        proposal_json = json.dumps(
+            {
+                "proposal_type": "pricing_rule",
+                "summary": "Base rate",
+                "confidence": 0.9,
+                "rule_data": {"base_rate": 150, "currency": "ZAR"},
+            }
+        )
         ai_content = f"[PROPOSAL]\n```json\n{proposal_json}\n```\n[/PROPOSAL]"
 
         mock_session = MagicMock()
         from app.adapters.ai.groq import GroqProvider
+
         service = BrainConversationService(mock_session, MagicMock(spec=AIProvider))
         service.ai_provider = MagicMock(spec=GroqProvider)
         service.ai_provider.chat = AsyncMock(
