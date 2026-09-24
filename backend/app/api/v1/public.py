@@ -241,7 +241,7 @@ async def get_public_business_profile(
         .where(
             Business.slug == slug,
             Business.deleted_at.is_(None),
-            Business.status == "active",
+            Business.status.in_(["active", "pending"]),
         )
         .options(
             selectinload(Business.profile),
@@ -273,7 +273,7 @@ async def get_public_business_services(
         .where(
             Business.slug == slug,
             Business.deleted_at.is_(None),
-            Business.status == "active",
+            Business.status.in_(["active", "pending"]),
         )
         .options(selectinload(Business.profile))
     )
@@ -331,7 +331,7 @@ async def get_public_service_detail(
         .where(
             Business.slug == slug,
             Business.deleted_at.is_(None),
-            Business.status == "active",
+            Business.status.in_(["active", "pending"]),
         )
         .options(selectinload(Business.profile))
     )
@@ -401,7 +401,7 @@ async def list_public_businesses(
         select(Business)
         .join(BusinessProfile, BusinessProfile.business_id == Business.id)
         .where(
-            Business.status == "active",
+            Business.status.in_(["active", "pending"]),
             Business.deleted_at.is_(None),
             BusinessProfile.public_status == BusinessProfileStatus.ACTIVE,
             BusinessProfile.deleted_at.is_(None),
@@ -501,7 +501,7 @@ async def get_public_availability(
         .where(
             Business.slug == slug,
             Business.deleted_at.is_(None),
-            Business.status == "active",
+            Business.status.in_(["active", "pending"]),
         )
         .options(selectinload(Business.profile))
     )

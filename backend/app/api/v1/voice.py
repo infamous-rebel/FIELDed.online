@@ -328,9 +328,9 @@ async def agent_turn(
         raise HTTPException(status_code=404, detail="Call not found")
 
     # Dynamic import keeps the AI resolution seam monkeypatchable in tests.
-    from app.adapters import _resolve_ai_provider
+    from app.adapters import _resolve_call_agent_ai_provider
 
-    ai_provider = _resolve_ai_provider(request.app.state.settings)
+    ai_provider = _resolve_call_agent_ai_provider(request.app.state.settings)
     agent = VoiceCallAgent(db, ai_provider)
     result = await agent.handle_turn(call, body.utterance, actor_id=member.user_id)
     return AgentTurnResponse(
@@ -358,9 +358,9 @@ async def record_outcome(
     if call is None:
         raise HTTPException(status_code=404, detail="Call not found")
 
-    from app.adapters import _resolve_ai_provider
+    from app.adapters import _resolve_call_agent_ai_provider
 
-    ai_provider = _resolve_ai_provider(request.app.state.settings)
+    ai_provider = _resolve_call_agent_ai_provider(request.app.state.settings)
     agent = VoiceCallAgent(db, ai_provider)
     session_row = await agent.record_outcome(
         call, body.outcome, body.summary, actor_id=member.user_id
@@ -889,9 +889,9 @@ async def twilio_twiml_webhook(
 
     if active_session is None:
         # Initialize governed agent session
-        from app.adapters import _resolve_ai_provider
+        from app.adapters import _resolve_call_agent_ai_provider
 
-        ai_provider = _resolve_ai_provider(settings)
+        ai_provider = _resolve_call_agent_ai_provider(settings)
         agent = VoiceCallAgent(db, ai_provider)
         try:
             active_session = await agent.begin(call)
@@ -957,9 +957,9 @@ async def twilio_gather_callback(
         return _twilio_xml(retry_gather_response(gather_action_url=gather_url))
 
     # Pass transcript to the existing governed Call Agent
-    from app.adapters import _resolve_ai_provider
+    from app.adapters import _resolve_call_agent_ai_provider
 
-    ai_provider = _resolve_ai_provider(settings)
+    ai_provider = _resolve_call_agent_ai_provider(settings)
     agent = VoiceCallAgent(db, ai_provider)
 
     try:

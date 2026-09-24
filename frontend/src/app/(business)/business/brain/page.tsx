@@ -1,16 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   brain,
+  brainConversation,
   businesses,
+  type BrainContext,
+  type BrainConversationDetail,
+  type BrainProposalData,
   type BusinessBrainDetail,
-  type BusinessRuleDetail,
-  type BrainVersionDetail,
-  type BrainVersionSummary,
   type BusinessSummary,
-  type ValidationResult,
-  type Provenance,
+  type NeedsAttentionItem,
   FieldedApiError,
 } from "@/lib/api-client";
 import { isAuthenticated } from "@/lib/auth";
@@ -18,57 +18,102 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
-import { EmptyState } from "@/components/ui/empty-state";
 
-// --- Constants ---
+// --- Types ---
 
-const CONFIG_AREAS = [
-  { key: "identity_config", label: "Identity" },
-  { key: "services_config", label: "Services" },
-  { key: "pricing_config", label: "Pricing" },
-  { key: "availability_config", label: "Availability" },
-  { key: "qualification_config", label: "Qualification" },
-  { key: "policies_config", label: "Policies" },
-  { key: "escalation_config", label: "Escalation" },
-  { key: "communication_config", label: "Communication" },
-] as const;
-
-const RULE_TYPES = [
-  { value: "pricing", label: "Pricing" },
-  { value: "policy", label: "Policy" },
-  { value: "qualification", label: "Qualification" },
-  { value: "availability", label: "Availability" },
-  { value: "escalation", label: "Escalation" },
-];
+interface Message {
+  id?: string;
+  role: "brain" | "owner" | "system";
+  content: string;
+  created_at?: string;
+  isPending?: boolean;
+}
 
 // --- Helpers ---
 
-function brainStatusBadge(status: string): "default" | "success" | "warning" | "danger" | "info" | "muted" {
-  switch (status.toLowerCase()) {
-    case "draft":
-      return "muted";
-    case "validating":
-      return "info";
-    case "review":
-      return "warning";
-    case "approved":
-      return "success";
-    case "active":
-      return "success";
-    case "superseded":
-      return "danger";
+function formatTime(dateStr: string): string {
+  return new Date(dateStr).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function proposalTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    new_service: "New Service",
+    pricing_rule: "Pricing",
+    policy_rule: "Policy",
+    availability_rule: "Availability",
+    qualification_rule: "Qualification",
+    escalation_rule: "Escalation",
+    identity_update: "Business Identity",
+    communication_update: "Communication",
+    general_knowledge: "Knowledge",
+  };
+  return labels[type] || type;
+}
+
+function areaLabel(area: string): string {
+  return area.charAt(0).toUpperCase() + area.slice(1);
+}
+
+function deriveBrainStatus(
+  brainData: BusinessBrainDetail | null,
+  attentionCount: number,
+  proposalCount: number,
+): { label: string; variant: "success" | "warning" | "info" | "muted" } {
+  if (!brainData) return { label: "Initializing", variant: "muted" };
+  if (attentionCount > 0 || proposalCount > 0)
+    return { label: "Needs your attention", variant: "warning" };
+  if (brainData.active_version_id)
+    return { label: "Active", variant: "success" };
+  if (brainData.version_count > 0)
+    return { label: "Getting to know your business", variant: "info" };
+  return { label: "Ready to learn", variant: "muted" };
+}
+
+function attentionIcon(type: string): string {
+  switch (type) {
+    case "pending_proposal":
+      return "A";
+    case "missing_configuration":
+      return "!";
+    case "no_active_version":
+      return "○";
     default:
-      return "default";
+      return "·";
   }
 }
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleString();
+function attentionMessage(item: NeedsAttentionItem): string {
+  if (item.type === "pending_proposal") {
+    const what = proposalTypeLabel(item.proposal_type || "");
+    return `A ${what.toLowerCase()} change is ready for your decision`;
+  }
+  if (item.type === "missing_configuration") {
+    return `I still need to learn about ${areaLabel(item.affected_area || "this area")}`;
+  }
+  if (item.type === "no_active_version") {
+    return "No active business knowledge yet — approve proposals to activate";
+  }
+  return item.title;
 }
 
-function formatJson(obj: Record<string, unknown> | null): string {
-  if (!obj || Object.keys(obj).length === 0) return "{}";
-  return JSON.stringify(obj, null, 2);
+function proposalSummary(proposal: BrainProposalData): string {
+  const change = proposal.proposed_change;
+  const summary = change.summary;
+  if (typeof summary === "string" && summary.trim()) return summary;
+  if (proposal.reasoning_summary) return proposal.reasoning_summary;
+  return `Brain proposes a ${proposalTypeLabel(proposal.proposal_type).toLowerCase()} change`;
+}
+
+function proposalDetail(proposal: BrainProposalData): string | null {
+  const c = proposal.proposed_change;
+  if (c.rule_name && c.rule_type) {
+    return `${String(c.rule_type)} — ${String(c.rule_name)}`;
+  }
+  if (c.rule_type) return String(c.rule_type);
+  return null;
 }
 
 // --- Main Component ---
@@ -77,38 +122,22 @@ export default function BusinessBrainPage() {
   const [authed, setAuthed] = useState(false);
   const [business, setBusiness] = useState<BusinessSummary | null>(null);
   const [brainData, setBrainData] = useState<BusinessBrainDetail | null>(null);
-  const [versions, setVersions] = useState<BrainVersionSummary[]>([]);
+  const [conversation, setConversation] = useState<BrainConversationDetail | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [pendingProposals, setPendingProposals] = useState<BrainProposalData[]>([]);
+  const [brainContext, setBrainContext] = useState<BrainContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Draft workspace
-  const [draftVersion, setDraftVersion] = useState<BrainVersionDetail | null>(null);
-  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
-  const [expandedConfig, setExpandedConfig] = useState<string | null>(null);
-  const [configEdits, setConfigEdits] = useState<Record<string, string>>({});
-  const [savingConfig, setSavingConfig] = useState(false);
-
-  // Rule management
-  const [showRuleForm, setShowRuleForm] = useState(false);
-  const [editingRule, setEditingRule] = useState<BusinessRuleDetail | null>(null);
-  const [ruleForm, setRuleForm] = useState({
-    name: "",
-    rule_type: "pricing",
-    description: "",
-    priority: 0,
-    rule_data: "{}",
-  });
-  const [ruleError, setRuleError] = useState("");
-  const [savingRule, setSavingRule] = useState(false);
-
-  // Version detail view
-  const [selectedVersion, setSelectedVersion] = useState<BrainVersionDetail | null>(null);
-  const [provenance, setProvenance] = useState<Provenance | null>(null);
-
-  // Action states
-  const [actionLoading, setActionLoading] = useState("");
-  const [actionError, setActionError] = useState("");
-  const [actionSuccess, setActionSuccess] = useState("");
+  // UI state
+  const [inputValue, setInputValue] = useState("");
+  const [sending, setSending] = useState(false);
+  const [showKnowledge, setShowKnowledge] = useState(false);
+  const [editingProposal, setEditingProposal] = useState<BrainProposalData | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [dismissingAttention, setDismissingAttention] = useState<Set<string>>(new Set());
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Load data
   useEffect(() => {
@@ -126,20 +155,27 @@ export default function BusinessBrainPage() {
       }
       setBusiness(bizList[0]);
 
-      const [brainDetail, versionList] = await Promise.all([
+      const [brainDetail, activeConv, proposals, context] = await Promise.all([
         brain.getDetail(bizList[0].id),
-        brain.listVersions(bizList[0].id),
+        brainConversation.getActive(bizList[0].id),
+        brainConversation.listPendingProposals(bizList[0].id),
+        brainConversation.getContext(bizList[0].id).catch(() => null),
       ]);
-      setBrainData(brainDetail);
-      setVersions(versionList);
 
-      // Find draft version if exists
-      const draft = versionList.find((v) => v.status === "draft");
-      if (draft) {
-        const draftDetail = await brain.getVersion(bizList[0].id, draft.id);
-        setDraftVersion(draftDetail);
-      } else {
-        setDraftVersion(null);
+      setBrainData(brainDetail);
+      setConversation(activeConv);
+      setPendingProposals(proposals);
+      if (context) setBrainContext(context);
+
+      if (activeConv?.messages) {
+        setMessages(
+          activeConv.messages.map((m) => ({
+            id: m.id,
+            role: m.role as "brain" | "owner" | "system",
+            content: m.content,
+            created_at: m.created_at,
+          }))
+        );
       }
     } catch (err) {
       setError(err instanceof FieldedApiError ? err.error.message : "Failed to load");
@@ -152,761 +188,607 @@ export default function BusinessBrainPage() {
     if (authed) loadData();
   }, [authed, loadData]);
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height =
+        Math.min(textareaRef.current.scrollHeight, 160) + "px";
+    }
+  }, [inputValue]);
+
   // --- Handlers ---
 
-  const handleCreateDraft = async () => {
-    if (!business) return;
-    try {
-      setActionLoading("create");
-      setActionError("");
-      setActionSuccess("");
-      const newVersion = await brain.createVersion(business.id);
-      setDraftVersion(newVersion);
-      setActionSuccess("Draft version created");
-      await loadData();
-    } catch (err) {
-      setActionError(err instanceof FieldedApiError ? err.error.message : "Failed to create draft");
-    } finally {
-      setActionLoading("");
-    }
-  };
+  const handleSendMessage = async () => {
+    if (!business || !conversation || !inputValue.trim()) return;
 
-  const handleValidate = async () => {
-    if (!business || !draftVersion) return;
-    try {
-      setActionLoading("validate");
-      setActionError("");
-      setActionSuccess("");
-      const result = await brain.validate(business.id, draftVersion.id);
-      setValidationResult(result);
-      setActionSuccess(result.valid ? "Validation passed" : `Validation found ${result.error_count} error(s)`);
-    } catch (err) {
-      setActionError(err instanceof FieldedApiError ? err.error.message : "Validation failed");
-    } finally {
-      setActionLoading("");
-    }
-  };
+    const content = inputValue.trim();
+    setInputValue("");
 
-  const handleSubmitForReview = async () => {
-    if (!business || !draftVersion) return;
-    try {
-      setActionLoading("submit");
-      setActionError("");
-      setActionSuccess("");
-      await brain.transition(business.id, draftVersion.id, "review");
-      setActionSuccess("Submitted for review");
-      await loadData();
-    } catch (err) {
-      setActionError(err instanceof FieldedApiError ? err.error.message : "Failed to submit");
-    } finally {
-      setActionLoading("");
-    }
-  };
-
-  const handleApprove = async () => {
-    if (!business || !draftVersion) return;
-    try {
-      setActionLoading("approve");
-      setActionError("");
-      setActionSuccess("");
-      await brain.approve(business.id, draftVersion.id);
-      setActionSuccess("Version approved");
-      await loadData();
-    } catch (err) {
-      setActionError(err instanceof FieldedApiError ? err.error.message : "Failed to approve");
-    } finally {
-      setActionLoading("");
-    }
-  };
-
-  const handleActivate = async () => {
-    if (!business || !draftVersion) return;
-    try {
-      setActionLoading("activate");
-      setActionError("");
-      setActionSuccess("");
-      await brain.activate(business.id, draftVersion.id);
-      setActionSuccess("Version activated");
-      await loadData();
-    } catch (err) {
-      setActionError(err instanceof FieldedApiError ? err.error.message : "Failed to activate");
-    } finally {
-      setActionLoading("");
-    }
-  };
-
-  const handleSaveConfig = async (configKey: string) => {
-    if (!business || !draftVersion) return;
-    const configValue = configEdits[configKey];
-    if (!configValue) return;
+    const ownerMessage: Message = { role: "owner", content, isPending: true };
+    setMessages((prev) => [...prev, ownerMessage]);
+    setSending(true);
 
     try {
-      setSavingConfig(true);
-      setActionError("");
-      setActionSuccess("");
+      const response = await brainConversation.sendMessage(
+        business.id,
+        conversation.id,
+        content
+      );
 
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(configValue);
-      } catch {
-        setActionError("Invalid JSON in config");
-        return;
-      }
-
-      await brain.updateVersion(business.id, draftVersion.id, {
-        [configKey]: parsed,
+      setMessages((prev) => {
+        const updated = prev.map((m) =>
+          m.isPending && m.content === content
+            ? { ...response.owner_message, role: "owner" as const }
+            : m
+        );
+        return [
+          ...updated,
+          { ...response.brain_message, role: "brain" as const },
+        ];
       });
 
-      setActionSuccess("Config saved");
-      setExpandedConfig(null);
-      await loadData();
+      const [proposals, context] = await Promise.all([
+        brainConversation.listPendingProposals(business.id),
+        brainConversation.getContext(business.id).catch(() => null),
+      ]);
+      setPendingProposals(proposals);
+      if (context) setBrainContext(context);
     } catch (err) {
-      setActionError(err instanceof FieldedApiError ? err.error.message : "Failed to save config");
+      setError(err instanceof FieldedApiError ? err.error.message : "Failed to send message");
+      setMessages((prev) => prev.filter((m) => !m.isPending));
     } finally {
-      setSavingConfig(false);
+      setSending(false);
     }
   };
 
-  const handleAddRule = async () => {
-    if (!business || !draftVersion) return;
-    try {
-      setSavingRule(true);
-      setRuleError("");
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
 
-      let ruleData: Record<string, unknown>;
+  const handleApproveProposal = async (proposal: BrainProposalData) => {
+    if (!business) return;
+    try {
+      await brainConversation.approveProposal(business.id, proposal.id);
+      setPendingProposals((prev) => prev.filter((p) => p.id !== proposal.id));
+      if (business) {
+        const context = await brainConversation.getContext(business.id).catch(() => null);
+        if (context) setBrainContext(context);
+      }
+    } catch (err) {
+      setError(err instanceof FieldedApiError ? err.error.message : "Failed to approve");
+    }
+  };
+
+  const handleApproveWithEdit = async (proposal: BrainProposalData) => {
+    if (!business) return;
+    try {
+      let editedChange: Record<string, unknown> | undefined;
       try {
-        ruleData = JSON.parse(ruleForm.rule_data);
+        editedChange = JSON.parse(editValue);
       } catch {
-        setRuleError("Invalid JSON in rule data");
-        return;
+        editedChange = { summary: editValue };
       }
-
-      if (editingRule) {
-        await brain.updateRule(business.id, draftVersion.id, editingRule.id, {
-          name: ruleForm.name,
-          rule_type: ruleForm.rule_type,
-          description: ruleForm.description || null,
-          priority: ruleForm.priority,
-          rule_data: ruleData,
-        });
-      } else {
-        await brain.addRule(business.id, draftVersion.id, {
-          name: ruleForm.name,
-          rule_type: ruleForm.rule_type,
-          description: ruleForm.description || undefined,
-          priority: ruleForm.priority,
-          rule_data: ruleData,
-        });
-      }
-
-      resetRuleForm();
-      await loadData();
+      await brainConversation.approveProposal(business.id, proposal.id, editedChange);
+      setPendingProposals((prev) => prev.filter((p) => p.id !== proposal.id));
+      setEditingProposal(null);
+      setEditValue("");
+      const context = await brainConversation.getContext(business.id).catch(() => null);
+      if (context) setBrainContext(context);
     } catch (err) {
-      setRuleError(err instanceof FieldedApiError ? err.error.message : "Failed to save rule");
-    } finally {
-      setSavingRule(false);
+      setError(err instanceof FieldedApiError ? err.error.message : "Failed to approve with edit");
     }
   };
 
-  const handleDeleteRule = async (ruleId: string) => {
-    if (!business || !draftVersion) return;
-    if (!confirm("Delete this rule?")) return;
-
-    try {
-      setActionLoading(`delete-rule-${ruleId}`);
-      setActionError("");
-      await brain.deleteRule(business.id, draftVersion.id, ruleId);
-      setActionSuccess("Rule deleted");
-      await loadData();
-    } catch (err) {
-      setActionError(err instanceof FieldedApiError ? err.error.message : "Failed to delete rule");
-    } finally {
-      setActionLoading("");
-    }
-  };
-
-  const handleViewVersion = async (version: BrainVersionSummary) => {
+  const handleRejectProposal = async (proposalId: string) => {
     if (!business) return;
     try {
-      const detail = await brain.getVersion(business.id, version.id);
-      setSelectedVersion(detail);
+      await brainConversation.rejectProposal(business.id, proposalId);
+      setPendingProposals((prev) => prev.filter((p) => p.id !== proposalId));
     } catch (err) {
-      setError(err instanceof FieldedApiError ? err.error.message : "Failed to load version");
+      setError(err instanceof FieldedApiError ? err.error.message : "Failed to reject");
     }
-  };
-
-  const handleViewProvenance = async (versionId: string) => {
-    if (!business) return;
-    try {
-      const prov = await brain.getProvenance(business.id, versionId);
-      setProvenance(prov);
-    } catch (err) {
-      setError(err instanceof FieldedApiError ? err.error.message : "Failed to load provenance");
-    }
-  };
-
-  const resetRuleForm = () => {
-    setRuleForm({ name: "", rule_type: "pricing", description: "", priority: 0, rule_data: "{}" });
-    setEditingRule(null);
-    setShowRuleForm(false);
-    setRuleError("");
-  };
-
-  const startEditRule = (rule: BusinessRuleDetail) => {
-    setEditingRule(rule);
-    setRuleForm({
-      name: rule.name,
-      rule_type: rule.rule_type,
-      description: rule.description || "",
-      priority: rule.priority,
-      rule_data: formatJson(rule.rule_data),
-    });
-    setShowRuleForm(true);
   };
 
   // --- Render ---
 
   if (!authed) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-12">
-        <p className="text-[var(--text-secondary)]">Please sign in to manage your Business Brain.</p>
+      <div className="mx-auto max-w-4xl px-4 py-12">
+        <p className="text-[var(--text-secondary)]">Please sign in to access Business Brain.</p>
       </div>
     );
   }
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-12 space-y-6">
+      <div className="mx-auto max-w-4xl px-4 py-12 space-y-6">
         <LoadingSkeleton lines={2} />
         <LoadingSkeleton variant="card" />
       </div>
     );
   }
 
+  const hasActiveVersion = brainData?.active_version_id != null;
+  const knowledge = brainContext?.knowledge;
+  const attentionItems = brainContext?.attention ?? [];
+  const missingAreas = knowledge?.missing_areas ?? [];
+  const activeAreas = knowledge?.active_config_areas ?? [];
+  const status = deriveBrainStatus(brainData, attentionItems.length, pendingProposals.length);
+  const knownCount = knowledge?.known?.length ?? 0;
+  const proposedCount = knowledge?.proposed?.length ?? 0;
+
   return (
-    <div className="mx-auto max-w-5xl px-4 py-12 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Business Brain</h1>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            Configure governed rules for pricing, qualification, availability, and escalation.
-          </p>
+    <div className="mx-auto max-w-3xl px-4 py-8 space-y-6">
+      {/* ── Brain Identity Header ── */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg font-semibold
+                ${
+                  status.variant === "success"
+                    ? "bg-emerald-500/15 text-emerald-400"
+                    : status.variant === "warning"
+                    ? "bg-amber-500/15 text-amber-400"
+                    : status.variant === "info"
+                    ? "bg-blue-500/15 text-blue-400"
+                    : "bg-[var(--bg-elevated)] text-[var(--text-muted)]"
+                }`}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2a8 8 0 0 0-8 8c0 3.4 2.1 6.3 5 7.5V20a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2.5c2.9-1.2 5-4.1 5-7.5a8 8 0 0 0-8-8z" />
+                <path d="M10 22h4" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold text-[var(--text-primary)] tracking-tight">
+                Business Brain
+              </h1>
+              <p className="text-sm text-[var(--text-secondary)] mt-0.5">
+                Your intelligent business partner
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <Badge variant={status.variant}>{status.label}</Badge>
+            {hasActiveVersion && brainData?.active_version && (
+              <span className="text-xs text-[var(--text-muted)] tabular-nums">
+                v{brainData.active_version.version_number}
+              </span>
+            )}
+          </div>
         </div>
-        {!draftVersion && (
-          <Button onClick={handleCreateDraft} loading={actionLoading === "create"}>
-            Create Draft
-          </Button>
-        )}
+
+        {/* Compact context line */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--text-muted)]">
+          {knownCount > 0 && (
+            <span>{knownCount} thing{knownCount !== 1 ? "s" : ""} known</span>
+          )}
+          {missingAreas.length > 0 && (
+            <span>{missingAreas.length} area{missingAreas.length !== 1 ? "s" : ""} to learn</span>
+          )}
+          {proposedCount > 0 && (
+            <span>{proposedCount} proposed</span>
+          )}
+          {hasActiveVersion && <span>Governing transactions</span>}
+          {knownCount === 0 && missingAreas.length === 0 && !hasActiveVersion && (
+            <span>Tell your Brain about your business to get started</span>
+          )}
+        </div>
       </div>
 
-      {/* Action feedback */}
-      {actionError && (
-        <div className="rounded-md border border-[var(--danger)]/30 bg-[var(--danger)]/10 p-3 text-sm text-[var(--danger)]">
-          {actionError}
-        </div>
-      )}
-      {actionSuccess && (
-        <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-400">
-          {actionSuccess}
+      {/* ── Error display ── */}
+      {error && (
+        <div className="rounded-lg border border-[var(--danger)]/20 bg-[var(--danger)]/10 px-4 py-3 text-sm text-[var(--danger)]">
+          {error}
         </div>
       )}
 
-      {/* Brain Overview */}
-      <Card>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Overview</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <p className="text-sm text-[var(--text-muted)]">Brain Status</p>
-            <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
-              {brainData ? "Active" : "Not Configured"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-[var(--text-muted)]">Active Version</p>
-            <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
-              {brainData?.active_version ? `v${brainData.active_version.version_number}` : "None"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-[var(--text-muted)]">Total Versions</p>
-            <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
-              {brainData?.version_count || 0}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-[var(--text-muted)]">Draft Status</p>
-            <p className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
-              {draftVersion ? "In Progress" : "None"}
-            </p>
-          </div>
-        </div>
-        {brainData?.active_version && (
-          <div className="mt-4 pt-4 border-t border-[var(--border-subtle)]">
-            <p className="text-sm text-[var(--text-muted)]">
-              Active version last updated: {formatDate(brainData.active_version.updated_at)}
-            </p>
-          </div>
-        )}
-      </Card>
-
-      {/* Draft Workspace */}
-      {draftVersion && (
-        <Card>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-                Draft Version v{draftVersion.version_number}
-              </h2>
-              <p className="text-sm text-[var(--text-muted)]">
-                Status: <Badge variant={brainStatusBadge(draftVersion.status)}>{draftVersion.status}</Badge>
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleValidate}
-                loading={actionLoading === "validate"}
+      {/* ── Needs Attention ── */}
+      {attentionItems.length > 0 && (
+        <div className="space-y-2">
+          {attentionItems.slice(0, 5).map((item, idx) => {
+            const key = `${item.type}-${item.id || idx}`;
+            const isDismissed = dismissingAttention.has(key);
+            if (isDismissed) return null;
+            return (
+              <div
+                key={key}
+                className={`flex items-start gap-3 rounded-lg border px-4 py-3 transition-colors
+                  ${
+                    item.is_urgent
+                      ? "border-amber-500/25 bg-amber-500/5"
+                      : "border-[var(--border-subtle)] bg-[var(--bg-surface)]"
+                  }`}
               >
-                Validate
-              </Button>
-              {draftVersion.status === "draft" && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleSubmitForReview}
-                  loading={actionLoading === "submit"}
+                <div
+                  className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-semibold
+                    ${item.is_urgent ? "bg-amber-500/20 text-amber-400" : "bg-blue-500/15 text-blue-400"}`}
                 >
-                  Submit for Review
-                </Button>
-              )}
-              {draftVersion.status === "review" && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleApprove}
-                  loading={actionLoading === "approve"}
-                >
-                  Approve
-                </Button>
-              )}
-              {draftVersion.status === "approved" && (
-                <Button
-                  size="sm"
-                  onClick={handleActivate}
-                  loading={actionLoading === "activate"}
-                >
-                  Activate
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Validation result */}
-          {validationResult && (
-            <div className="mb-4 rounded-lg border border-[var(--border-subtle)] p-4">
-              <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">
-                Validation Result
-              </h3>
-              {validationResult.valid ? (
-                <p className="text-sm text-emerald-400">✓ Validation passed</p>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-sm text-[var(--danger)]">
-                    {validationResult.error_count} error(s) found:
-                  </p>
-                  {validationResult.errors.map((err, i) => (
-                    <div key={i} className="text-sm text-[var(--text-secondary)]">
-                      <span className="font-mono text-[var(--danger)]">{err.field}</span>: {err.message}
-                    </div>
-                  ))}
+                  {attentionIcon(item.type)}
                 </div>
-              )}
-            </div>
-          )}
+                <p className="flex-1 text-sm text-[var(--text-primary)] leading-relaxed">
+                  {attentionMessage(item)}
+                </p>
+                <button
+                  onClick={() =>
+                    setDismissingAttention((prev) => new Set(prev).add(key))
+                  }
+                  className="shrink-0 text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors text-xs mt-0.5"
+                  aria-label="Dismiss"
+                >
+                  ✕
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-          {/* Config Areas */}
-          <div className="mb-6">
-            <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">
-              Configuration Areas
-            </h3>
-            <div className="space-y-2">
-              {CONFIG_AREAS.map((area) => {
-                const configValue = draftVersion[area.key as keyof typeof draftVersion] as Record<string, unknown> | null;
-                const isExpanded = expandedConfig === area.key;
-                const editValue = configEdits[area.key] ?? formatJson(configValue);
-
-                return (
-                  <div
-                    key={area.key}
-                    className="rounded-lg border border-[var(--border-subtle)]"
-                  >
-                    <button
-                      onClick={() => setExpandedConfig(isExpanded ? null : area.key)}
-                      className="w-full flex items-center justify-between p-3 text-left hover:bg-[var(--bg-elevated)] transition-colors"
+      {/* ── Pending Proposals ── */}
+      {pendingProposals.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-medium text-[var(--text-secondary)]">
+            {pendingProposals.length === 1
+              ? "A decision for you"
+              : `${pendingProposals.length} decisions for you`}
+          </h2>
+          {pendingProposals.map((proposal) => (
+            <div
+              key={proposal.id}
+              className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden"
+            >
+              {editingProposal?.id === proposal.id ? (
+                /* ── Edit mode ── */
+                <div className="p-5 space-y-3">
+                  <p className="text-xs text-[var(--text-muted)]">
+                    Adjust the change before approving. Type a plain description or paste structured data.
+                  </p>
+                  <textarea
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none"
+                    rows={3}
+                    placeholder={proposalSummary(proposal)}
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleApproveWithEdit(proposal)}
                     >
-                      <span className="text-sm font-medium text-[var(--text-primary)]">
-                        {area.label}
-                      </span>
+                      Approve adjusted
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setEditingProposal(null);
+                        setEditValue("");
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                /* ── Display mode ── */
+                <div className="p-5">
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <Badge variant="info">{proposalTypeLabel(proposal.proposal_type)}</Badge>
+                    {proposal.confidence > 0 && (
                       <span className="text-xs text-[var(--text-muted)]">
-                        {configValue && Object.keys(configValue).length > 0
-                          ? `${Object.keys(configValue).length} field(s)`
-                          : "Empty"}
+                        {Math.round(proposal.confidence * 100)}% confident
                       </span>
-                    </button>
-                    {isExpanded && (
-                      <div className="p-3 border-t border-[var(--border-subtle)] space-y-2">
-                        <textarea
-                          value={editValue}
-                          onChange={(e) =>
-                            setConfigEdits({ ...configEdits, [area.key]: e.target.value })
-                          }
-                          rows={8}
-                          className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2 text-sm font-mono text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none"
-                          placeholder="{}"
-                        />
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleSaveConfig(area.key)}
-                            loading={savingConfig}
-                          >
-                            Save
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setExpandedConfig(null);
-                              setConfigEdits({ ...configEdits, [area.key]: formatJson(configValue) });
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
+                    )}
+                    {proposal.is_urgent && (
+                      <Badge variant="warning">Important</Badge>
                     )}
                   </div>
-                );
-              })}
-            </div>
-          </div>
 
-          {/* Rules */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-                Rules ({draftVersion.rules.length})
-              </h3>
-              <Button size="sm" onClick={() => { resetRuleForm(); setShowRuleForm(true); }}>
-                Add Rule
-              </Button>
-            </div>
+                  <p className="text-sm text-[var(--text-primary)] leading-relaxed mb-1">
+                    {proposalSummary(proposal)}
+                  </p>
 
-            {showRuleForm && (
-              <div className="mb-4 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-4 space-y-3">
-                <h4 className="text-sm font-semibold text-[var(--text-primary)]">
-                  {editingRule ? "Edit Rule" : "New Rule"}
-                </h4>
-                {ruleError && (
-                  <div className="rounded-md border border-[var(--danger)]/30 bg-[var(--danger)]/10 p-2 text-sm text-[var(--danger)]">
-                    {ruleError}
-                  </div>
-                )}
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
-                      Name
-                    </label>
-                    <input
-                      type="text"
-                      value={ruleForm.name}
-                      onChange={(e) => setRuleForm({ ...ruleForm, name: e.target.value })}
-                      className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
-                      Type
-                    </label>
-                    <select
-                      value={ruleForm.rule_type}
-                      onChange={(e) => setRuleForm({ ...ruleForm, rule_type: e.target.value })}
-                      className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
-                    >
-                      {RULE_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>
-                          {t.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
-                    Description
-                  </label>
-                  <input
-                    type="text"
-                    value={ruleForm.description}
-                    onChange={(e) => setRuleForm({ ...ruleForm, description: e.target.value })}
-                    className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
-                  />
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
-                      Priority
-                    </label>
-                    <input
-                      type="number"
-                      value={ruleForm.priority}
-                      onChange={(e) =>
-                        setRuleForm({ ...ruleForm, priority: parseInt(e.target.value) || 0 })
-                      }
-                      className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
-                    Rule Data (JSON)
-                  </label>
-                  <textarea
-                    value={ruleForm.rule_data}
-                    onChange={(e) => setRuleForm({ ...ruleForm, rule_data: e.target.value })}
-                    rows={4}
-                    className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2 text-sm font-mono text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none"
-                    placeholder="{}"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={handleAddRule} loading={savingRule}>
-                    {editingRule ? "Update" : "Add"} Rule
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={resetRuleForm}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {draftVersion.rules.length === 0 ? (
-              <EmptyState
-                title="No rules yet"
-                description="Add rules to configure pricing, qualification, availability, and escalation logic."
-              />
-            ) : (
-              <div className="space-y-2">
-                {draftVersion.rules.map((rule) => (
-                  <div
-                    key={rule.id}
-                    className="flex items-center justify-between rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-[var(--text-primary)] truncate">
-                          {rule.name}
-                        </p>
-                        <Badge variant="default">{rule.rule_type}</Badge>
-                        <span className="text-xs text-[var(--text-muted)]">
-                          Priority: {rule.priority}
-                        </span>
-                      </div>
-                      {rule.description && (
-                        <p className="mt-1 text-xs text-[var(--text-secondary)] truncate">
-                          {rule.description}
-                        </p>
-                      )}
-                    </div>
-                    <div className="ml-4 flex gap-2">
-                      <Button size="sm" variant="ghost" onClick={() => startEditRule(rule)}>
-                        Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleDeleteRule(rule.id)}
-                        loading={actionLoading === `delete-rule-${rule.id}`}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
-
-      {/* Version History */}
-      <Card>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Version History</h2>
-        {versions.length === 0 ? (
-          <EmptyState
-            title="No versions yet"
-            description="Create a draft to start configuring your Business Brain."
-          />
-        ) : (
-          <div className="space-y-2">
-            {versions.map((version) => (
-              <div
-                key={version.id}
-                className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <p className="text-sm font-medium text-[var(--text-primary)]">
-                      v{version.version_number}
+                  {proposalDetail(proposal) && (
+                    <p className="text-xs text-[var(--text-muted)] mb-4">
+                      {proposalDetail(proposal)}
                     </p>
-                    <Badge variant={brainStatusBadge(version.status)}>{version.status}</Badge>
-                    <span className="text-xs text-[var(--text-muted)]">
-                      {version.rule_count} rule(s)
-                    </span>
-                    <span className="text-xs text-[var(--text-muted)]">
-                      {formatDate(version.updated_at)}
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="ghost" onClick={() => handleViewVersion(version)}>
-                      View
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleViewProvenance(version.id)}>
-                      Provenance
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+                  )}
+                  {!proposalDetail(proposal) && <div className="mb-4" />}
 
-      {/* Version Detail Modal */}
-      {selectedVersion && (
-        <Card>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-              Version v{selectedVersion.version_number} Details
-            </h2>
-            <Button size="sm" variant="ghost" onClick={() => setSelectedVersion(null)}>
-              Close
-            </Button>
-          </div>
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <p className="text-sm text-[var(--text-muted)]">Status</p>
-                <Badge variant={brainStatusBadge(selectedVersion.status)}>
-                  {selectedVersion.status}
-                </Badge>
-              </div>
-              <div>
-                <p className="text-sm text-[var(--text-muted)]">Created</p>
-                <p className="text-sm text-[var(--text-primary)]">
-                  {formatDate(selectedVersion.created_at)}
-                </p>
-              </div>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-[var(--text-primary)] mb-2">
-                Configuration
-              </p>
-              <div className="space-y-2">
-                {CONFIG_AREAS.map((area) => {
-                  const configValue = selectedVersion[area.key as keyof typeof selectedVersion] as Record<string, unknown> | null;
-                  if (!configValue || Object.keys(configValue).length === 0) return null;
-                  return (
-                    <div key={area.key} className="rounded-lg border border-[var(--border-subtle)] p-3">
-                      <p className="text-sm font-medium text-[var(--text-primary)] mb-2">
-                        {area.label}
-                      </p>
-                      <pre className="text-xs font-mono text-[var(--text-secondary)] overflow-x-auto">
-                        {formatJson(configValue)}
-                      </pre>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-[var(--text-primary)] mb-2">
-                Rules ({selectedVersion.rules.length})
-              </p>
-              {selectedVersion.rules.length === 0 ? (
-                <p className="text-sm text-[var(--text-muted)]">No rules</p>
-              ) : (
-                <div className="space-y-2">
-                  {selectedVersion.rules.map((rule) => (
-                    <div
-                      key={rule.id}
-                      className="rounded-lg border border-[var(--border-subtle)] p-3"
+                  <div className="flex items-center gap-2 pt-2 border-t border-[var(--border-subtle)]">
+                    <Button
+                      size="sm"
+                      onClick={() => handleApproveProposal(proposal)}
                     >
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-[var(--text-primary)]">
-                          {rule.name}
-                        </p>
-                        <Badge variant="default">{rule.rule_type}</Badge>
-                      </div>
-                      {rule.description && (
-                        <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                          {rule.description}
-                        </p>
-                      )}
-                      <pre className="mt-2 text-xs font-mono text-[var(--text-muted)] overflow-x-auto">
-                        {formatJson(rule.rule_data)}
-                      </pre>
-                    </div>
-                  ))}
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setEditingProposal(proposal);
+                        setEditValue("");
+                      }}
+                    >
+                      Adjust &amp; approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleRejectProposal(proposal.id)}
+                    >
+                      Dismiss
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
-          </div>
-        </Card>
+          ))}
+        </div>
       )}
 
-      {/* Provenance Modal */}
-      {provenance && (
-        <Card>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-              Provenance — v{provenance.version_number}
-            </h2>
-            <Button size="sm" variant="ghost" onClick={() => setProvenance(null)}>
-              Close
-            </Button>
+      {/* ── Conversation Workspace ── */}
+      <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] flex flex-col">
+        {/* Conversation header */}
+        <div className="px-5 py-4 border-b border-[var(--border-subtle)]">
+          <div className="flex items-center gap-2.5">
+            <div className="relative">
+              <div className="w-8 h-8 rounded-lg bg-[var(--accent)]/15 flex items-center justify-center">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--accent)]">
+                  <path d="M12 2a8 8 0 0 0-8 8c0 3.4 2.1 6.3 5 7.5V20a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2.5c2.9-1.2 5-4.1 5-7.5a8 8 0 0 0-8-8z" />
+                  <path d="M10 22h4" />
+                </svg>
+              </div>
+              {conversation?.status === "active" && (
+                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[var(--accent)] border-2 border-[var(--bg-surface)]" />
+              )}
+            </div>
+            <div>
+              <h2 className="text-sm font-medium text-[var(--text-primary)]">
+                Conversation
+              </h2>
+              <p className="text-xs text-[var(--text-muted)]">
+                {conversation?.status === "active"
+                  ? "Active session"
+                  : "Start talking to your Brain"}
+              </p>
+            </div>
           </div>
-          <div className="space-y-3">
-            {provenance.entries.length === 0 ? (
-              <p className="text-sm text-[var(--text-muted)]">No provenance entries</p>
-            ) : (
-              provenance.entries.map((entry, i) => (
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4 min-h-[320px] max-h-[520px]">
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center py-8">
+              <div className="w-12 h-12 rounded-2xl bg-[var(--bg-elevated)] flex items-center justify-center mb-4">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-muted)]">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </div>
+              <p className="text-sm font-medium text-[var(--text-primary)] mb-1">
+                Start a conversation
+              </p>
+              <p className="text-xs text-[var(--text-muted)] max-w-xs leading-relaxed">
+                Tell your Brain about your services, pricing, availability, and
+                policies. It learns, remembers, and brings important decisions to
+                you.
+              </p>
+            </div>
+          ) : (
+            messages.map((message, index) => (
+              <div
+                key={message.id || index}
+                className={`flex ${message.role === "owner" ? "justify-end" : "justify-start"}`}
+              >
                 <div
-                  key={i}
-                  className="rounded-lg border border-[var(--border-subtle)] p-3"
+                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
+                    message.role === "owner"
+                      ? "bg-[var(--accent)] text-white rounded-br-md"
+                      : message.role === "system"
+                      ? "bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-secondary)] rounded-bl-md"
+                      : "bg-[var(--bg-elevated)] text-[var(--text-primary)] rounded-bl-md"
+                  }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-[var(--text-primary)]">
-                      {entry.action.replace(/_/g, " ")}
+                  {message.role === "brain" && (
+                    <p className="text-xs font-medium text-[var(--accent)] mb-1">
+                      Brain
                     </p>
-                    <p className="text-xs text-[var(--text-muted)]">
-                      {formatDate(entry.timestamp)}
+                  )}
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                  {(message.created_at || message.isPending) && (
+                    <p
+                      className={`text-[10px] mt-1 ${
+                        message.role === "owner"
+                          ? "text-white/60"
+                          : "text-[var(--text-muted)]"
+                      }`}
+                    >
+                      {message.isPending ? "Sending..." : formatTime(message.created_at!)}
                     </p>
-                  </div>
-                  {Object.keys(entry.details).length > 0 && (
-                    <pre className="mt-2 text-xs font-mono text-[var(--text-secondary)] overflow-x-auto">
-                      {JSON.stringify(entry.details, null, 2)}
-                    </pre>
                   )}
                 </div>
-              ))
+              </div>
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        <div className="px-5 py-4 border-t border-[var(--border-subtle)]">
+          <div className="flex gap-3 items-end">
+            <textarea
+              ref={textareaRef}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyPress}
+              placeholder="Tell the Brain about your business..."
+              rows={1}
+              disabled={sending || !conversation}
+              className="flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-3.5 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none disabled:opacity-50 leading-relaxed"
+            />
+            <Button
+              onClick={handleSendMessage}
+              disabled={sending || !inputValue.trim() || !conversation}
+              loading={sending}
+              className="shrink-0"
+            >
+              Send
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Brain Knowledge (secondary, progressive disclosure) ── */}
+      <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] overflow-hidden">
+        <button
+          onClick={() => setShowKnowledge(!showKnowledge)}
+          className="w-full flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-[var(--bg-elevated)]/50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-medium text-[var(--text-primary)]">
+              What the Brain knows
+            </h2>
+            <div className="flex items-center gap-1.5">
+              {activeAreas.length > 0 && (
+                <span className="text-xs text-[var(--text-muted)]">
+                  {activeAreas.length} area{activeAreas.length !== 1 ? "s" : ""} active
+                </span>
+              )}
+              {missingAreas.length > 0 && (
+                <span className="text-xs text-[var(--text-muted)]">
+                  {activeAreas.length > 0 ? "·" : ""} {missingAreas.length} to learn
+                </span>
+              )}
+            </div>
+          </div>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`text-[var(--text-muted)] transition-transform duration-200 ${showKnowledge ? "rotate-180" : ""}`}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+
+        {showKnowledge && (
+          <div className="px-5 pb-5 space-y-5 border-t border-[var(--border-subtle)] pt-5">
+            {/* Active areas */}
+            {activeAreas.length > 0 && (
+              <div>
+                <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2.5">
+                  Active areas
+                </h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {activeAreas.map((area) => (
+                    <span
+                      key={area}
+                      className="inline-flex items-center rounded-md bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-400"
+                    >
+                      {areaLabel(area)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Missing areas */}
+            {missingAreas.length > 0 && (
+              <div>
+                <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2.5">
+                  Still learning
+                </h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {missingAreas.map((area) => (
+                    <span
+                      key={area}
+                      className="inline-flex items-center rounded-md bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-400"
+                    >
+                      {areaLabel(area)}
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-2 text-xs text-[var(--text-muted)] leading-relaxed">
+                  Mention these topics in conversation and the Brain will learn.
+                </p>
+              </div>
+            )}
+
+            {/* Known items */}
+            {knowledge && knowledge.known.length > 0 && (
+              <div>
+                <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2.5">
+                  Known ({knowledge.known.length})
+                </h3>
+                <div className="space-y-1.5">
+                  {knowledge.known.slice(0, 12).map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-start gap-2.5 text-sm"
+                    >
+                      <Badge variant="success" className="text-[10px] shrink-0 mt-0.5">
+                        {proposalTypeLabel(item.type)}
+                      </Badge>
+                      <span className="text-[var(--text-primary)] leading-relaxed">{item.summary}</span>
+                    </div>
+                  ))}
+                  {knowledge.known.length > 12 && (
+                    <p className="text-xs text-[var(--text-muted)] pt-1">
+                      +{knowledge.known.length - 12} more
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Proposed items */}
+            {knowledge && knowledge.proposed.length > 0 && (
+              <div>
+                <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2.5">
+                  Awaiting decision ({knowledge.proposed.length})
+                </h3>
+                <div className="space-y-1.5">
+                  {knowledge.proposed.slice(0, 6).map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-start gap-2.5 text-sm"
+                    >
+                      <Badge variant="warning" className="text-[10px] shrink-0 mt-0.5">
+                        {proposalTypeLabel(item.type)}
+                      </Badge>
+                      <span className="text-[var(--text-secondary)] leading-relaxed">{item.summary}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* No active version notice */}
+            {!hasActiveVersion && (
+              <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+                <p className="text-sm text-amber-400/90 leading-relaxed">
+                  Business rules are not yet governing transactions. Approve proposals through conversation to activate your Brain.
+                </p>
+              </div>
             )}
           </div>
-        </Card>
-      )}
+        )}
+      </div>
     </div>
   );
 }

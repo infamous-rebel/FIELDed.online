@@ -34,6 +34,7 @@ from app.domain.enquiry.repository import (
     MessageRepository,
 )
 from app.domain.identity.models import Business, BusinessMember, BusinessProfile, User
+from app.domain.outbox.models import OutboxEvent
 from app.domain.services.models import ServiceOffer
 from app.exceptions import (
     AuthorizationError,
@@ -201,6 +202,23 @@ class EnquiryService:
         enquiry.status = EnquiryStatus.SUBMITTED
         await self.enquiry_repo.update(enquiry)
 
+        # 8. Emit outbox event for notification/communication pipeline
+        await self._emit_outbox_event(
+            business_id=business.id,
+            event_type="ENQUIRY_SUBMITTED",
+            aggregate_id=enquiry.id,
+            payload={
+                "enquiry_id": str(enquiry.id),
+                "customer_id": str(customer.id),
+                "service_offer_id": str(offer.id),
+                "status": EnquiryStatus.SUBMITTED,
+                "reference": enquiry.reference,
+                "subject": enquiry.subject,
+                "notification_title": "New enquiry received",
+                "notification_body": f"New enquiry {enquiry.reference}: {enquiry.subject}",
+            },
+        )
+
         logger.info(
             "enquiry_created",
             enquiry_id=str(enquiry.id),
@@ -317,6 +335,36 @@ class EnquiryService:
         old_status = enquiry.status
         enquiry.status = target_status
         result = await self.enquiry_repo.update(enquiry)
+
+        # Emit outbox event for notification/communication pipeline
+        notification_title = f"Enquiry {target_status.value}"
+        notification_body = f"Enquiry {enquiry.reference} status: {target_status.value}"
+        if target_status == EnquiryStatus.RECEIVED:
+            notification_title = "Enquiry received"
+            notification_body = f"Enquiry {enquiry.reference} has been received for review."
+        elif target_status == EnquiryStatus.DECLINED:
+            notification_title = "Enquiry declined"
+            notification_body = f"Enquiry {enquiry.reference} has been declined."
+        elif target_status == EnquiryStatus.NEEDS_INFORMATION:
+            notification_title = "More information needed"
+            notification_body = f"Enquiry {enquiry.reference} needs more information."
+        elif target_status == EnquiryStatus.CANCELLED:
+            notification_title = "Enquiry cancelled"
+            notification_body = f"Enquiry {enquiry.reference} has been cancelled."
+
+        await self._emit_outbox_event(
+            business_id=enquiry.business_id,
+            event_type=f"ENQUIRY_{target_status.value.upper()}",
+            aggregate_id=enquiry.id,
+            payload={
+                "enquiry_id": str(enquiry.id),
+                "customer_id": str(enquiry.customer_id),
+                "status": target_status.value,
+                "reference": enquiry.reference,
+                "notification_title": notification_title,
+                "notification_body": notification_body,
+            },
+        )
 
         logger.info(
             "enquiry_transition",
@@ -464,6 +512,30 @@ class EnquiryService:
 
     # --- Internal validation ---
 
+    async def _emit_outbox_event(
+        self,
+        *,
+        business_id: uuid.UUID,
+        event_type: str,
+        aggregate_id: uuid.UUID,
+        payload: dict,
+    ) -> None:
+        """Create an outbox event in the same transaction."""
+        from datetime import datetime
+
+        event = OutboxEvent(
+            business_id=business_id,
+            event_type=event_type,
+            aggregate_type="enquiry",
+            aggregate_id=aggregate_id,
+            payload=payload,
+            idempotency_key=f"{event_type}:enquiry:{aggregate_id}",
+            status="PENDING",
+            available_at=datetime.now(UTC),
+        )
+        self.session.add(event)
+        await self.session.flush()
+
     async def _validate_business_eligible(self, business_id: uuid.UUID) -> Business:
         """Verify business exists, is active, and has an active public profile."""
         result = await self.session.execute(
@@ -483,7 +555,7 @@ class EnquiryService:
 
         business, profile = row
 
-        if BusinessStatus(business.status) != BusinessStatus.ACTIVE:
+        if BusinessStatus(business.status) not in (BusinessStatus.ACTIVE, BusinessStatus.PENDING):
             raise ValidationError("Business is not currently active")
 
         if (

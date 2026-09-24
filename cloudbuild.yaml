@@ -1,5 +1,9 @@
 # Cloud Build configuration for FIELDed backend
 # Usage: gcloud builds submit --config=cloudbuild.yaml
+#
+# Non-secret runtime configuration lives in deploy/cloudrun-env.yaml.
+# Secrets (APP_SECRET_KEY, JWT_SECRET_KEY, DATABASE_URL) are referenced
+# from Google Secret Manager and must exist before deploying.
 
 steps:
   # Build the container image
@@ -12,8 +16,20 @@ steps:
       - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:latest"
       - "."
 
-  # Deploy to Cloud Run
+  # Push both tags
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${SHORT_SHA}"
+
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:latest"
+
+  # Deploy to Cloud Run (public ingress; app-level JWT auth applies)
   - name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: gcloud
     args:
       - "run"
       - "deploy"
@@ -34,9 +50,11 @@ steps:
       - "0"
       - "--max-instances"
       - "3"
-      - "--set-env-vars"
-      - "APP_ENV=production"
-      - "--no-allow-unauthenticated"
+      - "--allow-unauthenticated"
+      - "--env-vars-file"
+      - "deploy/cloudrun-env.yaml"
+      - "--set-secrets"
+      - "APP_SECRET_KEY=APP_SECRET_KEY:latest,JWT_SECRET_KEY=JWT_SECRET_KEY:latest,DATABASE_URL=DATABASE_URL:latest"
 
 substitutions:
   _SERVICE: fielded-api

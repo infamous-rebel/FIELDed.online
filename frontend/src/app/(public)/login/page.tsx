@@ -1,16 +1,31 @@
 "use client";
 
-import { useState, FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useState, FormEvent, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { login } from "@/lib/auth";
-import { FieldedApiError } from "@/lib/api-client";
+import { businesses, FieldedApiError } from "@/lib/api-client";
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [returnTo, setReturnTo] = useState<string | null>(null);
+
+  useEffect(() => {
+    const rt = searchParams.get("returnTo");
+    if (rt) setReturnTo(rt);
+  }, [searchParams]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -20,6 +35,12 @@ export default function LoginPage() {
     try {
       await login(email, password);
 
+      // Return to the page the user was trying to reach
+      if (returnTo) {
+        router.push(returnTo);
+        return;
+      }
+
       // Check for preserved enquiry context
       const preservedQuery = sessionStorage.getItem("fielded_query");
       if (preservedQuery) {
@@ -27,8 +48,13 @@ export default function LoginPage() {
         return;
       }
 
-      // Default redirect
-      router.push("/customer/dashboard");
+      // Default redirect: business members land on their business dashboard
+      try {
+        const bizList = await businesses.list();
+        router.push(bizList.length > 0 ? "/business/dashboard" : "/customer/dashboard");
+      } catch {
+        router.push("/customer/dashboard");
+      }
     } catch (err) {
       if (err instanceof FieldedApiError) {
         setError(err.error.message);

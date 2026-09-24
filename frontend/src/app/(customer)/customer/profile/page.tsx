@@ -4,6 +4,7 @@ import { useState, useEffect, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { customer as customerApi, type CustomerProfile, FieldedApiError } from "@/lib/api-client";
 import { isAuthenticated } from "@/lib/auth";
+import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 
 export default function CustomerProfilePage() {
   const router = useRouter();
@@ -89,7 +90,14 @@ export default function CustomerProfilePage() {
   }
 
   if (loading) {
-    return <div className="p-8 text-[var(--text-secondary)]">Loading profile...</div>;
+    return (
+      <div className="mx-auto max-w-2xl">
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">My Profile</h1>
+        <div className="mt-8">
+          <LoadingSkeleton variant="card" />
+        </div>
+      </div>
+    );
   }
 
   return (

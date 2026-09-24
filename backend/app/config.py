@@ -65,6 +65,14 @@ class Settings(BaseSettings):
     ai_model: str = ""
     ai_base_url: str = ""  # Optional: override for OpenAI-compatible providers (e.g. Groq)
 
+    # Per-workload AI overrides (empty → fall back to global ai_* fields)
+    discovery_ai_api_key: str = ""
+    discovery_ai_base_url: str = ""
+    call_agent_ai_api_key: str = ""
+    call_agent_ai_base_url: str = ""
+    brain_ai_api_key: str = ""
+    brain_ai_base_url: str = ""
+
     email_provider: str = "mock"
     email_api_key: str = ""
     email_from: str = "noreply@fielded.local"

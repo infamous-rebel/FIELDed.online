@@ -132,7 +132,7 @@ export default function BusinessEnquiriesPage() {
           {filteredList.map((enquiry) => (
             <Card key={enquiry.id} padding="sm" hover>
               <a
-                href={`/business/${business!.id}/enquiries/${enquiry.id}`}
+                href={`/business/enquiries/${enquiry.id}`}
                 className="block"
               >
                 <div className="flex items-start justify-between gap-4">

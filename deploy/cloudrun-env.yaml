@@ -1,0 +1,4 @@
+APP_ENV: production
+APP_NAME: FIELDed
+APP_DEBUG: "false"
+BACKEND_CORS_ORIGINS: "https://fielded.online,https://www.fielded.online,https://fielded-frontend.vercel.app,https://fielded-online.vercel.app,http://localhost:3000"

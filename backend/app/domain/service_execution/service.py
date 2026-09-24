@@ -182,6 +182,15 @@ class ServiceExecutionService:
         )
 
         # Emit outbox event for communication pipeline
+        notification_title = f"Service {target_status.value}"
+        notification_body = f"Service execution status: {target_status.value}"
+        if target_status == ServiceExecutionStatus.COMPLETED:
+            notification_title = "Service completed"
+            notification_body = "Your service has been completed. You can now make payment."
+        elif target_status == ServiceExecutionStatus.IN_PROGRESS:
+            notification_title = "Service in progress"
+            notification_body = "The business has started working on your service."
+
         await self._emit_outbox_event(
             business_id=execution.business_id,
             event_type=f"SERVICE_{target_status.value.upper()}",
@@ -189,7 +198,10 @@ class ServiceExecutionService:
             payload={
                 "service_execution_id": str(execution.id),
                 "booking_id": str(execution.booking_id),
+                "customer_id": str(execution.customer_id),
                 "status": target_status.value,
+                "notification_title": notification_title,
+                "notification_body": notification_body,
             },
         )
 
@@ -454,6 +466,8 @@ class ServiceExecutionService:
                 "service_execution_id": str(execution.id),
                 "total": str(total),
                 "currency": currency,
+                "notification_title": f"Invoice {invoice_number} issued",
+                "notification_body": f"Invoice {invoice_number} for {currency} {total} is ready for payment.",
             },
         )
 

@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { quotes, type QuoteData } from "@/lib/api-client";
+import { useRouter } from "next/navigation";
+import {
+  bookings,
+  quotes,
+  type QuoteData,
+} from "@/lib/api-client";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-gray-500/10 text-gray-400",
@@ -12,10 +17,15 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function CustomerQuotes() {
+  const router = useRouter();
   const [quotesList, setQuotesList] = useState<QuoteData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [bookingQuoteId, setBookingQuoteId] = useState<string | null>(null);
+  const [bookingAt, setBookingAt] = useState("");
+  const [bookingNotes, setBookingNotes] = useState("");
+  const [bookingLoading, setBookingLoading] = useState(false);
 
   useEffect(() => {
     loadQuotes();
@@ -54,6 +64,23 @@ export default function CustomerQuotes() {
       setError(err instanceof Error ? err.message : "Failed to decline quote");
     } finally {
       setActionLoading(null);
+    }
+  }
+
+  async function handleRequestBooking(quoteId: string) {
+    if (!bookingAt) return;
+    setBookingLoading(true);
+    setError(null);
+    try {
+      await bookings.create({
+        quote_id: quoteId,
+        requested_at: new Date(bookingAt).toISOString(),
+        notes: bookingNotes.trim() || undefined,
+      });
+      router.push("/customer/bookings");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to request booking");
+      setBookingLoading(false);
     }
   }
 
@@ -138,6 +165,18 @@ export default function CustomerQuotes() {
                     </button>
                   </div>
                 )}
+                {quote.status === "accepted" && bookingQuoteId !== quote.id && (
+                  <button
+                    onClick={() => {
+                      setBookingQuoteId(quote.id);
+                      setBookingAt("");
+                      setBookingNotes("");
+                    }}
+                    className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--accent-hover)]"
+                  >
+                    Request Booking
+                  </button>
+                )}
               </div>
 
               {quote.pricing_evidence && (
@@ -149,6 +188,68 @@ export default function CustomerQuotes() {
                     {JSON.stringify(quote.pricing_evidence, null, 2)}
                   </pre>
                 </details>
+              )}
+
+              {bookingQuoteId === quote.id && (
+                <div className="mt-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] p-4">
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                    Request a booking
+                  </h3>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">
+                    Pick when you need the service. The business will confirm based on
+                    availability.
+                  </p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label
+                        htmlFor={`booking-at-${quote.id}`}
+                        className="block text-xs font-medium text-[var(--text-secondary)]"
+                      >
+                        Date &amp; time
+                      </label>
+                      <input
+                        id={`booking-at-${quote.id}`}
+                        type="datetime-local"
+                        value={bookingAt}
+                        onChange={(e) => setBookingAt(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor={`booking-notes-${quote.id}`}
+                        className="block text-xs font-medium text-[var(--text-secondary)]"
+                      >
+                        Notes (optional)
+                      </label>
+                      <input
+                        id={`booking-notes-${quote.id}`}
+                        type="text"
+                        value={bookingNotes}
+                        onChange={(e) => setBookingNotes(e.target.value)}
+                        placeholder="e.g. Access via rear door"
+                        className="mt-1 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={() => handleRequestBooking(quote.id)}
+                      disabled={!bookingAt || bookingLoading}
+                      className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--accent-hover)] disabled:opacity-50"
+                    >
+                      {bookingLoading ? "Requesting..." : "Confirm Booking Request"}
+                    </button>
+                    <button
+                      onClick={() => setBookingQuoteId(null)}
+                      disabled={bookingLoading}
+                      className="rounded-lg px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           ))}

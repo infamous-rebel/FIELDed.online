@@ -138,14 +138,29 @@ def _resolve_ai_provider(settings: object) -> AIProvider:
     (required for voice Call Agent conversations).  The deterministic
     stub remains available for discovery and testing.
     """
+    return _build_ai_provider(settings)
+
+
+def _build_ai_provider(
+    settings: object,
+    *,
+    api_key_override: str = "",
+    base_url_override: str = "",
+) -> AIProvider:
+    """Shared builder: construct an AI provider from settings with optional overrides.
+
+    Workload-specific resolvers pass their dedicated key/base_url as
+    overrides.  When the override is empty the global ``ai_api_key`` /
+    ``ai_base_url`` are used instead.
+    """
     provider_name = getattr(settings, "ai_provider", "mock")
 
     if provider_name == "openai":
         from app.adapters.ai.openai_provider import OpenAIProvider
 
-        api_key = getattr(settings, "ai_api_key", "")
+        api_key = api_key_override or getattr(settings, "ai_api_key", "")
         model = getattr(settings, "ai_model", "") or "gpt-4o-mini"
-        base_url = getattr(settings, "ai_base_url", "") or None
+        base_url = base_url_override or getattr(settings, "ai_base_url", "") or None
         if not api_key:
             logger.warning(
                 "OpenAI AI provider selected but AI_API_KEY is empty. AI calls will fail."
@@ -155,6 +170,21 @@ def _resolve_ai_provider(settings: object) -> AIProvider:
             kwargs["api_base"] = base_url
         return OpenAIProvider(**kwargs)
 
+    if provider_name == "groq":
+        from app.adapters.ai.groq import GroqProvider
+
+        api_key = api_key_override or getattr(settings, "ai_api_key", "")
+        model = getattr(settings, "ai_model", "") or "llama-3.3-70b-versatile"
+        base_url = base_url_override or getattr(settings, "ai_base_url", "") or None
+        if not api_key:
+            logger.warning(
+                "Groq AI provider selected but AI_API_KEY is empty. AI calls will fail."
+            )
+        kwargs: dict[str, Any] = {"api_key": api_key, "model": model}
+        if base_url:
+            kwargs["api_base"] = base_url
+        return GroqProvider(**kwargs)
+
     if provider_name not in ("mock", "stub"):
         logger.warning(
             "AI provider '%s' not implemented as real adapter. Using the deterministic stub.",
@@ -163,6 +193,54 @@ def _resolve_ai_provider(settings: object) -> AIProvider:
     from app.adapters.ai.stub import StubAIProvider
 
     return StubAIProvider()
+
+
+# ---------------------------------------------------------------------------
+# Per-workload AI provider resolvers
+# ---------------------------------------------------------------------------
+
+
+def _resolve_discovery_ai_provider(settings: object) -> AIProvider:
+    """Resolve AI provider for the Discovery workload.
+
+    Uses ``DISCOVERY_AI_API_KEY`` / ``DISCOVERY_AI_BASE_URL`` when set,
+    otherwise falls back to the global ``AI_API_KEY`` / ``AI_BASE_URL``.
+    """
+    return _build_ai_provider(
+        settings,
+        api_key_override=getattr(settings, "discovery_ai_api_key", ""),
+        base_url_override=getattr(settings, "discovery_ai_base_url", ""),
+    )
+
+
+def _resolve_call_agent_ai_provider(settings: object) -> AIProvider:
+    """Resolve AI provider for the Call Agent (voice) workload.
+
+    Uses ``CALL_AGENT_AI_API_KEY`` / ``CALL_AGENT_AI_BASE_URL`` when set,
+    otherwise falls back to the global ``AI_API_KEY`` / ``AI_BASE_URL``.
+    """
+    return _build_ai_provider(
+        settings,
+        api_key_override=getattr(settings, "call_agent_ai_api_key", ""),
+        base_url_override=getattr(settings, "call_agent_ai_base_url", ""),
+    )
+
+
+def _resolve_brain_ai_provider(settings: object) -> AIProvider:
+    """Resolve AI provider for the Business Brain workload.
+
+    Uses ``BRAIN_AI_API_KEY`` / ``BRAIN_AI_BASE_URL`` when set,
+    otherwise falls back to the global ``AI_API_KEY`` / ``AI_BASE_URL``.
+
+    Note: the Business Brain evaluator is currently entirely deterministic
+    and does not call AI.  This resolver is available for future Brain
+    workloads that need AI (e.g. rule drafting, intent classification).
+    """
+    return _build_ai_provider(
+        settings,
+        api_key_override=getattr(settings, "brain_ai_api_key", ""),
+        base_url_override=getattr(settings, "brain_ai_base_url", ""),
+    )
 
 
 def _resolve_whatsapp_provider(settings: object) -> WhatsAppProvider:

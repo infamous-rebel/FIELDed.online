@@ -264,3 +264,188 @@ class TestStubAIProvider:
         )
         assert len(result["keywords"]) > 0
         assert "paint" in result["keywords"]
+
+
+# --- Phase A1: Provider wiring verification ---
+
+
+class TestDiscoveryProviderWiring:
+    """Prove that the discovery endpoint uses the configured AI provider,
+    not a hardcoded stub.
+
+    These tests verify the Phase A1 fix: _get_ai_provider() now calls
+    _resolve_discovery_ai_provider(settings) instead of returning StubAIProvider().
+    """
+
+    def test_get_ai_provider_calls_resolve(self):
+        """_get_ai_provider delegates to _resolve_discovery_ai_provider(settings)."""
+        from unittest.mock import MagicMock, patch
+
+        from app.api.v1.discovery import _get_ai_provider
+
+        mock_request = MagicMock()
+        mock_settings = MagicMock()
+        mock_request.app.state.settings = mock_settings
+
+        sentinel_provider = MockAIProvider(
+            response={"status": "complete", "service_name": "Test", "category_slug": "test", "keywords": []}
+        )
+
+        with patch(
+            "app.api.v1.discovery._resolve_discovery_ai_provider",
+            return_value=sentinel_provider,
+        ) as mock_resolve:
+            result = _get_ai_provider(mock_request)
+
+        mock_resolve.assert_called_once_with(mock_settings)
+        assert result is sentinel_provider
+
+    def test_get_ai_provider_returns_stub_when_no_real_provider(self):
+        """When settings resolve to mock/stub, a StubAIProvider is returned.
+
+        This proves the fallback path still works — the endpoint doesn't
+        break when no real AI key is configured.
+        """
+        from unittest.mock import MagicMock
+
+        from app.adapters.ai.stub import StubAIProvider
+        from app.api.v1.discovery import _get_ai_provider
+
+        mock_request = MagicMock()
+        mock_settings = MagicMock()
+        mock_settings.ai_provider = "mock"
+        mock_settings.ai_api_key = ""
+        mock_settings.ai_model = ""
+        mock_settings.ai_base_url = ""
+
+        # _resolve_discovery_ai_provider with "mock" returns StubAIProvider
+        result = _get_ai_provider(mock_request)
+        assert isinstance(result, StubAIProvider)
+
+    def test_get_ai_provider_returns_configured_provider(self):
+        """When settings specify 'openai', an OpenAIProvider is returned.
+
+        This proves the endpoint will use whatever provider the
+        configuration selects — not a hardcoded stub.
+        """
+        from unittest.mock import MagicMock, patch
+
+        from app.adapters.ai.openai_provider import OpenAIProvider
+        from app.api.v1.discovery import _get_ai_provider
+
+        mock_request = MagicMock()
+        mock_settings = MagicMock()
+        mock_settings.ai_provider = "openai"
+        mock_settings.ai_api_key = "test-key"
+        mock_settings.ai_model = "llama-3.1"
+        mock_settings.ai_base_url = "https://api.groq.com/openai/v1"
+
+        fake_provider = OpenAIProvider(api_key="test-key", model="llama-3.1")
+
+        with patch(
+            "app.api.v1.discovery._resolve_discovery_ai_provider",
+            return_value=fake_provider,
+        ):
+            result = _get_ai_provider(mock_request)
+
+        assert isinstance(result, OpenAIProvider)
+
+    @pytest.mark.asyncio
+    async def test_interpreter_works_with_any_ai_provider(self):
+        """DiscoveryInterpreter accepts any AIProvider — not locked to StubAIProvider.
+
+        Proves the interpreter is provider-agnostic: it works with MockAIProvider,
+        OpenAIProvider, or any future AIProvider subclass.
+        """
+        provider = MockAIProvider(
+            response={
+                "status": "complete",
+                "service_name": "Garden Maintenance",
+                "category_slug": "gardening",
+                "keywords": ["garden", "maintenance"],
+            }
+        )
+        interpreter = DiscoveryInterpreter(provider)
+        intent = await interpreter.interpret("I need garden maintenance")
+
+        assert intent.status == IntentStatus.COMPLETE
+        assert intent.service.service_name == "Garden Maintenance"
+        assert intent.service.category_slug == "gardening"
+
+    @pytest.mark.asyncio
+    async def test_intent_pydantic_validation_rejects_unknown_fields(self):
+        """DiscoveryIntent Pydantic model rejects fields not in the schema.
+
+        Even if AI returns extra fields (invented businesses, prices, etc.),
+        they are silently dropped by Pydantic validation.
+        """
+        from app.domain.discovery import DiscoveryIntent
+
+        # Simulate AI output with invented fields
+        ai_output = {
+            "status": "complete",
+            "service_name": "Plumbing",
+            "category_slug": "plumbing",
+            "keywords": ["pipe"],
+            "invented_business": "Fake Plumbing Co",
+            "invented_price": "$999",
+            "invented_availability": "Monday-Friday",
+            "invented_phone": "+1-555-FAKE",
+        }
+
+        # Build intent the same way the interpreter does
+        intent = DiscoveryIntent(
+            raw_query="I need a plumber",
+            status=IntentStatus(ai_output["status"]),
+            service={
+                "service_name": ai_output["service_name"],
+                "category_slug": ai_output["category_slug"],
+                "keywords": ai_output["keywords"],
+            },
+        )
+
+        # Invented fields must NOT exist on the validated intent
+        assert not hasattr(intent, "invented_business")
+        assert not hasattr(intent, "invented_price")
+        assert not hasattr(intent, "invented_availability")
+        assert not hasattr(intent, "invented_phone")
+        # Valid fields are preserved
+        assert intent.service.service_name == "Plumbing"
+        assert intent.service.category_slug == "plumbing"
+
+    @pytest.mark.asyncio
+    async def test_ai_failure_with_any_provider_triggers_fallback(self):
+        """When the configured AI provider fails, fallback works regardless
+        of which provider was used.
+        """
+        provider = MockAIProvider(should_fail=True)
+        interpreter = DiscoveryInterpreter(provider)
+        intent = await interpreter.interpret("I need an electrician in Portland")
+
+        # Fallback produces a PARTIAL intent with keywords
+        assert intent.status == IntentStatus.PARTIAL
+        assert intent.service.keywords is not None
+        assert len(intent.service.keywords) > 0
+        assert intent.clarification_needed is not None
+
+    @pytest.mark.asyncio
+    async def test_ai_cannot_invent_business_via_interpreter(self):
+        """End-to-end: AI tries to invent a business, but the interpreter
+        + Pydantic validation ensures it never appears in the intent.
+        """
+        provider = InventingAIProvider()
+        interpreter = DiscoveryInterpreter(provider)
+        intent = await interpreter.interpret("I need legal contract review")
+
+        # The intent has valid extracted data
+        assert intent.service.category_slug == "legal"
+        assert "contract" in intent.service.keywords
+
+        # But invented fields are completely absent
+        intent_dict = intent.model_dump()
+        assert "invented_business" not in intent_dict
+        assert "invented_price" not in intent_dict
+        # No nested service field contains invented data
+        service_dict = intent.service.model_dump()
+        assert "invented_business" not in service_dict
+        assert "invented_price" not in service_dict

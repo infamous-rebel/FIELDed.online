@@ -11,6 +11,7 @@ from app.api.v1 import (
     auth,
     bookings,
     brain,
+    brain_conversation,
     business_enquiries,
     businesses,
     communications,
@@ -35,6 +36,18 @@ api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(customer.router, prefix="/customer", tags=["customer"])
+
+# Customer routers must be included BEFORE businesses.router: their
+# single-segment literal routes (e.g. /my-quotes) would otherwise be
+# captured by businesses' dynamic GET /{business_id} route and fail
+# UUID validation.
+api_router.include_router(quotes.router, prefix="/businesses", tags=["quotes"])
+api_router.include_router(bookings.router, prefix="/businesses", tags=["bookings"])
+api_router.include_router(
+    service_executions.router, prefix="/businesses", tags=["service-executions"]
+)
+api_router.include_router(invoices.router, prefix="/businesses", tags=["invoices"])
+
 api_router.include_router(businesses.router, prefix="/businesses", tags=["businesses"])
 api_router.include_router(service_offers.router, prefix="/businesses", tags=["service-offers"])
 api_router.include_router(
@@ -47,21 +60,18 @@ api_router.include_router(
     business_enquiries.router, prefix="/businesses", tags=["business-enquiries"]
 )
 api_router.include_router(brain.router, prefix="/businesses", tags=["business-brain"])
-api_router.include_router(quotes.router, prefix="/businesses", tags=["quotes"])
-api_router.include_router(bookings.router, prefix="/businesses", tags=["bookings"])
-
-# Phase 13 — Service Execution, Invoice, Ledger
 api_router.include_router(
-    service_executions.router, prefix="/businesses", tags=["service-executions"]
+    brain_conversation.router, prefix="/businesses", tags=["brain-conversation"]
 )
-api_router.include_router(invoices.router, prefix="/businesses", tags=["invoices"])
-api_router.include_router(ledger.router, prefix="/businesses", tags=["ledger"])
 
 # Phase 14A — Communications, Notifications, Provider Infrastructure
 api_router.include_router(communications.router, prefix="", tags=["communications"])
 
 # Phase 14B — Voice Calls, Call Agent, Campaigns, Provider Webhooks
 api_router.include_router(voice.router, prefix="", tags=["voice"])
+
+# Phase 13 — Ledger
+api_router.include_router(ledger.router, prefix="/businesses", tags=["ledger"])
 
 # Phase 15 — Payments & Financial Operations
 api_router.include_router(payments.router, prefix="", tags=["payments"])

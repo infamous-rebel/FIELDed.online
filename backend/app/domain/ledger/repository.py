@@ -52,6 +52,16 @@ class LedgerRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_by_invoice_id(self, invoice_id: uuid.UUID) -> list[ServiceLedgerEntry]:
+        """Fetch all non-deleted ledger entries linked to an invoice."""
+        result = await self.session.execute(
+            select(ServiceLedgerEntry).where(
+                ServiceLedgerEntry.invoice_id == invoice_id,
+                ServiceLedgerEntry.deleted_at.is_(None),
+            )
+        )
+        return list(result.scalars().all())
+
     async def get_by_business(
         self,
         business_id: uuid.UUID,

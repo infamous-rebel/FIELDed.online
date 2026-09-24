@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   bookings,
   type BookingData,
@@ -37,6 +38,7 @@ const FILTER_TABS = [
 ];
 
 export default function CustomerBookings() {
+  const router = useRouter();
   const [bookingList, setBookingList] = useState<BookingData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +75,21 @@ export default function CustomerBookings() {
           : "Failed to cancel booking"
       );
     } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handlePay(bookingId: string) {
+    try {
+      setActionLoading(bookingId);
+      await bookings.payMyBooking(bookingId, "card");
+      router.push("/customer/payments");
+    } catch (err) {
+      setError(
+        err instanceof FieldedApiError
+          ? err.error.message
+          : "Failed to process payment"
+      );
       setActionLoading(null);
     }
   }
@@ -162,6 +179,15 @@ export default function CustomerBookings() {
                 </div>
 
                 <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                  {booking.status === "completed" && (
+                    <button
+                      onClick={() => handlePay(booking.id)}
+                      disabled={actionLoading === booking.id}
+                      className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+                    >
+                      {actionLoading === booking.id ? "Paying…" : "Pay Now"}
+                    </button>
+                  )}
                   {(booking.status === "requested" ||
                     booking.status === "proposed" ||
                     booking.status === "accepted" ||

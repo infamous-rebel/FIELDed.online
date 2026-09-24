@@ -6,6 +6,7 @@ routes, exception handlers, and lifecycle events.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -16,7 +17,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
 from app.config import Settings, get_settings
-from app.database import dispose_engine, init_db
+from app.database import dispose_engine, get_session_factory, init_db
 from app.exceptions import FieldedError
 from app.logging import get_logger, setup_logging
 from app.middleware.correlation_id import CorrelationIdMiddleware
@@ -26,10 +27,70 @@ from app.middleware.tenant import TenantMiddleware
 
 logger = get_logger(__name__)
 
+# Outbox worker control: set in lifespan, cancelled on shutdown.
+_outbox_task: asyncio.Task | None = None
+
+
+async def _outbox_worker_loop() -> None:
+    """Background outbox event processor.
+
+    Polls every 15 seconds for pending outbox events and processes them
+    through the orchestration pipeline (notifications, communications).
+    Runs inside the FastAPI process — no separate worker needed for
+    development / single-instance deployments.
+    """
+    from app.adapters import ProviderFactory
+    from app.domain.communication.orchestration import OrchestrationService
+    from app.config import get_settings
+    from app.domain.voice.outbox_integration import VoiceEventOrchestrator
+    from app.workers import process_outbox_events
+
+    settings = get_settings()
+    factory = ProviderFactory.from_settings(settings)
+
+    logger.info("outbox_worker_started", interval_seconds=15)
+
+    while True:
+        try:
+            await asyncio.sleep(15)
+
+            session_factory = get_session_factory()
+            async with session_factory() as session:
+                orchestrator = OrchestrationService(
+                    session,
+                    email_provider=factory.email_provider,
+                    sms_provider=factory.sms_provider,
+                    voice_provider=factory.voice_provider,
+                    whatsapp_provider=factory.whatsapp_provider,
+                    push_provider=factory.push_provider,
+                )
+                voice_orchestrator = VoiceEventOrchestrator(session)
+
+                processed = await process_outbox_events(
+                    session,
+                    orchestrator=orchestrator,
+                    batch_size=settings.outbox_batch_size,
+                    lease_seconds=settings.outbox_lease_seconds,
+                    max_attempts=settings.outbox_max_attempts,
+                    voice_orchestrator=voice_orchestrator,
+                )
+                if processed > 0:
+                    logger.info("outbox_worker_processed", count=processed)
+
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            logger.exception("outbox_worker_error")
+            await asyncio.sleep(30)  # Back off on error
+
+    logger.info("outbox_worker_stopped")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifecycle: startup and shutdown."""
+    global _outbox_task
+
     settings: Settings = app.state.settings
 
     setup_logging(
@@ -40,7 +101,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     init_db(settings)
     logger.info("application_started", app_name=settings.app_name, env=settings.app_env)
 
+    # Start the outbox background worker
+    _outbox_task = asyncio.create_task(_outbox_worker_loop())
+
     yield
+
+    # Shutdown: cancel the outbox worker
+    if _outbox_task is not None:
+        _outbox_task.cancel()
+        try:
+            await _outbox_task
+        except asyncio.CancelledError:
+            pass
+        _outbox_task = None
 
     await dispose_engine()
     logger.info("application_shutdown")
@@ -60,11 +133,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.state.settings = settings
 
-    # Middleware (order matters: outermost first)
-    app.add_middleware(RateLimitMiddleware)
-    app.add_middleware(CorrelationIdMiddleware)
-    app.add_middleware(TenantMiddleware)
-    app.add_middleware(RequestIdMiddleware)
+    # Middleware (order matters: outermost first — CORS must be first)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
@@ -72,6 +141,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(CorrelationIdMiddleware)
+    app.add_middleware(TenantMiddleware)
+    app.add_middleware(RequestIdMiddleware)
 
     # Exception handlers
     @app.exception_handler(FieldedError)

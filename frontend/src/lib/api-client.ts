@@ -51,8 +51,16 @@ async function request<T>(
   });
 
   if (!response.ok) {
-    const body: ApiErrorResponse = await response.json();
-    throw new FieldedApiError(response.status, body.error);
+    const body = await response.json().catch(() => null);
+    // FastAPI's default error shape is {detail: "..."}, not {error: {...}} —
+    // fall back so unexpected responses produce a readable message.
+    const apiError: ApiError =
+      body?.error ?? {
+        code: `HTTP_${response.status}`,
+        message:
+          body?.detail ?? `Request failed with status ${response.status}`,
+      };
+    throw new FieldedApiError(response.status, apiError);
   }
 
   // Handle 204 No Content
@@ -457,6 +465,7 @@ export interface PublicServiceOfferDetail extends PublicServiceOffer {
 }
 
 export interface PublicBusinessProfile {
+  id: string;
   name: string;
   slug: string;
   description: string | null;
@@ -939,6 +948,188 @@ export const brain = {
   },
 };
 
+// --- Brain Conversation (Interactive Co-Brain) ---
+
+export interface BrainMessageData {
+  id: string;
+  conversation_id: string;
+  role: "brain" | "owner" | "system";
+  content: string;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface BrainConversationSummary {
+  id: string;
+  brain_id: string;
+  status: string;
+  title: string | null;
+  message_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BrainConversationDetail {
+  id: string;
+  brain_id: string;
+  business_id: string;
+  status: string;
+  title: string | null;
+  context_summary: string | null;
+  messages: BrainMessageData[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BrainProposalData {
+  id: string;
+  brain_id: string;
+  conversation_id: string | null;
+  business_id: string;
+  proposal_type: string;
+  status: string;
+  confidence: number;
+  reasoning_summary: string | null;
+  proposed_change: Record<string, unknown>;
+  affected_area: string | null;
+  source_message_id: string | null;
+  resolved_at: string | null;
+  is_urgent: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SendMessageResponse {
+  owner_message: BrainMessageData;
+  brain_message: BrainMessageData;
+}
+
+export interface KnowledgeSummary {
+  known: Array<{
+    id: string;
+    type: string;
+    summary: string;
+    affected_area: string;
+    confidence: number;
+    created_at: string;
+  }>;
+  proposed: Array<{
+    id: string;
+    type: string;
+    summary: string;
+    affected_area: string;
+    confidence: number;
+    created_at: string;
+  }>;
+  rejected: Array<{
+    id: string;
+    type: string;
+    summary: string;
+    affected_area: string;
+    confidence: number;
+    created_at: string;
+  }>;
+  active_config_areas: string[];
+  missing_areas: string[];
+  has_active_version: boolean;
+}
+
+export interface NeedsAttentionItem {
+  type: string;
+  id: string | null;
+  title: string;
+  affected_area: string | null;
+  is_urgent: boolean;
+  confidence: number | null;
+  proposal_type: string | null;
+}
+
+export interface BrainContext {
+  knowledge: KnowledgeSummary;
+  attention: NeedsAttentionItem[];
+  active_config_summary: string;
+}
+
+export const brainConversation = {
+  /** Get or create the active conversation for the Brain */
+  getActive(businessId: string): Promise<BrainConversationDetail> {
+    return request(`/businesses/${businessId}/brain/conversations/active`);
+  },
+
+  /** List all conversations for the Brain */
+  list(businessId: string): Promise<BrainConversationSummary[]> {
+    return request(`/businesses/${businessId}/brain/conversations`);
+  },
+
+  /** Get a specific conversation with messages */
+  get(businessId: string, conversationId: string): Promise<BrainConversationDetail> {
+    return request(`/businesses/${businessId}/brain/conversations/${conversationId}`);
+  },
+
+  /** Send a message from the owner to the Brain */
+  sendMessage(
+    businessId: string,
+    conversationId: string,
+    content: string,
+  ): Promise<SendMessageResponse> {
+    return request(`/businesses/${businessId}/brain/conversations/${conversationId}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    });
+  },
+
+  /** Archive a conversation */
+  archive(businessId: string, conversationId: string): Promise<BrainConversationDetail> {
+    return request(`/businesses/${businessId}/brain/conversations/${conversationId}/archive`, {
+      method: "POST",
+    });
+  },
+
+  /** List all proposals for the Brain */
+  listProposals(businessId: string): Promise<BrainProposalData[]> {
+    return request(`/businesses/${businessId}/brain/proposals`);
+  },
+
+  /** List pending proposals awaiting owner decision */
+  listPendingProposals(businessId: string): Promise<BrainProposalData[]> {
+    return request(`/businesses/${businessId}/brain/proposals/pending`);
+  },
+
+  /** Approve a proposal (optionally with edits) */
+  approveProposal(
+    businessId: string,
+    proposalId: string,
+    editedChange?: Record<string, unknown>,
+  ): Promise<BrainProposalData> {
+    return request(`/businesses/${businessId}/brain/proposals/${proposalId}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ edited_change: editedChange }),
+    });
+  },
+
+  /** Reject a proposal */
+  rejectProposal(businessId: string, proposalId: string): Promise<BrainProposalData> {
+    return request(`/businesses/${businessId}/brain/proposals/${proposalId}/reject`, {
+      method: "POST",
+    });
+  },
+
+  /** Get Brain knowledge summary */
+  getKnowledge(businessId: string): Promise<KnowledgeSummary> {
+    return request(`/businesses/${businessId}/brain/knowledge`);
+  },
+
+  /** Get items needing owner attention */
+  getNeedsAttention(businessId: string): Promise<NeedsAttentionItem[]> {
+    return request(`/businesses/${businessId}/brain/needs-attention`);
+  },
+
+  /** Get full Brain context (knowledge + attention + config) */
+  getContext(businessId: string): Promise<BrainContext> {
+    return request(`/businesses/${businessId}/brain/context`);
+  },
+};
+
 // --- Quotes ---
 
 export interface QuoteData {
@@ -1085,6 +1276,25 @@ export const bookings = {
     });
   },
 
+  /** Customer: transition my booking (accept proposed, cancel, etc.) */
+  transitionMyBooking(bookingId: string, targetStatus: string): Promise<BookingData> {
+    return request(`/businesses/my-bookings/${bookingId}/transition`, {
+      method: "POST",
+      body: JSON.stringify({ target_status: targetStatus }),
+    });
+  },
+
+  /** Customer: pay for a completed booking's invoice (deterministic key → idempotent) */
+  payMyBooking(bookingId: string, paymentMethod: string = "card"): Promise<PaymentData> {
+    return request(`/businesses/my-bookings/${bookingId}/pay`, {
+      method: "POST",
+      body: JSON.stringify({
+        payment_method: paymentMethod,
+        idempotency_key: `booking-pay-${bookingId}`,
+      }),
+    });
+  },
+
   /** Business: list bookings for a business */
   listForBusiness(businessId: string, params?: { status?: string }): Promise<BookingData[]> {
     const qs = new URLSearchParams();
@@ -1170,7 +1380,7 @@ export const serviceExecutions = {
     const params = new URLSearchParams();
     if (status) params.set("status", status);
     const qs = params.toString() ? `?${params.toString()}` : "";
-    return request(`/my-service-executions${qs}`);
+    return request(`/businesses/my-service-executions${qs}`);
   },
 };
 
@@ -1236,12 +1446,12 @@ export const invoices = {
     const params = new URLSearchParams();
     if (paymentStatus) params.set("payment_status", paymentStatus);
     const qs = params.toString() ? `?${params.toString()}` : "";
-    return request(`/my-invoices${qs}`);
+    return request(`/businesses/my-invoices${qs}`);
   },
 
   getMyPdfUrl(invoiceId: string): string {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-    return `${apiUrl}/api/v1/my-invoices/${invoiceId}/pdf`;
+    return `${apiUrl}/api/v1/businesses/my-invoices/${invoiceId}/pdf`;
   },
 };
 
@@ -1310,6 +1520,41 @@ export const ledger = {
   getPdfUrl(businessId: string): string {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
     return `${apiUrl}/api/v1/businesses/${businessId}/ledger/export/pdf`;
+  },
+};
+
+// --- Notifications ---
+
+export interface NotificationData {
+  id: string;
+  business_id: string | null;
+  customer_id: string | null;
+  notification_type: string;
+  title: string;
+  body: string;
+  is_read: boolean;
+  related_entity_type: string | null;
+  related_entity_id: string | null;
+  created_at: string;
+}
+
+export const notifications = {
+  /** Customer: list my notifications */
+  listMy(limit = 20): Promise<NotificationData[]> {
+    return request<{ items: NotificationData[] }>(`/notifications/my-notifications?limit=${limit}`).then(
+      (r) => r.items
+    );
+  },
+
+  /** Customer: mark notification as read */
+  markRead(notificationId: string): Promise<void> {
+    return request(`/notifications/my-notifications/${notificationId}/read`, { method: "POST" });
+  },
+
+  /** Customer: get unread count */
+  async unreadCount(): Promise<number> {
+    const items = await this.listMy(50);
+    return items.filter((n) => !n.is_read).length;
   },
 };
 

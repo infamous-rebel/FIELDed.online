@@ -210,7 +210,24 @@ class QuoteService:
         quote.status = target_status
         result = await self.quote_repo.update(quote)
 
+        # Customer acceptance advances the enquiry QUOTED -> CUSTOMER_ACCEPTED
+        # (the booking flow expects CUSTOMER_ACCEPTED when creating a booking).
+        if actor == "customer" and target_status == QuoteStatus.ACCEPTED:
+            enquiry = await self.enquiry_repo.get_by_id(quote.enquiry_id)
+            if enquiry and EnquiryStatus(enquiry.status) == EnquiryStatus.QUOTED:
+                enquiry.status = EnquiryStatus.CUSTOMER_ACCEPTED
+                await self.enquiry_repo.update(enquiry)
+
         # Emit outbox event for communication pipeline
+        notification_title = f"Quote {target_status.value}"
+        notification_body = f"Quote {quote.reference} status: {target_status.value}"
+        if target_status == QuoteStatus.ISSUED:
+            notification_title = "New quote received"
+            notification_body = f"You have a new quote ({quote.reference}) awaiting your review."
+        elif target_status == QuoteStatus.ACCEPTED:
+            notification_title = "Quote accepted"
+            notification_body = f"Quote {quote.reference} has been accepted by the customer."
+
         await self._emit_outbox_event(
             business_id=quote.business_id,
             event_type=f"QUOTE_{target_status.value.upper()}",
@@ -221,6 +238,8 @@ class QuoteService:
                 "customer_id": str(quote.customer_id),
                 "status": target_status.value,
                 "quote_reference": quote.reference,
+                "notification_title": notification_title,
+                "notification_body": notification_body,
             },
         )
 

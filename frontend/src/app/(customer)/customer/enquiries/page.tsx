@@ -3,18 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { enquiries, EnquiryData, FieldedApiError } from "@/lib/api-client";
-
-const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-[var(--bg-elevated)] text-[var(--text-muted)]",
-  submitted: "bg-blue-500/15 text-blue-400",
-  received: "bg-blue-500/15 text-blue-400",
-  in_review: "bg-amber-500/15 text-amber-400",
-  needs_information: "bg-amber-500/15 text-amber-400",
-  declined: "bg-red-500/15 text-red-400",
-  cancelled: "bg-[var(--bg-elevated)] text-[var(--text-muted)]",
-  expired: "bg-[var(--bg-elevated)] text-[var(--text-muted)]",
-  rejected: "bg-red-500/15 text-red-400",
-};
+import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { statusToBadgeVariant } from "@/lib/status";
+import { Badge } from "@/components/ui/badge";
 
 function formatStatus(status: string): string {
   return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -57,7 +49,9 @@ export default function CustomerEnquiries() {
     return (
       <div>
         <h1 className="text-2xl font-bold text-[var(--text-primary)]">My Enquiries</h1>
-        <p className="mt-4 text-[var(--text-secondary)]">Loading...</p>
+        <div className="mt-6">
+          <LoadingSkeleton variant="list" lines={3} />
+        </div>
       </div>
     );
   }
@@ -76,18 +70,18 @@ export default function CustomerEnquiries() {
       )}
 
       {enquiryList.length === 0 ? (
-        <div className="mt-8 rounded-lg border-2 border-dashed border-[var(--border-default)] p-8 text-center">
-          <p className="text-[var(--text-secondary)]">No enquiries yet.</p>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">
-            Browse businesses and submit an enquiry to get started.
-          </p>
-          <Link
-            href="/search"
-            className="mt-4 inline-block rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--accent-hover)]"
-          >
-            Find a Service
-          </Link>
-        </div>
+        <EmptyState
+          title="No enquiries yet"
+          description="Browse businesses and submit an enquiry to get started."
+          action={
+            <Link
+              href="/search"
+              className="inline-block rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--accent-hover)]"
+            >
+              Find a Service
+            </Link>
+          }
+        />
       ) : (
         <div className="mt-6 space-y-4">
           {enquiryList.map((enquiry) => (
@@ -108,13 +102,9 @@ export default function CustomerEnquiries() {
                     {enquiry.message}
                   </p>
                 </div>
-                <span
-                  className={`ml-4 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    STATUS_COLORS[enquiry.status] || "bg-[var(--bg-elevated)] text-[var(--text-muted)]"
-                  }`}
-                >
+                <Badge variant={statusToBadgeVariant(enquiry.status)}>
                   {formatStatus(enquiry.status)}
-                </span>
+                </Badge>
               </div>
               <p className="mt-2 text-xs text-[var(--text-muted)]">
                 {formatDate(enquiry.created_at)}

@@ -175,9 +175,13 @@ BOOKING_TRANSITIONS: dict[BookingStatus, set[BookingStatus]] = {
     },
     BookingStatus.CONFIRMED: {
         BookingStatus.IN_PROGRESS,
+        BookingStatus.COMPLETED,
         BookingStatus.CANCELLED,
         BookingStatus.NO_SHOW,
     },
+    # COMPLETED is allowed from CONFIRMED: the service-execution completion
+    # cascade completes a confirmed booking whose service was delivered
+    # without a separate business "Start" action.
     # NOTE: RESCHEDULED is NOT a direct transition.  Rescheduling is
     # implemented as: cancel old booking (→ CANCELLED) + create new booking.
     # This preserves a clean audit trail per booking instance.
@@ -1073,3 +1077,75 @@ class PaymentWebhookStatus(StrEnum):
     PROCESSING = "PROCESSING"
     PROCESSED = "PROCESSED"
     FAILED = "FAILED"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Phase 18 — Business Brain Interactive Co-Brain
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class BrainConversationStatus(StrEnum):
+    """Brain conversation lifecycle.
+
+    A conversation is ACTIVE while the owner is engaged.
+    It becomes ARCHIVED when explicitly closed or superseded.
+    """
+
+    ACTIVE = "active"
+    ARCHIVED = "archived"
+
+
+class BrainMessageRole(StrEnum):
+    """Message author role in a Brain conversation."""
+
+    BRAIN = "brain"
+    OWNER = "owner"
+    SYSTEM = "system"
+
+
+class BrainProposalStatus(StrEnum):
+    """Brain proposal governance lifecycle.
+
+    PENDING  — AI proposed, awaiting owner decision
+    APPROVED — Owner approved; eligible for application to Brain
+    EDITED   — Owner approved with modifications
+    REJECTED — Owner explicitly rejected
+    APPLIED  — Approved change has been applied to governed Brain state
+    """
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    EDITED = "edited"
+    REJECTED = "rejected"
+    APPLIED = "applied"
+
+
+class BrainProposalType(StrEnum):
+    """What kind of business knowledge a Brain proposal represents."""
+
+    NEW_SERVICE = "new_service"
+    PRICING_RULE = "pricing_rule"
+    POLICY_RULE = "policy_rule"
+    AVAILABILITY_RULE = "availability_rule"
+    QUALIFICATION_RULE = "qualification_rule"
+    ESCALATION_RULE = "escalation_rule"
+    IDENTITY_UPDATE = "identity_update"
+    COMMUNICATION_UPDATE = "communication_update"
+    GENERAL_KNOWLEDGE = "general_knowledge"
+
+
+class BrainKnowledgeStatus(StrEnum):
+    """Brain memory classification for learned information.
+
+    Known      — Explicitly confirmed by the owner
+    Proposed   — Inferred/suggested by Brain, awaiting approval
+    Uncertain  — Needs clarification from the owner
+    Deprecated — Previously valid, now replaced
+    Rejected   — Explicitly rejected by the owner
+    """
+
+    KNOWN = "known"
+    PROPOSED = "proposed"
+    UNCERTAIN = "uncertain"
+    DEPRECATED = "deprecated"
+    REJECTED = "rejected"

@@ -9,6 +9,7 @@ import {
   FieldedApiError,
 } from "@/lib/api-client";
 import { isAuthenticated } from "@/lib/auth";
+import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 
 export default function BusinessProfilePage() {
   const [authed, setAuthed] = useState(false);
@@ -148,7 +149,10 @@ export default function BusinessProfilePage() {
   if (loading) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-12">
-        <p className="text-[var(--text-secondary)]">Loading...</p>
+        <LoadingSkeleton lines={2} />
+        <div className="mt-8">
+          <LoadingSkeleton variant="card" />
+        </div>
       </div>
     );
   }
@@ -287,9 +291,9 @@ export default function BusinessProfilePage() {
           </div>
         </section>
 
-        {/* Branding & Service Area */}
+        {/* Branding */}
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Branding &amp; Service Area</h2>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Branding</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="logoUrl" className="block text-sm font-medium text-[var(--text-primary)]">Logo URL</label>
@@ -300,19 +304,31 @@ export default function BusinessProfilePage() {
               <input id="coverImageUrl" type="url" value={coverImageUrl} onChange={(e) => setCoverImageUrl(e.target.value)} placeholder="https://cdn.example.com/cover.jpg" className="mt-1 block w-full rounded-md border border-[var(--border-default)] px-3 py-2 shadow-sm focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]" />
             </div>
           </div>
-          <div>
-            <label htmlFor="serviceArea" className="block text-sm font-medium text-[var(--text-primary)]">
-              Service Area <span className="font-normal text-[var(--text-muted)]">(JSON, optional)</span>
-            </label>
-            <textarea
-              id="serviceArea"
-              rows={3}
-              value={serviceArea}
-              onChange={(e) => setServiceArea(e.target.value)}
-              placeholder='{ "cities": ["Austin", "Round Rock"] }'
-              className="mt-1 block w-full rounded-md border border-[var(--border-default)] px-3 py-2 font-mono text-sm shadow-sm focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
-            />
-          </div>
+        </section>
+
+        {/* Service Area (advanced) */}
+        <section className="space-y-4">
+          <details className="group">
+            <summary className="cursor-pointer text-lg font-semibold text-[var(--text-primary)] select-none">
+              Service Area <span className="font-normal text-[var(--text-muted)] text-sm">(advanced)</span>
+            </summary>
+            <div className="mt-4">
+              <label htmlFor="serviceArea" className="block text-sm font-medium text-[var(--text-primary)]">
+                Service Area Configuration <span className="font-normal text-[var(--text-muted)]">(JSON)</span>
+              </label>
+              <textarea
+                id="serviceArea"
+                rows={3}
+                value={serviceArea}
+                onChange={(e) => setServiceArea(e.target.value)}
+                placeholder='{ "cities": ["Austin", "Round Rock"] }'
+                className="mt-1 block w-full rounded-md border border-[var(--border-default)] px-3 py-2 font-mono text-sm shadow-sm focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+              />
+              <p className="mt-1 text-xs text-[var(--text-muted)]">
+                Define the geographic areas your business serves.
+              </p>
+            </div>
+          </details>
         </section>
 
         {/* Social Links */}

@@ -1,12 +1,30 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { isAuthenticated } from "@/lib/auth";
+
+const PLACEHOLDER_EXAMPLES = [
+  "I need a consultant for my startup...",
+  "I need a photographer for an event...",
+  "I need a developer for a website...",
+  "I need a tutor for mathematics...",
+  "I need a designer for a logo...",
+  "I need a cleaner for my office...",
+  "I need a repair service for appliances...",
+  "I need a planner for a corporate event...",
+];
 
 export default function LandingPage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPlaceholderIndex((i) => (i + 1) % PLACEHOLDER_EXAMPLES.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleEnquirySubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -17,6 +35,32 @@ export default function LandingPage() {
 
   return (
     <div>
+      {/* Header */}
+      <header className="border-b border-[var(--border-subtle)]">
+        <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
+          <a
+            href="/"
+            className="text-xl font-bold text-[var(--text-primary)]"
+          >
+            FIELDed
+          </a>
+          <nav className="flex items-center gap-4 sm:gap-6">
+            <a
+              href="/login"
+              className="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            >
+              Sign In
+            </a>
+            <a
+              href="/signup"
+              className="rounded-lg bg-[var(--accent)] px-4 py-1.5 text-sm font-medium text-white hover:bg-[var(--accent-hover)] transition-colors"
+            >
+              Sign Up
+            </a>
+          </nav>
+        </div>
+      </header>
+
       {/* Hero */}
       <section className="relative overflow-hidden">
         <div className="mx-auto max-w-7xl px-4 py-24 sm:py-32 lg:py-40">
@@ -35,19 +79,19 @@ export default function LandingPage() {
               onSubmit={handleEnquirySubmit}
               className="mt-10 flex flex-col sm:flex-row gap-3 max-w-2xl mx-auto"
             >
-              <textarea
+              <input
+                type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="e.g., I need a licensed electrician for a home wiring upgrade in Melbourne..."
-                rows={2}
-                className="flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none"
+                placeholder={PLACEHOLDER_EXAMPLES[placeholderIndex]}
+                className="flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
                 aria-label="Describe your service need"
               />
               <button
                 type="submit"
-                className="rounded-lg bg-[var(--accent)] px-6 py-3 font-medium text-white hover:bg-[var(--accent-hover)] transition-colors self-end sm:self-auto whitespace-nowrap"
+                className="rounded-lg bg-[var(--accent)] px-6 py-3 font-medium text-white hover:bg-[var(--accent-hover)] transition-colors whitespace-nowrap"
               >
-                Start Enquiry
+                Search
               </button>
             </form>
           </div>
@@ -106,9 +150,9 @@ export default function LandingPage() {
                 icon: "⬢",
               },
               {
-                title: "Provider Agnostic",
+                title: "Built for Every Business",
                 description:
-                  "No hardcoded dependencies. AI, email, storage, payments — all behind replaceable adapter interfaces.",
+                  "From sole traders to established teams. Configure your services, pricing, and policies the way you work.",
                 icon: "◉",
               },
             ].map((item) => (
@@ -273,16 +317,15 @@ export default function LandingPage() {
               Built for Trust
             </h2>
             <p className="mt-4 text-[var(--text-secondary)] leading-relaxed">
-              Tenant isolation ensures businesses never access another
-              business&apos;s data. Customers only access their own information.
-              Authorization is resolved server-side from authenticated identity.
-              Every state transition is validated, recorded, and auditable.
+              Your business data stays yours. Customers only see what you
+              choose to share. Every quote, booking, and payment is tracked
+              with a clear audit trail so there are never any surprises.
             </p>
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
               {[
-                { label: "Tenant Isolation", detail: "Database-level enforcement" },
-                { label: "Server-Side Auth", detail: "JWT with token rotation" },
-                { label: "Audit Trail", detail: "Every action recorded" },
+                { label: "Private by Design", detail: "Your data never shared with competitors" },
+                { label: "Secure Access", detail: "Protected authentication and authorisation" },
+                { label: "Full Transparency", detail: "Every action tracked and auditable" },
               ].map((item) => (
                 <div
                   key={item.label}

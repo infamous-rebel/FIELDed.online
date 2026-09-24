@@ -33,6 +33,8 @@ from app.domain.common.enums import (
     PaymentStatus,
 )
 from app.domain.invoice.repository import InvoiceRepository
+from app.domain.ledger.repository import LedgerRepository
+from app.domain.outbox.models import OutboxEvent
 from app.domain.payment.models import Payment, PaymentAttempt
 from app.domain.payment.repository import PaymentRepository
 from app.exceptions import (
@@ -61,6 +63,7 @@ class PaymentService:
         self.session = session
         self.payment_repo = PaymentRepository(session)
         self.invoice_repo = InvoiceRepository(session)
+        self.ledger_repo = LedgerRepository(session)
         self.payment_provider = payment_provider
 
     # --- Retrieval ---
@@ -306,6 +309,23 @@ class PaymentService:
             # Update invoice payment status
             await self._update_invoice_payment_status(payment)
 
+            # Emit outbox event
+            await self._emit_outbox_event(
+                business_id=payment.business_id,
+                event_type="PAYMENT_SUCCEEDED",
+                aggregate_id=payment.id,
+                payload={
+                    "payment_id": str(payment.id),
+                    "invoice_id": str(payment.invoice_id),
+                    "customer_id": str(payment.customer_id),
+                    "amount": payment.amount,
+                    "currency": payment.currency,
+                    "status": PaymentStatus.SUCCEEDED,
+                    "notification_title": "Payment received",
+                    "notification_body": f"Payment of {payment.currency} {payment.amount} received successfully.",
+                },
+            )
+
             logger.info(
                 "payment_succeeded",
                 payment_id=str(payment.id),
@@ -321,6 +341,24 @@ class PaymentService:
             payment.status = PaymentStatus.FAILED
             payment.failure_code = result.error
             payment.failure_message = result.error
+
+            # Emit outbox event
+            await self._emit_outbox_event(
+                business_id=payment.business_id,
+                event_type="PAYMENT_FAILED",
+                aggregate_id=payment.id,
+                payload={
+                    "payment_id": str(payment.id),
+                    "invoice_id": str(payment.invoice_id),
+                    "customer_id": str(payment.customer_id),
+                    "amount": payment.amount,
+                    "currency": payment.currency,
+                    "status": PaymentStatus.FAILED,
+                    "error": result.error,
+                    "notification_title": "Payment failed",
+                    "notification_body": f"Payment of {payment.currency} {payment.amount} failed: {result.error}",
+                },
+            )
 
             logger.info(
                 "payment_failed",
@@ -487,6 +525,23 @@ class PaymentService:
             # Update invoice payment status
             await self._update_invoice_payment_status(payment)
 
+            # Emit outbox event
+            await self._emit_outbox_event(
+                business_id=payment.business_id,
+                event_type="PAYMENT_REFUNDED",
+                aggregate_id=payment.id,
+                payload={
+                    "payment_id": str(payment.id),
+                    "invoice_id": str(payment.invoice_id),
+                    "customer_id": str(payment.customer_id),
+                    "refund_amount": str(refund_amount),
+                    "currency": payment.currency,
+                    "status": payment.status,
+                    "notification_title": "Refund processed",
+                    "notification_body": f"Refund of {payment.currency} {refund_amount} has been processed.",
+                },
+            )
+
             logger.info(
                 "payment_refunded",
                 payment_id=str(payment.id),
@@ -544,6 +599,28 @@ class PaymentService:
         return payment
 
     # --- Internal helpers ---
+
+    async def _emit_outbox_event(
+        self,
+        *,
+        business_id: uuid.UUID,
+        event_type: str,
+        aggregate_id: uuid.UUID,
+        payload: dict,
+    ) -> None:
+        """Create an outbox event in the same transaction."""
+        event = OutboxEvent(
+            business_id=business_id,
+            event_type=event_type,
+            aggregate_type="payment",
+            aggregate_id=aggregate_id,
+            payload=payload,
+            idempotency_key=f"{event_type}:payment:{aggregate_id}",
+            status="PENDING",
+            available_at=datetime.now(UTC),
+        )
+        self.session.add(event)
+        await self.session.flush()
 
     def _validate_transition(self, from_status: str, to_status: PaymentStatus) -> None:
         """Validate a payment state transition."""
@@ -624,6 +701,14 @@ class PaymentService:
         old_status = invoice.payment_status
         invoice.payment_status = new_status
         await self.invoice_repo.update(invoice)
+
+        # Sync the linked ledger entry's payment status so ledger
+        # summaries (paid/outstanding) reflect actual payments.
+        ledger_entries = await self.ledger_repo.get_by_invoice_id(invoice.id)
+        for entry in ledger_entries:
+            if entry.payment_status != new_status:
+                entry.payment_status = new_status
+                await self.ledger_repo.update(entry)
 
         logger.info(
             "invoice_payment_status_updated",

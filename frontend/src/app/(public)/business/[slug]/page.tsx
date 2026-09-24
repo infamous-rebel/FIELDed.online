@@ -1,5 +1,6 @@
 import { publicApi, type PublicBusinessProfile } from "@/lib/api-client";
 import Link from "next/link";
+import StartEnquiryButton from "./start-enquiry-button";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -185,6 +186,18 @@ export default async function PublicBusinessProfilePage({
 
         {/* Sidebar */}
         <div className="space-y-4">
+          {/* Start Enquiry CTA */}
+          {business.service_offers.length > 0 && (
+            <StartEnquiryButton
+              businessId={business.id}
+              businessSlug={business.slug}
+              serviceOffers={business.service_offers.map((o) => ({
+                id: o.id,
+                name: o.name,
+              }))}
+            />
+          )}
+
           {/* Contact */}
           <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-[var(--text-muted)]">Contact</h3>

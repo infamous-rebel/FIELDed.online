@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   bookings,
   businesses,
+  serviceExecutions,
   type BookingData,
   type BusinessSummary,
   FieldedApiError,
@@ -63,6 +65,7 @@ const BUSINESS_TRANSITIONS: Record<string, { target: string; label: string; vari
 };
 
 export default function BusinessBookingsPage() {
+  const router = useRouter();
   const [business, setBusiness] = useState<BusinessSummary | null>(null);
   const [bookingList, setBookingList] = useState<BookingData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,6 +114,23 @@ export default function BusinessBookingsPage() {
           : "Failed to transition booking"
       );
     } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleScheduleService(bookingId: string) {
+    if (!business) return;
+    try {
+      setActionLoading(`${bookingId}:schedule`);
+      await serviceExecutions.create(business.id, bookingId);
+      // Execution created (scheduled) — manage it from the operations page
+      router.push("/business/operations");
+    } catch (err) {
+      setError(
+        err instanceof FieldedApiError
+          ? err.error.message
+          : "Failed to schedule service"
+      );
       setActionLoading(null);
     }
   }
@@ -223,6 +243,15 @@ export default function BusinessBookingsPage() {
                           {t.label}
                         </button>
                       ))}
+                      {booking.status === "confirmed" && (
+                        <button
+                          onClick={() => handleScheduleService(booking.id)}
+                          disabled={actionLoading === `${booking.id}:schedule`}
+                          className="rounded-lg px-3 py-1.5 text-xs font-medium bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-50"
+                        >
+                          Schedule Service
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

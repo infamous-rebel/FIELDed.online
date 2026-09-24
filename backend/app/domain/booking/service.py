@@ -240,8 +240,14 @@ class BookingService:
             )
 
         # Actor-specific authority
-        if actor == "customer" and target_status != BookingStatus.CANCELLED:
-            raise AuthorizationError("Customers can only cancel their own bookings")
+        # Customers can cancel any booking, or accept a proposed booking.
+        customer_allowed = {BookingStatus.CANCELLED}
+        if current == BookingStatus.PROPOSED:
+            customer_allowed.add(BookingStatus.ACCEPTED)
+        if actor == "customer" and target_status not in customer_allowed:
+            raise AuthorizationError(
+                "Customers can only cancel bookings or accept proposed bookings"
+            )
 
         old_status = booking.status
         booking.status = target_status
@@ -270,6 +276,18 @@ class BookingService:
         )
 
         # Emit outbox event for communication pipeline
+        notification_title = f"Booking {target_status.value}"
+        notification_body = f"Booking {booking.reference} status: {target_status.value}"
+        if target_status == BookingStatus.CONFIRMED:
+            notification_title = "Booking confirmed"
+            notification_body = f"Your booking {booking.reference} has been confirmed."
+        elif target_status == BookingStatus.COMPLETED:
+            notification_title = "Service completed"
+            notification_body = f"Your service for booking {booking.reference} has been completed."
+        elif target_status == BookingStatus.PROPOSED:
+            notification_title = "Booking proposed"
+            notification_body = f"The business has proposed a time for booking {booking.reference}."
+
         await self._emit_outbox_event(
             business_id=booking.business_id,
             event_type=f"BOOKING_{target_status.value.upper()}",
@@ -280,6 +298,8 @@ class BookingService:
                 "quote_id": str(booking.quote_id),
                 "customer_id": str(booking.customer_id),
                 "status": target_status.value,
+                "notification_title": notification_title,
+                "notification_body": notification_body,
             },
         )
 

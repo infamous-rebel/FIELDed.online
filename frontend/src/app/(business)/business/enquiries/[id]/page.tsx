@@ -3,10 +3,13 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import {
+  businesses,
   enquiries,
+  quotes,
   type EnquiryData,
   type ConversationData,
   type MessageData,
+  type QuoteData,
   FieldedApiError,
 } from "@/lib/api-client";
 import { Card } from "@/components/ui/card";
@@ -33,6 +36,9 @@ const TRANSITION_OPTIONS: Record<string, { label: string; target: string; varian
   ],
 };
 
+// Enquiry states where a quote can be created
+const QUOTABLE_STATES = new Set(["received", "in_review", "needs_information"]);
+
 function formatStatus(status: string): string {
   return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -49,25 +55,52 @@ function formatDate(dateStr: string): string {
 
 export default function BusinessEnquiryDetailPage() {
   const params = useParams();
-  const businessId = params.businessId as string;
   const enquiryId = params.id as string;
 
+  const [businessId, setBusinessId] = useState<string | null>(null);
   const [enquiry, setEnquiry] = useState<EnquiryData | null>(null);
   const [conversation, setConversation] = useState<ConversationData | null>(null);
+  const [quote, setQuote] = useState<QuoteData | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [creatingQuote, setCreatingQuote] = useState(false);
+  const [issuingQuote, setIssuingQuote] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Resolve business ID client-side (same pattern as enquiries list)
+  useEffect(() => {
+    async function resolveBusiness() {
+      try {
+        const bizList = await businesses.list();
+        if (bizList.length > 0) {
+          setBusinessId(bizList[0].id);
+        } else {
+          setError("No business found for this account.");
+          setLoading(false);
+        }
+      } catch {
+        setError("Failed to resolve business.");
+        setLoading(false);
+      }
+    }
+    resolveBusiness();
+  }, []);
+
   async function loadData() {
+    if (!businessId) return;
     try {
-      const [enq, conv] = await Promise.all([
+      const [enq, conv, quoteList] = await Promise.all([
         enquiries.getBusinessEnquiry(businessId, enquiryId),
         enquiries.getBusinessConversation(businessId, enquiryId),
+        quotes.listForBusiness(businessId).catch(() => []),
       ]);
       setEnquiry(enq);
       setConversation(conv);
+      // Find the quote for this enquiry
+      const enqQuote = quoteList.find((q: QuoteData) => q.enquiry_id === enquiryId);
+      setQuote(enqQuote || null);
     } catch (err) {
       if (err instanceof FieldedApiError) {
         setError(err.error.message);
@@ -80,7 +113,9 @@ export default function BusinessEnquiryDetailPage() {
   }
 
   useEffect(() => {
-    loadData();
+    if (businessId) {
+      loadData();
+    }
   }, [businessId, enquiryId]);
 
   useEffect(() => {
@@ -88,7 +123,7 @@ export default function BusinessEnquiryDetailPage() {
   }, [conversation?.messages]);
 
   async function handleSend() {
-    if (!newMessage.trim() || sending) return;
+    if (!newMessage.trim() || sending || !businessId) return;
     setSending(true);
     try {
       await enquiries.sendBusinessMessage(businessId, enquiryId, newMessage.trim());
@@ -105,6 +140,7 @@ export default function BusinessEnquiryDetailPage() {
   }
 
   async function handleTransition(targetStatus: string) {
+    if (!businessId) return;
     try {
       const updated = await enquiries.transitionBusiness(businessId, enquiryId, targetStatus);
       setEnquiry(updated);
@@ -112,6 +148,44 @@ export default function BusinessEnquiryDetailPage() {
       if (err instanceof FieldedApiError) {
         setError(err.error.message);
       }
+    }
+  }
+
+  async function handleCreateQuote() {
+    if (!businessId || !enquiry) return;
+    setCreatingQuote(true);
+    setError(null);
+    try {
+      const created = await quotes.create(businessId, { enquiry_id: enquiryId });
+      setQuote(created);
+      // Reload to get updated enquiry status (now QUOTED)
+      await loadData();
+    } catch (err) {
+      if (err instanceof FieldedApiError) {
+        setError(err.error.message);
+      } else {
+        setError("Failed to create quote");
+      }
+    } finally {
+      setCreatingQuote(false);
+    }
+  }
+
+  async function handleIssueQuote() {
+    if (!businessId || !quote) return;
+    setIssuingQuote(true);
+    setError(null);
+    try {
+      const issued = await quotes.transitionBusiness(businessId, quote.id, "issued");
+      setQuote(issued);
+    } catch (err) {
+      if (err instanceof FieldedApiError) {
+        setError(err.error.message);
+      } else {
+        setError("Failed to issue quote");
+      }
+    } finally {
+      setIssuingQuote(false);
     }
   }
 
@@ -280,6 +354,69 @@ export default function BusinessEnquiryDetailPage() {
                     {t.label}
                   </Button>
                 ))}
+              </div>
+            )}
+
+            {/* Create / Issue quote */}
+            {QUOTABLE_STATES.has(enquiry.status) && !quote && (
+              <div className="mt-3 border-t border-[var(--border-subtle)] pt-3">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleCreateQuote}
+                  loading={creatingQuote}
+                  disabled={creatingQuote}
+                >
+                  Create Quote
+                </Button>
+                <p className="mt-2 text-xs text-[var(--text-muted)]">
+                  Pricing is calculated from your service offer and active pricing rules.
+                </p>
+              </div>
+            )}
+
+            {/* Quote card — shown once created */}
+            {quote && (
+              <div className="mt-3 border-t border-[var(--border-subtle)] pt-3">
+                <p className="text-xs font-mono text-[var(--text-muted)]">{quote.reference}</p>
+                <p className="mt-1 text-lg font-bold text-[var(--text-primary)]">
+                  {new Intl.NumberFormat(undefined, { style: "currency", currency: quote.currency }).format(Number(quote.amount))}
+                </p>
+                <div className="mt-1">
+                  <Badge variant={statusBadgeVariant(quote.status)}>
+                    {formatStatus(quote.status)}
+                  </Badge>
+                </div>
+                {quote.notes && (
+                  <p className="mt-2 text-xs text-[var(--text-secondary)]">{quote.notes}</p>
+                )}
+                {quote.status === "draft" && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleIssueQuote}
+                    loading={issuingQuote}
+                    disabled={issuingQuote}
+                    className="mt-3"
+                  >
+                    Issue Quote to Customer
+                  </Button>
+                )}
+                {quote.status === "issued" && (
+                  <p className="mt-2 text-xs text-[var(--accent)]">
+                    Quote sent to customer. Awaiting their response.
+                  </p>
+                )}
+                {quote.status === "accepted" && (
+                  <p className="mt-2 text-xs text-green-400">
+                    Customer accepted this quote.
+                  </p>
+                )}
+                {quote.status === "declined" && (
+                  <p className="mt-2 text-xs text-[var(--danger)]">
+                    Customer declined this quote.
+                  </p>
+                )}
               </div>
             )}
           </Card>

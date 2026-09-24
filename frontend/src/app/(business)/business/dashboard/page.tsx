@@ -20,6 +20,8 @@ import {
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { statusToBadgeVariant } from "@/lib/status";
 
 export default function BusinessDashboardPage() {
   const [user, setUser] = useState<UserResponse | null>(null);
@@ -107,12 +109,19 @@ export default function BusinessDashboardPage() {
         ) : (
           <>
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-              Good {getGreeting()}, {user?.customer_profile?.first_name || user?.email || "Operator"}
+              Good {getGreeting()}, {getDisplayName(user)}
             </h1>
             <p className="mt-1 text-[var(--text-secondary)]">
               {bizList.length > 0
                 ? `Managing ${bizList.length} business${bizList.length > 1 ? "es" : ""}`
-                : "No businesses registered yet"}
+                : (
+                  <>
+                    No businesses registered yet.{" "}
+                    <a href="/business/onboarding" className="text-[var(--accent)] hover:underline">
+                      Set up your business
+                    </a>
+                  </>
+                )}
             </p>
           </>
         )}
@@ -170,9 +179,7 @@ export default function BusinessDashboardPage() {
             <LoadingSkeleton lines={1} />
           ) : (
             <p className="mt-1 text-3xl font-bold text-[var(--text-primary)]">
-              {Number(summary.paid_amount).toLocaleString(undefined, {
-                maximumFractionDigits: 2,
-              })}
+              {formatAmount(Number(summary.paid_amount))}
             </p>
           )}
         </Card>
@@ -183,92 +190,10 @@ export default function BusinessDashboardPage() {
             <LoadingSkeleton lines={1} />
           ) : (
             <p className="mt-1 text-3xl font-bold text-[var(--text-primary)]">
-              {Number(summary.outstanding_amount).toLocaleString(undefined, {
-                maximumFractionDigits: 2,
-              })}
+              {formatAmount(Number(summary.outstanding_amount))}
             </p>
           )}
         </Card>
-      </div>
-
-      {/* NOT YET AVAILABLE — Business Brain Metrics */}
-      <div>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">
-          Business Brain Insights
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <NotAvailableCard
-            title="Conversion Rate"
-            message="Not configured — requires Business Brain rules"
-          />
-          <NotAvailableCard
-            title="Business Brain Uptime"
-            message="Business Brain not yet configured"
-          />
-          <NotAvailableCard
-            title="Avg. Response Time"
-            message="No data available"
-          />
-        </div>
-      </div>
-
-      {/* NOT YET AVAILABLE — Performance */}
-      <div>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">
-          Service Performance
-        </h2>
-        <Card>
-          <div className="text-center py-8">
-            <p className="text-[var(--text-muted)]">
-              Connect your Business Brain to see performance data
-            </p>
-          </div>
-        </Card>
-      </div>
-
-      {/* NOT YET AVAILABLE — AI-Human Handover */}
-      <div>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">
-          AI-Human Handover
-        </h2>
-        <Card>
-          <div className="text-center py-8">
-            <p className="text-[var(--text-muted)]">
-              No handover rules configured yet
-            </p>
-          </div>
-        </Card>
-      </div>
-
-      {/* NOT YET AVAILABLE — Workflow Automation */}
-      <div>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">
-          Workflow Automation
-        </h2>
-        <div className="space-y-3">
-          {["Auto-qualify enquiries", "Auto-respond to common queries", "Escalate high-value leads"].map(
-            (item) => (
-              <Card key={item} padding="sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[var(--text-secondary)]">
-                    {item}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-[var(--text-muted)]">
-                      Not yet configured
-                    </span>
-                    <div
-                      className="h-5 w-9 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-default)]"
-                      role="switch"
-                      aria-disabled="true"
-                      aria-label={`${item} — not yet available`}
-                    />
-                  </div>
-                </div>
-              </Card>
-            )
-          )}
-        </div>
       </div>
 
       {/* Quick Actions */}
@@ -310,11 +235,10 @@ export default function BusinessDashboardPage() {
           Recent Activity
         </h2>
         {recentItems.length === 0 ? (
-          <Card>
-            <div className="text-center py-8">
-              <p className="text-[var(--text-muted)]">No activity yet.</p>
-            </div>
-          </Card>
+          <EmptyState
+            title="No activity yet"
+            description="Recent enquiries and bookings will appear here."
+          />
         ) : (
           <div className="space-y-3">
             {recentItems.map((item) => (
@@ -322,7 +246,7 @@ export default function BusinessDashboardPage() {
                 <a
                   href={
                     item.type === "enquiry"
-                      ? `/business/${bizList[0]?.id}/enquiries/${item.id}`
+                      ? `/business/enquiries/${item.id}`
                       : "/business/bookings"
                   }
                   className="flex items-center justify-between"
@@ -333,7 +257,7 @@ export default function BusinessDashboardPage() {
                     </p>
                     <p className="text-xs text-[var(--text-muted)] mt-0.5">{item.sub}</p>
                   </div>
-                  <Badge variant={statusVariant(item.status)}>
+                  <Badge variant={statusToBadgeVariant(item.status)}>
                     {item.status.replace(/_/g, " ")}
                   </Badge>
                 </a>
@@ -346,21 +270,18 @@ export default function BusinessDashboardPage() {
   );
 }
 
-function NotAvailableCard({
-  title,
-  message,
-}: {
-  title: string;
-  message: string;
-}) {
-  return (
-    <Card>
-      <p className="text-sm text-[var(--text-muted)]">{title}</p>
-      <p className="mt-1 text-sm text-[var(--text-secondary)] italic">
-        {message}
-      </p>
-    </Card>
-  );
+function getDisplayName(user: UserResponse | null): string {
+  if (!user) return "Operator";
+  const firstName = user.customer_profile?.first_name;
+  if (firstName) return firstName;
+  return user.email || "Operator";
+}
+
+function formatAmount(amount: number): string {
+  return amount.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
 }
 
 function getGreeting(): string {
@@ -368,27 +289,4 @@ function getGreeting(): string {
   if (hour < 12) return "morning";
   if (hour < 18) return "afternoon";
   return "evening";
-}
-
-function statusVariant(status: string): "info" | "warning" | "danger" | "muted" | "default" {
-  switch (status.toLowerCase()) {
-    case "submitted":
-    case "received":
-      return "info";
-    case "in_review":
-    case "needs_information":
-    case "in_progress":
-    case "requested":
-    case "proposed":
-      return "warning";
-    case "cancelled":
-    case "declined":
-    case "expired":
-    case "no_show":
-      return "danger";
-    case "draft":
-      return "muted";
-    default:
-      return "default";
-  }
 }

@@ -101,7 +101,7 @@ class OrchestrationService:
         # Extract communication targets from payload
         targets = payload.get("communication_targets", [])
         if not targets:
-            # Create a notification only (no external communication)
+            # Create a business notification (no external communication)
             await self._create_notification(
                 business_id=business_id,
                 event_type=event_type,
@@ -110,6 +110,20 @@ class OrchestrationService:
                 payload=payload,
                 outbox_event_id=outbox_event_id,
             )
+            # Also create a customer notification if customer_id is in payload
+            customer_id_str = payload.get("customer_id")
+            if customer_id_str:
+                customer_id = uuid.UUID(customer_id_str) if isinstance(customer_id_str, str) else customer_id_str
+                await self._create_notification(
+                    business_id=business_id,
+                    event_type=event_type,
+                    aggregate_type=aggregate_type,
+                    aggregate_id=aggregate_id,
+                    payload=payload,
+                    outbox_event_id=outbox_event_id,
+                    customer_id=customer_id,
+                    notification_type=event_type,
+                )
             return []
 
         communications: list[Communication] = []
@@ -209,7 +223,8 @@ class OrchestrationService:
         notification_type: str | None = None,
     ) -> Notification:
         """Create an idempotent notification."""
-        idem_key = f"notification:{event_type}:{aggregate_type}:{aggregate_id}:{outbox_event_id}"
+        recipient_suffix = f"cust:{customer_id}" if customer_id else "biz"
+        idem_key = f"notification:{event_type}:{aggregate_type}:{aggregate_id}:{outbox_event_id}:{recipient_suffix}"
         title = payload.get("notification_title", event_type)
         body = payload.get("notification_body", f"Event: {event_type}")
 

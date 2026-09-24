@@ -19,7 +19,8 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.adapters.ai.stub import StubAIProvider
+from app.adapters import _resolve_discovery_ai_provider
+from app.adapters.ai.base import AIProvider
 from app.database import get_db_session
 from app.domain.discovery import (
     DiscoveryIntent,
@@ -75,13 +76,14 @@ class DiscoveryResponse(BaseModel):
 # --- Helpers ---
 
 
-def _get_ai_provider(request: Request) -> StubAIProvider:
-    """Get the AI provider. Currently always returns the stub.
+def _get_ai_provider(request: Request) -> AIProvider:
+    """Resolve the AI provider for the Discovery workload.
 
-    In production, this would check app.state.settings and return
-    the configured provider (Gemini, OpenAI, etc.).
+    Uses the discovery-specific resolver which checks
+    DISCOVERY_AI_API_KEY / DISCOVERY_AI_BASE_URL first, then
+    falls back to the global AI configuration.
     """
-    return StubAIProvider()
+    return _resolve_discovery_ai_provider(request.app.state.settings)
 
 
 def _result_to_response(result: DiscoveryResult) -> DiscoveryResponse:

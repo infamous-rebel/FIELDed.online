@@ -388,7 +388,7 @@ class TestGatherCallbackEndpoint:
 
         # Patch the AI provider resolver so the endpoint uses our stub
         ai = StubConversationalAI()
-        monkeypatch.setattr("app.adapters._resolve_ai_provider", lambda settings: ai)
+        monkeypatch.setattr("app.adapters._resolve_call_agent_ai_provider", lambda settings: ai)
 
         # Start the agent session first (simulating the initial TwiML)
         agent = VoiceCallAgent(db_session, ai)

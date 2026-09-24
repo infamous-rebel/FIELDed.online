@@ -110,7 +110,7 @@ def stub_providers(monkeypatch: pytest.MonkeyPatch) -> StubVoiceProvider:
         "from_settings",
         classmethod(lambda cls, settings: SimpleNamespace(voice_provider=provider)),
     )
-    monkeypatch.setattr(adapters_module, "_resolve_ai_provider", lambda settings: ScriptedAI())
+    monkeypatch.setattr(adapters_module, "_resolve_call_agent_ai_provider", lambda settings: ScriptedAI())
     return provider
 
 

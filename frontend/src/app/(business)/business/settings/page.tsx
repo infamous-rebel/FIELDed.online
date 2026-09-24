@@ -18,12 +18,14 @@ import {
 } from "@/lib/api-client";
 import { isAuthenticated } from "@/lib/auth";
 
-type Tab = "identity" | "members" | "communications" | "payments" | "security";
+type Tab = "identity" | "services" | "brain" | "members" | "communications" | "payments" | "security";
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: "identity", label: "Identity" },
-  { id: "members", label: "Members" },
-  { id: "communications", label: "Communications" },
+  { id: "identity", label: "Profile" },
+  { id: "services", label: "Services" },
+  { id: "brain", label: "Business Brain" },
+  { id: "members", label: "Team" },
+  { id: "communications", label: "Channels" },
   { id: "payments", label: "Payments" },
   { id: "security", label: "Security" },
 ];
@@ -279,6 +281,40 @@ export default function BusinessSettings() {
               — settings do not duplicate them.
             </p>
           </>
+        )}
+
+        {/* --- Services --- */}
+        {tab === "services" && business && (
+          <Section title="Service Offers">
+            <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+              Define the services your business provides. Each service offer can have its own pricing, delivery mode, and category.
+            </p>
+            <div className="mt-4 flex gap-3">
+              <Link
+                href="/business/services"
+                className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--accent-hover)] transition-colors"
+              >
+                Manage Services
+              </Link>
+            </div>
+          </Section>
+        )}
+
+        {/* --- Business Brain --- */}
+        {tab === "brain" && business && (
+          <Section title="Business Brain">
+            <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+              Your Business Brain governs how your business operates — pricing rules, availability, policies, and qualification criteria. Configure it through a conversational interface.
+            </p>
+            <div className="mt-4 flex gap-3">
+              <Link
+                href="/business/brain"
+                className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--accent-hover)] transition-colors"
+              >
+                Open Business Brain
+              </Link>
+            </div>
+          </Section>
         )}
 
         {/* --- Members --- */}

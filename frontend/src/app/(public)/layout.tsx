@@ -1,3 +1,14 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: {
+    default: "FIELDed — Find Services, Connect with Businesses",
+    template: "%s — FIELDed",
+  },
+  description:
+    "Describe what you need in plain language. FIELDed matches you with qualified businesses instantly.",
+};
+
 export default function PublicLayout({
   children,
 }: {

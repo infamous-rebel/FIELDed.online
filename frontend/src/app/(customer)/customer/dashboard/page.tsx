@@ -15,33 +15,13 @@ import {
   FieldedApiError,
 } from "@/lib/api-client";
 import { isAuthenticated } from "@/lib/auth";
+import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
+import { statusToTextColor } from "@/lib/status";
 
 interface DashboardData {
   enquiries: EnquiryData[];
   bookings: BookingData[];
   reviews: ReviewData[];
-}
-
-function statusColor(status: string): string {
-  const colors: Record<string, string> = {
-    draft: "text-[var(--text-muted)]",
-    submitted: "text-blue-400",
-    received: "text-blue-400",
-    in_review: "text-blue-400",
-    quoted: "text-amber-400",
-    customer_accepted: "text-emerald-400",
-    booking_proposed: "text-amber-400",
-    booked: "text-emerald-400",
-    confirmed: "text-emerald-400",
-    in_progress: "text-amber-400",
-    completed: "text-emerald-400",
-    cancelled: "text-[var(--text-muted)]",
-    declined: "text-[var(--danger)]",
-    requested: "text-blue-400",
-    proposed: "text-amber-400",
-    accepted: "text-emerald-400",
-  };
-  return colors[status] || "text-[var(--text-secondary)]";
 }
 
 export default function CustomerDashboardPage() {
@@ -86,14 +66,12 @@ export default function CustomerDashboardPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-12">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 w-1/3 rounded bg-[var(--bg-elevated)]" />
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-24 rounded-xl bg-[var(--bg-elevated)]" />
-            ))}
-          </div>
+      <div className="mx-auto max-w-6xl px-4 py-8">
+        <LoadingSkeleton lines={2} />
+        <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <LoadingSkeleton key={i} variant="card" />
+          ))}
         </div>
       </div>
     );
@@ -184,7 +162,7 @@ export default function CustomerDashboardPage() {
                       {new Date(item.date).toLocaleDateString()}
                     </p>
                   </div>
-                  <span className={`text-xs font-medium capitalize ${statusColor(item.status)}`}>
+                  <span className={`text-xs font-medium capitalize ${statusToTextColor(item.status)}`}>
                     {item.status.replace(/_/g, " ")}
                   </span>
                 </li>
@@ -198,10 +176,10 @@ export default function CustomerDashboardPage() {
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">Quick Actions</h2>
           <div className="mt-4 space-y-3">
             <Link
-              href="/network"
+              href="/search"
               className="block rounded-lg bg-[var(--accent)] px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
             >
-              Browse Network
+              Find a Service
             </Link>
             <Link
               href="/customer/enquiries"

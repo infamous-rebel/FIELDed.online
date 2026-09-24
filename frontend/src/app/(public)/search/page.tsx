@@ -10,6 +10,17 @@ import {
   FieldedApiError,
 } from "@/lib/api-client";
 
+const SEARCH_PLACEHOLDERS = [
+  'I need a plumber in Sydney...',
+  'I need an electrician in Melbourne...',
+  'I need a cleaner in Brisbane...',
+  'I need a carpenter in Perth...',
+  'I need a painter in Adelaide...',
+  'I need a gardener in Gold Coast...',
+  'I need a locksmith in Hobart...',
+  'I need a tiler in Canberra...',
+];
+
 function formatPricingLabel(pricingModel: string): string {
   const labels: Record<string, string> = {
     fixed: "Fixed Price",
@@ -38,6 +49,15 @@ export default function SearchPage() {
   const [error, setError] = useState("");
   const [allCategories, setAllCategories] = useState<ServiceCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+
+  // Rotate placeholder placeholder text
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPlaceholderIndex((i) => (i + 1) % SEARCH_PLACEHOLDERS.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Restore preserved query from landing page
   useEffect(() => {
@@ -104,13 +124,13 @@ export default function SearchPage() {
           onChange={(e) => { setQuery(e.target.value); setSelectedCategory(""); }}
           className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none"
           rows={3}
-          placeholder='e.g., "I need an electrician to inspect my apartment wiring tomorrow afternoon"'
+          placeholder={SEARCH_PLACEHOLDERS[placeholderIndex]}
         />
         <div className="mt-4 flex items-center gap-3">
           <button
             type="submit"
             disabled={searching || (!query.trim() && !selectedCategory)}
-            className="rounded-lg bg-[var(--accent)] px-6 py-3 text-white font-medium hover:bg-[var(--accent-hover)] disabled:opacity-50"
+            className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm text-white font-medium hover:bg-[var(--accent-hover)] disabled:opacity-50"
           >
             {searching ? "Searching..." : "Search"}
           </button>
