@@ -61,3 +61,4 @@ frontend/src/components/ui/*.png
 
 # Verification/audit screenshots (not application assets)
 *.png
+.env*

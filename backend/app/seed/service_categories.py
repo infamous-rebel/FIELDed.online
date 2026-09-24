@@ -51,13 +51,21 @@ SERVICE_CATEGORIES: list[tuple[str, str, str]] = [
     ("inspection", "Inspection", "Property, safety, and compliance inspections."),
     # Broad service-agnostic categories
     ("professional-services", "Professional Services", "Consulting, advisory, and professional business services."),
-    ("technology-digital", "Technology & Digital", "Software development, IT, digital marketing, and technology services."),
+    (
+        "technology-digital",
+        "Technology & Digital",
+        "Software development, IT, digital marketing, and technology services.",
+    ),
     ("health-wellness", "Health & Wellness", "Healthcare, therapy, fitness, and wellness services."),
     ("education-training", "Education & Training", "Teaching, tutoring, coaching, and professional development."),
     ("creative-media", "Creative & Media", "Design, photography, video production, and creative services."),
     ("events-hospitality", "Events & Hospitality", "Event planning, catering, venue, and hospitality services."),
     ("transport-logistics", "Transport & Logistics", "Delivery, freight, moving, and logistics services."),
-    ("real-estate-property", "Real Estate & Property", "Property management, real estate, and property-related services."),
+    (
+        "real-estate-property",
+        "Real Estate & Property",
+        "Property management, real estate, and property-related services.",
+    ),
     ("manufacturing-industrial", "Manufacturing & Industrial", "Manufacturing, fabrication, and industrial services."),
     ("personal-services", "Personal Services", "Personal care, lifestyle, and household services."),
 ]

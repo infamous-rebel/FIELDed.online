@@ -153,21 +153,23 @@ _DEFAULT_QUALIFICATION_FIELDS: list[str] = [
 
 # Fields that must NOT appear in qualification_rule required_fields
 # unless the owner explicitly typed them in the conversation.
-_FORBIDDEN_QUALIFICATION_FIELDS: frozenset[str] = frozenset({
-    "company_name",
-    "contact_name",
-    "email",
-    "email_address",
-    "phone",
-    "phone_number",
-    "budget",
-    "budget_estimate",
-    "desired_start_date",
-    "service_agreement",
-    "address",
-    "tax_id",
-    "license_number",
-})
+_FORBIDDEN_QUALIFICATION_FIELDS: frozenset[str] = frozenset(
+    {
+        "company_name",
+        "contact_name",
+        "email",
+        "email_address",
+        "phone",
+        "phone_number",
+        "budget",
+        "budget_estimate",
+        "desired_start_date",
+        "service_agreement",
+        "address",
+        "tax_id",
+        "license_number",
+    }
+)
 
 # Schema for structured proposal extraction
 PROPOSAL_EXTRACTION_SCHEMA = {
@@ -703,21 +705,23 @@ class BrainConversationService:
         # emits the [PROPOSAL] block immediately.
         effective_chat_messages = list(chat_messages)
         if self._is_explicit_proposal_request(owner_message):
-            effective_chat_messages.append({
-                "role": "user",
-                "content": (
-                    "IMPORTANT: The owner has explicitly requested a formal "
-                    "proposal. Do NOT ask for confirmation. Generate the "
-                    "[PROPOSAL] block now.\n\n"
-                    "For the rule_data, set required_fields to exactly this "
-                    "list for Business Consulting: "
-                    '["desired_outcome", "main_problem", '
-                    '"expected_deliverables", "desired_timeline", '
-                    '"important_constraints"].\n\n'
-                    "Do NOT leave required_fields empty. Do NOT add "
-                    "company_name, email, phone, budget, or service_agreement."
-                ),
-            })
+            effective_chat_messages.append(
+                {
+                    "role": "user",
+                    "content": (
+                        "IMPORTANT: The owner has explicitly requested a formal "
+                        "proposal. Do NOT ask for confirmation. Generate the "
+                        "[PROPOSAL] block now.\n\n"
+                        "For the rule_data, set required_fields to exactly this "
+                        "list for Business Consulting: "
+                        '["desired_outcome", "main_problem", '
+                        '"expected_deliverables", "desired_timeline", '
+                        '"important_constraints"].\n\n'
+                        "Do NOT leave required_fields empty. Do NOT add "
+                        "company_name, email, phone, budget, or service_agreement."
+                    ),
+                }
+            )
 
         if isinstance(self.ai_provider, GroqProvider):
             response = await self.ai_provider.chat(
@@ -1072,10 +1076,7 @@ class BrainConversationService:
 
         # Strip forbidden fields
         if required_fields:
-            required_fields = [
-                f for f in required_fields
-                if f not in _FORBIDDEN_QUALIFICATION_FIELDS
-            ]
+            required_fields = [f for f in required_fields if f not in _FORBIDDEN_QUALIFICATION_FIELDS]
 
         # If empty after filtering (or was empty to begin with), inject
         # the default set.
