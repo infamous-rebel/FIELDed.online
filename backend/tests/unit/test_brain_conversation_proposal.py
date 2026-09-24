@@ -437,3 +437,104 @@ class TestEmptyDisplayTextFallback:
         assert "Here's what I suggest:" in display_text
         assert "Let me know if this works." in display_text
         assert "[PROPOSAL]" not in display_text
+
+
+# ---------------------------------------------------------------------------
+# Fix 1: Nested JSON stripping from display text
+# ---------------------------------------------------------------------------
+
+
+class TestNestedJsonStripping:
+    """The AI often returns nested JSON inside [PROPOSAL] blocks.
+    The old regex \\{.*?\\} only matched one level of braces, leaving
+    raw JSON visible in the conversation. The fix matches on markers."""
+
+    def _make_service(self) -> BrainConversationService:
+        mock_session = MagicMock()
+        mock_ai = MagicMock(spec=AIProvider)
+        return BrainConversationService(mock_session, mock_ai)
+
+    def test_nested_json_fully_stripped(self):
+        """A [PROPOSAL] block containing nested JSON objects must be fully removed."""
+        content = (
+            "I've prepared the proposal.\n\n"
+            "[PROPOSAL]\n"
+            "```json\n"
+            "{\n"
+            '  "proposal_type": "qualification_rule",\n'
+            '  "rule_data": {\n'
+            '    "required_fields": ["desired_outcome", "timeline"],\n'
+            '    "nested": { "deep": { "value": 1 } }\n'
+            "  }\n"
+            "}\n"
+            "```\n"
+            "[/PROPOSAL]\n"
+        )
+        service = self._make_service()
+        cleaned = service._clean_proposal_from_text(content)
+        assert "[PROPOSAL]" not in cleaned
+        assert "[/PROPOSAL]" not in cleaned
+        assert "proposal_type" not in cleaned
+        assert "rule_data" not in cleaned
+        assert "required_fields" not in cleaned
+        assert "I've prepared the proposal." in cleaned
+
+    def test_bare_json_block_outside_proposal_stripped(self):
+        """Defence in depth: bare ```json blocks outside [PROPOSAL] are also stripped."""
+        content = (
+            "Here is my response.\n\n"
+            "```json\n"
+            '{"proposal_type": "pricing_rule", "confidence": 0.9}\n'
+            "```\n"
+            "\nEnd of message."
+        )
+        service = self._make_service()
+        cleaned = service._clean_proposal_from_text(content)
+        assert "proposal_type" not in cleaned
+        assert "Here is my response." in cleaned
+        assert "End of message." in cleaned
+
+
+# ---------------------------------------------------------------------------
+# Fix 2: System prompt contains qualification constraint
+# ---------------------------------------------------------------------------
+
+
+class TestQualificationConstraintInPrompt:
+    """Verify the system prompt constrains qualification rules to established fields."""
+
+    def test_system_prompt_contains_qualification_constraint(self):
+        from app.domain.business.conversation_service import BRAIN_SYSTEM_PROMPT
+
+        assert "QUALIFICATION RULE CONSTRAINT" in BRAIN_SYSTEM_PROMPT
+        assert "Do NOT invent" in BRAIN_SYSTEM_PROMPT
+        assert "explicitly stated" in BRAIN_SYSTEM_PROMPT
+
+    @pytest.mark.asyncio
+    async def test_directive_includes_field_constraint(self):
+        """The injected directive for explicit proposal requests must mention
+        the field constraint."""
+        mock_session = MagicMock()
+        from app.adapters.ai.groq import GroqProvider
+        service = BrainConversationService(mock_session, MagicMock(spec=AIProvider))
+        service.ai_provider = MagicMock(spec=GroqProvider)
+        service.ai_provider.chat = AsyncMock(
+            return_value=AIResponse(
+                content="OK",
+                model="test",
+                usage={"prompt_tokens": 0, "completion_tokens": 0},
+            )
+        )
+        service.ai_provider.provider_name = "groq"
+
+        await service._ai_response_with_proposal(
+            "system",
+            [{"role": "user", "content": "Create a proposal."}],
+            "Create a proposal.",
+        )
+
+        call_args = service.ai_provider.chat.call_args
+        messages_sent = call_args[0][0]
+        directive = messages_sent[-1]["content"]
+        assert "ONLY fields" in directive
+        assert "do not invent" in directive.lower()

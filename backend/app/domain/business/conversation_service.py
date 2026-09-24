@@ -81,6 +81,13 @@ CRITICAL CONSTRAINTS:
 - Distinguish between KNOWN (confirmed), PROPOSED (awaiting approval), and UNKNOWN.
 - Be concise and practical. No filler.
 
+QUALIFICATION RULE CONSTRAINT:
+When proposing a qualification_rule, the `rule_data` MUST contain ONLY fields
+that the owner has explicitly stated in this conversation. Do NOT invent,
+infer, or add generic fields (e.g. company_name, contact_name, email, phone,
+budget, service_agreement) unless the owner has explicitly mentioned them.
+If the owner listed specific requirements, use exactly those — no more, no less.
+
 PROPOSAL FORMAT:
 When the owner provides information that should become a business rule, output a proposal block:
 
@@ -664,7 +671,9 @@ class BrainConversationService:
                 "content": (
                     "IMPORTANT: The owner has explicitly requested a formal "
                     "proposal. Do NOT ask for confirmation. Generate the "
-                    "[PROPOSAL] block with the structured JSON data now."
+                    "[PROPOSAL] block with the structured JSON data now. "
+                    "For qualification rules, include ONLY fields the owner "
+                    "has explicitly stated — do not invent or infer extra fields."
                 ),
             })
 
@@ -952,16 +961,33 @@ class BrainConversationService:
         return has_trigger and has_proposal_word
 
     def _clean_proposal_from_text(self, content: str) -> str:
-        """Remove proposal blocks from display text."""
+        """Remove proposal blocks from display text.
+
+        Strips everything between [PROPOSAL] and [/PROPOSAL] markers,
+        including the markers themselves and any surrounding whitespace.
+        Handles nested JSON objects correctly by matching on the markers
+        rather than on brace depth.
+        """
         import re
 
-        # Remove [PROPOSAL]...[/PROPOSAL] blocks (including code fences)
+        # Remove [PROPOSAL]...[/PROPOSAL] blocks — match on markers, not braces,
+        # so nested JSON objects inside the block are fully consumed.
         cleaned = re.sub(
-            r"\[PROPOSAL\]\s*(?:```(?:json)?\s*)?\{.*?\}(?:\s*```\s*)?\[/PROPOSAL\]",
+            r"\[PROPOSAL\].*?\[/PROPOSAL\]",
             "",
             content,
             flags=re.DOTALL,
         )
+
+        # Also strip any leftover bare ```json ... ``` blocks that were
+        # outside [PROPOSAL] markers (defence in depth).
+        cleaned = re.sub(
+            r"```(?:json)?\s*\{[^`]*\}\s*```",
+            "",
+            cleaned,
+            flags=re.DOTALL,
+        )
+
         return cleaned.strip()
 
     async def _create_proposal_from_conversation(
