@@ -78,7 +78,7 @@ class BrainService:
                 if brain is None:
                     from app.exceptions import NotFoundError
 
-                    raise NotFoundError("Business brain not found after concurrent creation")
+                    raise NotFoundError("Business brain not found after concurrent creation") from None
         return brain
 
     async def create_version(

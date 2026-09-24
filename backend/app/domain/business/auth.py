@@ -124,7 +124,7 @@ async def _resolve_brain_with_membership(
             await db.rollback()
             brain = await brain_repo.get_by_business_id(business_id)
             if brain is None:
-                raise NotFoundError("Business brain not found after concurrent creation")
+                raise NotFoundError("Business brain not found after concurrent creation") from None
 
     return brain, membership
 
