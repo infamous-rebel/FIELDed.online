@@ -11,14 +11,14 @@ import {
 } from "@/lib/api-client";
 
 const SEARCH_PLACEHOLDERS = [
-  'I need a plumber in Sydney...',
-  'I need an electrician in Melbourne...',
-  'I need a cleaner in Brisbane...',
-  'I need a carpenter in Perth...',
-  'I need a painter in Adelaide...',
-  'I need a gardener in Gold Coast...',
-  'I need a locksmith in Hobart...',
-  'I need a tiler in Canberra...',
+  'I need a consultant for my startup...',
+  'I need a photographer for an event...',
+  'I need a developer for a website...',
+  'I need a tutor for mathematics...',
+  'I need a designer for a logo...',
+  'I need a cleaner for my office...',
+  'I need a repair service for appliances...',
+  'I need a planner for a corporate event...',
 ];
 
 function formatPricingLabel(pricingModel: string): string {
