@@ -44,9 +44,7 @@ async def biz_context(db_session: AsyncSession, second_user: User) -> dict:
     db_session.add(biz)
     await db_session.flush()
 
-    db_session.add(
-        business_member_factory(user_id=second_user.id, business_id=biz.id, role="owner")
-    )
+    db_session.add(business_member_factory(user_id=second_user.id, business_id=biz.id, role="owner"))
     db_session.add(BusinessProfile(business_id=biz.id, public_status="active"))
     await db_session.flush()
 
@@ -607,7 +605,5 @@ class TestCustomerPayment:
         assert "completed first" in response.text
 
         # No payment confirmation exists for the customer
-        result = await db_session.execute(
-            select(Payment).where(Payment.customer_id == test_user.id)
-        )
+        result = await db_session.execute(select(Payment).where(Payment.customer_id == test_user.id))
         assert result.scalars().all() == []

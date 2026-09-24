@@ -98,9 +98,7 @@ class PaymentService:
         offset: int = 0,
     ) -> list[Payment]:
         """List payments for a business."""
-        return await self.payment_repo.get_by_business(
-            business_id, status=status, limit=limit, offset=offset
-        )
+        return await self.payment_repo.get_by_business(business_id, status=status, limit=limit, offset=offset)
 
     async def list_customer_payments(
         self,
@@ -111,9 +109,7 @@ class PaymentService:
         offset: int = 0,
     ) -> list[Payment]:
         """List payments for a customer."""
-        return await self.payment_repo.get_by_customer(
-            customer_id, status=status, limit=limit, offset=offset
-        )
+        return await self.payment_repo.get_by_customer(customer_id, status=status, limit=limit, offset=offset)
 
     async def get_invoice_payments(self, invoice_id: uuid.UUID) -> list[Payment]:
         """List all payments for an invoice."""
@@ -126,9 +122,7 @@ class PaymentService:
             raise NotFoundError("Invoice not found")
 
         paid_amount = Decimal(await self.payment_repo.get_successful_total_for_invoice(invoice_id))
-        refunded_amount = Decimal(
-            await self.payment_repo.get_refunded_total_for_invoice(invoice_id)
-        )
+        refunded_amount = Decimal(await self.payment_repo.get_refunded_total_for_invoice(invoice_id))
         net_paid = paid_amount - refunded_amount
         invoice_total = Decimal(str(invoice.total))
         outstanding = max(Decimal("0.00"), invoice_total - net_paid)
@@ -195,23 +189,17 @@ class PaymentService:
 
         # Validate currency matches invoice
         if currency != invoice.currency:
-            raise ValidationError(
-                f"Payment currency {currency} does not match invoice currency {invoice.currency}"
-            )
+            raise ValidationError(f"Payment currency {currency} does not match invoice currency {invoice.currency}")
 
         # Calculate outstanding balance
         paid_amount = Decimal(await self.payment_repo.get_successful_total_for_invoice(invoice_id))
-        refunded_amount = Decimal(
-            await self.payment_repo.get_refunded_total_for_invoice(invoice_id)
-        )
+        refunded_amount = Decimal(await self.payment_repo.get_refunded_total_for_invoice(invoice_id))
         net_paid = paid_amount - refunded_amount
         invoice_total = Decimal(str(invoice.total))
         outstanding = invoice_total - net_paid
 
         if amount_decimal > outstanding:
-            raise ValidationError(
-                f"Payment amount {amount} exceeds outstanding balance {outstanding}"
-            )
+            raise ValidationError(f"Payment amount {amount} exceeds outstanding balance {outstanding}")
 
         # Create payment
         payment = Payment(
@@ -264,9 +252,7 @@ class PaymentService:
         # Create attempt
         # Query attempt count to avoid lazy loading relationship
         attempt_count_result = await self.session.execute(
-            select(func.count())
-            .select_from(PaymentAttempt)
-            .where(PaymentAttempt.payment_id == payment.id)
+            select(func.count()).select_from(PaymentAttempt).where(PaymentAttempt.payment_id == payment.id)
         )
         attempt_number = attempt_count_result.scalar_one() + 1
 
@@ -490,9 +476,7 @@ class PaymentService:
             if refund_amount <= 0:
                 raise ValidationError("Refund amount must be positive")
             if refund_amount > max_refundable:
-                raise ValidationError(
-                    f"Refund amount {refund_amount} exceeds refundable balance {max_refundable}"
-                )
+                raise ValidationError(f"Refund amount {refund_amount} exceeds refundable balance {max_refundable}")
         else:
             refund_amount = max_refundable
 
@@ -627,13 +611,9 @@ class PaymentService:
         current = PaymentStatus(from_status)
         allowed = PAYMENT_TRANSITIONS.get(current, set())
         if to_status not in allowed:
-            raise StateTransitionError(
-                f"Invalid payment transition from {from_status} to {to_status.value}"
-            )
+            raise StateTransitionError(f"Invalid payment transition from {from_status} to {to_status.value}")
 
-    def _map_webhook_to_status(
-        self, event_type: str, provider_status: str | None
-    ) -> PaymentStatus | None:
+    def _map_webhook_to_status(self, event_type: str, provider_status: str | None) -> PaymentStatus | None:
         """Map a webhook event to a payment status.
 
         Returns None if the event should be ignored.
@@ -671,12 +651,8 @@ class PaymentService:
             return
 
         # Calculate totals from payments
-        paid_amount = Decimal(
-            await self.payment_repo.get_successful_total_for_invoice(payment.invoice_id)
-        )
-        refunded_amount = Decimal(
-            await self.payment_repo.get_refunded_total_for_invoice(payment.invoice_id)
-        )
+        paid_amount = Decimal(await self.payment_repo.get_successful_total_for_invoice(payment.invoice_id))
+        refunded_amount = Decimal(await self.payment_repo.get_refunded_total_for_invoice(payment.invoice_id))
         net_paid = paid_amount - refunded_amount
         invoice_total = Decimal(str(invoice.total))
 

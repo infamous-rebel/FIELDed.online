@@ -390,9 +390,7 @@ async def forgot_password(
         # In production, send reset email here via adapter
 
     # Always return the same message regardless of whether user exists
-    return MessageResponse(
-        message="If an account with that email exists, a password reset link has been sent"
-    )
+    return MessageResponse(message="If an account with that email exists, a password reset link has been sent")
 
 
 @router.post("/reset-password", response_model=MessageResponse)

@@ -88,9 +88,7 @@ class BrainService:
         # Structural validation — mandatory for ALL sources
         config_result = validate_brain_version_config(config)
         if not config_result.is_valid:
-            raise ValidationError(
-                f"Brain configuration is invalid: {[e.message for e in config_result.errors]}"
-            )
+            raise ValidationError(f"Brain configuration is invalid: {[e.message for e in config_result.errors]}")
 
         version = BrainVersion(
             brain_id=brain_id,
@@ -128,8 +126,7 @@ class BrainService:
 
         if target_status not in allowed:
             raise StateTransitionError(
-                f"Cannot transition brain version from "
-                f"{current_status.value} to {target_status.value}"
+                f"Cannot transition brain version from {current_status.value} to {target_status.value}"
             )
 
         # Before transitioning to REVIEW, run structural validation
@@ -177,11 +174,7 @@ class BrainService:
             )
             if getattr(version, f"{k}_config") is not None
         }
-        rules = (
-            [{"rule_type": r.rule_type, "rule_data": r.rule_data} for r in version.rules]
-            if version.rules
-            else []
-        )
+        rules = [{"rule_type": r.rule_type, "rule_data": r.rule_data} for r in version.rules] if version.rules else []
 
         from app.domain.business.validation import validate_brain_version_full
 
@@ -206,9 +199,7 @@ class BrainService:
         # Structural validation
         config_result = validate_brain_version_config(config)
         if not config_result.is_valid:
-            raise ValidationError(
-                f"Brain configuration is invalid: {[e.message for e in config_result.errors]}"
-            )
+            raise ValidationError(f"Brain configuration is invalid: {[e.message for e in config_result.errors]}")
 
         if "identity" in config:
             version.identity_config = config["identity"]
@@ -256,10 +247,7 @@ class BrainService:
             BrainVersionStatus.APPROVED,
             BrainVersionStatus.ACTIVE,
         ):
-            raise DomainError(
-                f"Only APPROVED or ACTIVE versions can be activated. "
-                f"Current status: {version.status}"
-            )
+            raise DomainError(f"Only APPROVED or ACTIVE versions can be activated. Current status: {version.status}")
 
         # 3. Supersede the currently active version (if any)
         current_active = await self.version_repo.get_active_by_brain_id(brain.id)
@@ -320,9 +308,7 @@ class BrainService:
 
         current_status = BrainVersionStatus(version.status)
         if current_status != BrainVersionStatus.REVIEW:
-            raise DomainError(
-                f"Only REVIEW versions can be approved. Current status: {current_status.value}"
-            )
+            raise DomainError(f"Only REVIEW versions can be approved. Current status: {current_status.value}")
 
         # Resolve approval policy (default for now)
         policy = resolve_approval_policy()
@@ -389,9 +375,7 @@ class BusinessRuleService:
         if is_known_rule_type(rule_type):
             rule_result = validate_rule_data(rule_type, rule_data)
             if not rule_result.is_valid:
-                raise ValidationError(
-                    f"Rule data is invalid: {[e.message for e in rule_result.errors]}"
-                )
+                raise ValidationError(f"Rule data is invalid: {[e.message for e in rule_result.errors]}")
         else:
             # Category-level or unknown type — accept if rule_data is a dict.
             if not isinstance(rule_data, dict):
@@ -438,9 +422,7 @@ class BusinessRuleService:
         if "rule_data" in updates and updates["rule_data"] is not None:
             rule_result = validate_rule_data(rule.rule_type, updates["rule_data"])
             if not rule_result.is_valid:
-                raise ValidationError(
-                    f"Rule data is invalid: {[e.message for e in rule_result.errors]}"
-                )
+                raise ValidationError(f"Rule data is invalid: {[e.message for e in rule_result.errors]}")
 
         for key, value in updates.items():
             if value is not None and hasattr(rule, key):

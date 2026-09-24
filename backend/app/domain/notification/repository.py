@@ -27,9 +27,7 @@ class NotificationRepository:
         await self.session.flush()
         return notification
 
-    async def get_by_id(
-        self, notification_id: uuid.UUID, *, business_id: uuid.UUID
-    ) -> Notification | None:
+    async def get_by_id(self, notification_id: uuid.UUID, *, business_id: uuid.UUID) -> Notification | None:
         """Fetch a notification by ID (tenant-scoped)."""
         result = await self.session.execute(
             select(Notification).where(
@@ -113,9 +111,7 @@ class NotificationRepository:
         )
         return result.scalar_one()
 
-    async def mark_read(
-        self, notification_id: uuid.UUID, *, customer_id: uuid.UUID
-    ) -> Notification | None:
+    async def mark_read(self, notification_id: uuid.UUID, *, customer_id: uuid.UUID) -> Notification | None:
         """Mark a notification as read."""
         result = await self.session.execute(
             select(Notification).where(

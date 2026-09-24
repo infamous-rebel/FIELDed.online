@@ -130,20 +130,14 @@ class Settings(BaseSettings):
     @field_validator("app_secret_key")
     @classmethod
     def validate_secret_key(cls, v: str, info: Any) -> str:
-        if (
-            info.data.get("app_env") == Environment.PRODUCTION
-            and v == "change-me-to-a-random-secret"
-        ):
+        if info.data.get("app_env") == Environment.PRODUCTION and v == "change-me-to-a-random-secret":
             raise ValueError("APP_SECRET_KEY must be set to a secure random value in production")
         return v
 
     @field_validator("jwt_secret_key")
     @classmethod
     def validate_jwt_secret(cls, v: str, info: Any) -> str:
-        if (
-            info.data.get("app_env") == Environment.PRODUCTION
-            and v == "change-me-to-a-random-jwt-secret"
-        ):
+        if info.data.get("app_env") == Environment.PRODUCTION and v == "change-me-to-a-random-jwt-secret":
             raise ValueError("JWT_SECRET_KEY must be set to a secure random value in production")
         return v
 

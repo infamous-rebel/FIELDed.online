@@ -85,16 +85,10 @@ class Invoice(BaseModel):
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GBP")
 
     # Financial totals — derived from line items
-    subtotal: Mapped[str] = mapped_column(
-        Numeric(precision=12, scale=2), nullable=False, default="0.00"
-    )
-    discount: Mapped[str] = mapped_column(
-        Numeric(precision=12, scale=2), nullable=False, default="0.00"
-    )
+    subtotal: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False, default="0.00")
+    discount: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False, default="0.00")
     tax: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False, default="0.00")
-    total: Mapped[str] = mapped_column(
-        Numeric(precision=12, scale=2), nullable=False, default="0.00"
-    )
+    total: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False, default="0.00")
 
     # Payment tracking
     payment_status: Mapped[str] = mapped_column(
@@ -102,9 +96,7 @@ class Invoice(BaseModel):
     )  # InvoicePaymentStatus enum value
 
     # Invoice lifecycle
-    status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="draft"
-    )  # InvoiceStatus enum value
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="draft")  # InvoiceStatus enum value
 
     # Notes
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -117,9 +109,7 @@ class Invoice(BaseModel):
     )
     booking: Mapped[Booking] = relationship(foreign_keys=[booking_id])  # noqa: F821
     quote: Mapped[Quote | None] = relationship(foreign_keys=[quote_id])
-    line_items: Mapped[list[InvoiceLineItem]] = relationship(
-        back_populates="invoice", cascade="all, delete-orphan"
-    )
+    line_items: Mapped[list[InvoiceLineItem]] = relationship(back_populates="invoice", cascade="all, delete-orphan")
 
 
 class InvoiceLineItem(BaseModel):
@@ -143,15 +133,11 @@ class InvoiceLineItem(BaseModel):
     service_reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Quantity and pricing
-    quantity: Mapped[str] = mapped_column(
-        Numeric(precision=10, scale=2), nullable=False, default="1.00"
-    )
+    quantity: Mapped[str] = mapped_column(Numeric(precision=10, scale=2), nullable=False, default="1.00")
     unit_price: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False)
 
     # Line-level adjustments
-    discount: Mapped[str] = mapped_column(
-        Numeric(precision=12, scale=2), nullable=False, default="0.00"
-    )
+    discount: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False, default="0.00")
     tax: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False, default="0.00")
 
     # Line total (deterministic: quantity * unit_price - discount + tax)

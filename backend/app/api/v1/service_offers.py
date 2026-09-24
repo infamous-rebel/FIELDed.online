@@ -49,9 +49,7 @@ async def _get_user_business(
     db: AsyncSession,
 ) -> tuple[Business, BusinessMember]:
     """Get a business and the user's membership, enforcing tenant isolation."""
-    result = await db.execute(
-        select(Business).where(Business.id == business_id, Business.deleted_at.is_(None))
-    )
+    result = await db.execute(select(Business).where(Business.id == business_id, Business.deleted_at.is_(None)))
     business = result.scalar_one_or_none()
     if business is None:
         raise NotFoundError("Business not found")

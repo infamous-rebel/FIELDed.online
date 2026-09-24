@@ -58,3 +58,6 @@ logs/
 frontend/src/components/ui/*.png
 .env.cloudrun
 .vercel
+
+# Verification/audit screenshots (not application assets)
+*.png

@@ -121,9 +121,7 @@ class TestBrainVersionActivation:
         service.version_repo = version_repo
         return service
 
-    async def test_activate_supersedes_previous_active(
-        self, brain_service, brain_repo, version_repo
-    ):
+    async def test_activate_supersedes_previous_active(self, brain_service, brain_repo, version_repo):
         """Activating a new version must supersede the previous ACTIVE version."""
         brain_id = uuid.uuid4()
         new_version_id = uuid.uuid4()
@@ -182,9 +180,7 @@ class TestBrainVersionActivation:
         assert new_version.status == BrainVersionStatus.ACTIVE
         brain_repo.update_active_version.assert_called_once_with(brain, new_version_id)
 
-    async def test_activate_rejects_non_approvable_version(
-        self, brain_service, brain_repo, version_repo
-    ):
+    async def test_activate_rejects_non_approvable_version(self, brain_service, brain_repo, version_repo):
         """Cannot activate a version that is not APPROVED or ACTIVE."""
         brain_id = uuid.uuid4()
         version_id = uuid.uuid4()
@@ -211,9 +207,7 @@ class TestBrainVersionActivation:
         with pytest.raises(NotFoundError):
             await brain_service.activate_version(brain_id, version_id)
 
-    async def test_activate_raises_on_missing_version(
-        self, brain_service, brain_repo, version_repo
-    ):
+    async def test_activate_raises_on_missing_version(self, brain_service, brain_repo, version_repo):
         """Activation raises NotFoundError if version doesn't exist."""
         brain_id = uuid.uuid4()
         version_id = uuid.uuid4()
@@ -226,9 +220,7 @@ class TestBrainVersionActivation:
         with pytest.raises(NotFoundError):
             await brain_service.activate_version(brain_id, version_id)
 
-    async def test_activate_same_version_no_supersede(
-        self, brain_service, brain_repo, version_repo
-    ):
+    async def test_activate_same_version_no_supersede(self, brain_service, brain_repo, version_repo):
         """Activating the already-active version does not supersede it."""
         brain_id = uuid.uuid4()
         version_id = uuid.uuid4()

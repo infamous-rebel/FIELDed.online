@@ -258,9 +258,7 @@ class OrchestrationService:
         Falls back to a basic body if no template is found.
         """
         # Find templates matching channel + purpose
-        templates = await self.template_repo.list_for_business(
-            business_id, channel=channel, purpose=purpose, limit=1
-        )
+        templates = await self.template_repo.list_for_business(business_id, channel=channel, purpose=purpose, limit=1)
 
         if not templates:
             # No template — use variables directly

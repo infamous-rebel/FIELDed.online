@@ -124,9 +124,7 @@ class PricingEngine:
 
         if brain_version is not None and context is not None:
             pricing_rules = [
-                r
-                for r in (brain_version.rules or [])
-                if r.rule_type in _PRICING_RULE_TYPES and r.is_active
+                r for r in (brain_version.rules or []) if r.rule_type in _PRICING_RULE_TYPES and r.is_active
             ]
 
             for rule in pricing_rules:
@@ -236,8 +234,7 @@ class PricingEngine:
         currency = pricing_config.get("currency") or business_currency
         if not currency:
             raise ValueError(
-                "Currency must be configured either in the service offer's "
-                "pricing_config or in the business settings."
+                "Currency must be configured either in the service offer's pricing_config or in the business settings."
             )
 
         if pricing_model == "fixed":
@@ -337,9 +334,7 @@ class PricingEngine:
         # Percentage-based surcharge
         percentage = self._to_decimal(rule_data.get("percentage"))
         if percentage is not None:
-            return (base_amount * percentage / Decimal("100")).quantize(
-                TWO_PLACES, rounding=ROUND_HALF_UP
-            )
+            return (base_amount * percentage / Decimal("100")).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
 
         # Fixed amount surcharge
         amount = self._to_decimal(rule_data.get("amount"))
@@ -352,9 +347,7 @@ class PricingEngine:
         # Percentage-based discount
         percentage = self._to_decimal(rule_data.get("percentage"))
         if percentage is not None:
-            amount = (base_amount * percentage / Decimal("100")).quantize(
-                TWO_PLACES, rounding=ROUND_HALF_UP
-            )
+            amount = (base_amount * percentage / Decimal("100")).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
 
         # Fixed amount discount
         fixed = self._to_decimal(rule_data.get("amount"))

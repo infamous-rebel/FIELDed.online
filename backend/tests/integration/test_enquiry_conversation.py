@@ -43,9 +43,7 @@ class TestEnquiryConversation:
 
         return business, offer
 
-    async def _create_enquiry(
-        self, client: AsyncClient, auth_headers: dict, business, offer
-    ) -> str:
+    async def _create_enquiry(self, client: AsyncClient, auth_headers: dict, business, offer) -> str:
         """Helper to create an enquiry and return its ID."""
         response = await client.post(
             f"/api/v1/enquiries/{business.id}/enquiries",

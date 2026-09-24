@@ -130,9 +130,7 @@ class BusinessMemberRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def get_by_user_and_business(
-        self, user_id: uuid.UUID, business_id: uuid.UUID
-    ) -> BusinessMember | None:
+    async def get_by_user_and_business(self, user_id: uuid.UUID, business_id: uuid.UUID) -> BusinessMember | None:
         """Fetch a specific membership."""
         result = await self.session.execute(
             select(BusinessMember).where(

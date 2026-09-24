@@ -49,9 +49,7 @@ class TestEnquiryStateMachine:
             (EnquiryStatus.NEEDS_INFORMATION, EnquiryStatus.IN_REVIEW),
         ]
         for from_status, to_status in path:
-            assert to_status in ENQUIRY_TRANSITIONS[from_status], (
-                f"{from_status} -> {to_status} should be valid"
-            )
+            assert to_status in ENQUIRY_TRANSITIONS[from_status], f"{from_status} -> {to_status} should be valid"
 
     def test_reserved_states_unreachable(self):
         """Phase 12 states are only reachable from IN_REVIEW (via QUOTED).

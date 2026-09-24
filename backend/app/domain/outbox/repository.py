@@ -29,9 +29,7 @@ class OutboxRepository:
 
     async def get_by_idempotency_key(self, idempotency_key: str) -> OutboxEvent | None:
         """Fetch an outbox event by idempotency key."""
-        result = await self.session.execute(
-            select(OutboxEvent).where(OutboxEvent.idempotency_key == idempotency_key)
-        )
+        result = await self.session.execute(select(OutboxEvent).where(OutboxEvent.idempotency_key == idempotency_key))
         return result.scalar_one_or_none()
 
     async def claim_pending_events(

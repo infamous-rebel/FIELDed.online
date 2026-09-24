@@ -37,9 +37,7 @@ class TestBusinessCreation:
         assert data["status"] == "pending"
 
     @pytest.mark.asyncio
-    async def test_create_business_duplicate_slug(
-        self, client: AsyncClient, test_user, auth_headers
-    ):
+    async def test_create_business_duplicate_slug(self, client: AsyncClient, test_user, auth_headers):
         """Cannot create two businesses with the same slug."""
         await client.post(
             "/api/v1/businesses",
@@ -144,9 +142,7 @@ class TestBusinessMembership:
         assert response.json()["role"] == "staff"
 
     @pytest.mark.asyncio
-    async def test_add_duplicate_member_fails(
-        self, client: AsyncClient, test_user, second_user, auth_headers
-    ):
+    async def test_add_duplicate_member_fails(self, client: AsyncClient, test_user, second_user, auth_headers):
         """Cannot add the same member twice."""
         create_resp = await client.post(
             "/api/v1/businesses",
@@ -417,9 +413,7 @@ class TestMemberInvitations:
         assert "different email" in response.text
 
     @pytest.mark.asyncio
-    async def test_accept_invitation_happy_path_and_single_use(
-        self, client, db_session, test_user, auth_headers
-    ):
+    async def test_accept_invitation_happy_path_and_single_use(self, client, db_session, test_user, auth_headers):
         """Matching email accepts once; token is single-use; membership created."""
         create_resp = await client.post(
             "/api/v1/businesses",

@@ -53,9 +53,7 @@ class GroqProvider(AIProvider):
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
 
-        data = await self._chat_completion(
-            messages, max_tokens=max_tokens, temperature=temperature
-        )
+        data = await self._chat_completion(messages, max_tokens=max_tokens, temperature=temperature)
         content = data["choices"][0]["message"]["content"]
         usage = data.get("usage", {})
 
@@ -80,10 +78,7 @@ class GroqProvider(AIProvider):
         messages: list[dict[str, str]] = []
 
         system_content = system or ""
-        system_content += (
-            "\n\nYou MUST respond with a JSON object matching this schema: "
-            + json.dumps(schema)
-        )
+        system_content += "\n\nYou MUST respond with a JSON object matching this schema: " + json.dumps(schema)
         messages.append({"role": "system", "content": system_content.strip()})
         messages.append({"role": "user", "content": prompt})
 
@@ -98,14 +93,10 @@ class GroqProvider(AIProvider):
         try:
             result = json.loads(content)
         except json.JSONDecodeError as exc:
-            raise ValueError(
-                f"Groq returned non-JSON structured output: {content[:200]}"
-            ) from exc
+            raise ValueError(f"Groq returned non-JSON structured output: {content[:200]}") from exc
 
         if not isinstance(result, dict):
-            raise ValueError(
-                f"Groq structured output is not an object: {type(result).__name__}"
-            )
+            raise ValueError(f"Groq structured output is not an object: {type(result).__name__}")
 
         return result
 
@@ -184,9 +175,7 @@ class GroqProvider(AIProvider):
                 )
 
             if response.status_code not in (200, 201):
-                raise RuntimeError(
-                    f"Groq API error {response.status_code}: {response.text[:500]}"
-                )
+                raise RuntimeError(f"Groq API error {response.status_code}: {response.text[:500]}")
 
             return response.json()
 

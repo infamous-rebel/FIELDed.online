@@ -38,9 +38,7 @@ class ServiceCategory(BaseModel):
     )
 
     # Relationships
-    parent: Mapped[ServiceCategory | None] = relationship(
-        remote_side="ServiceCategory.id", backref="children"
-    )
+    parent: Mapped[ServiceCategory | None] = relationship(remote_side="ServiceCategory.id", backref="children")
     service_offers: Mapped[list[ServiceOffer]] = relationship(back_populates="category")
 
 
@@ -56,9 +54,7 @@ class ServiceOffer(BaseModel):
     """
 
     __tablename__ = "service_offers"
-    __table_args__ = (
-        UniqueConstraint("business_id", "name", name="uq_service_offer_business_name"),
-    )
+    __table_args__ = (UniqueConstraint("business_id", "name", name="uq_service_offer_business_name"),)
 
     business_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -78,9 +74,7 @@ class ServiceOffer(BaseModel):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Delivery
-    delivery_mode: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="on_site"
-    )  # DeliveryMode enum value
+    delivery_mode: Mapped[str] = mapped_column(String(50), nullable=False, default="on_site")  # DeliveryMode enum value
 
     # Pricing
     pricing_model: Mapped[str] = mapped_column(
@@ -101,9 +95,7 @@ class ServiceOffer(BaseModel):
     service_area: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     # Status
-    status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="draft"
-    )  # ServiceOfferStatus enum value
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="draft")  # ServiceOfferStatus enum value
 
     # Relationships
     business: Mapped[Business] = relationship(back_populates="service_offers")

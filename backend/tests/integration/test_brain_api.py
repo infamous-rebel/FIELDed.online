@@ -598,9 +598,7 @@ class TestBrainApproval:
 
         return business
 
-    async def _create_version_in_review(
-        self, client: AsyncClient, auth_headers: dict, business_id
-    ) -> str:
+    async def _create_version_in_review(self, client: AsyncClient, auth_headers: dict, business_id) -> str:
         """Helper: create a version and transition it to REVIEW."""
         create_resp = await client.post(
             f"/api/v1/businesses/{business_id}/brain/versions",
@@ -698,9 +696,7 @@ class TestBrainActivation:
 
         return business
 
-    async def _create_approved_version(
-        self, client: AsyncClient, auth_headers: dict, business_id
-    ) -> str:
+    async def _create_approved_version(self, client: AsyncClient, auth_headers: dict, business_id) -> str:
         """Helper: create a version through the full lifecycle to APPROVED."""
         create_resp = await client.post(
             f"/api/v1/businesses/{business_id}/brain/versions",

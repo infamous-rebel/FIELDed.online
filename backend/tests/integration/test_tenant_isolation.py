@@ -16,9 +16,7 @@ class TestTenantIsolation:
     """Test tenant isolation at the data layer."""
 
     @pytest.mark.asyncio
-    async def test_business_member_isolation(
-        self, db_session: AsyncSession, test_user, second_user
-    ):
+    async def test_business_member_isolation(self, db_session: AsyncSession, test_user, second_user):
         """A user's business memberships don't include another user's businesses."""
         # Create a business owned by test_user
         business = Business(name="User1 Business", slug="user1-biz")
@@ -34,9 +32,7 @@ class TestTenantIsolation:
         await db_session.flush()
 
         # Query second_user's memberships — should be empty
-        result = await db_session.execute(
-            select(BusinessMember).where(BusinessMember.user_id == second_user.id)
-        )
+        result = await db_session.execute(select(BusinessMember).where(BusinessMember.user_id == second_user.id))
         second_memberships = result.scalars().all()
         assert len(second_memberships) == 0
 

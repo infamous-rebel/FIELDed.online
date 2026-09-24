@@ -47,9 +47,7 @@ SERVICE_CATEGORIES: list[tuple[str, str, str]] = [
 
 async def seed_service_categories(session: AsyncSession) -> tuple[int, int]:
     """Upsert the canonical categories. Returns (created, existing) counts."""
-    result = await session.execute(
-        select(ServiceCategory.slug).where(ServiceCategory.deleted_at.is_(None))
-    )
+    result = await session.execute(select(ServiceCategory.slug).where(ServiceCategory.deleted_at.is_(None)))
     existing_slugs = set(result.scalars().all())
 
     created = 0

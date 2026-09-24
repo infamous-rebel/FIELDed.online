@@ -14,9 +14,7 @@ from pydantic import BaseModel, Field
 class ReviewCreate(BaseModel):
     """Request schema for submitting a review."""
 
-    service_execution_id: uuid.UUID = Field(
-        ..., description="Completed service execution to review"
-    )
+    service_execution_id: uuid.UUID = Field(..., description="Completed service execution to review")
     rating: int = Field(..., ge=1, le=5, description="Rating from 1 to 5")
     title: str | None = Field(None, max_length=200, description="Review title")
     body: str | None = Field(None, description="Review body text")

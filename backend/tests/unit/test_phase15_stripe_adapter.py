@@ -128,9 +128,7 @@ class MockStripeHTTPClient(HTTPClient):
         if "payment_intents" in url and method_lower == "post":
             if self.fail_with_rate_limit:
                 self.fail_with_rate_limit = False
-                body = json.dumps(
-                    {"error": {"type": "rate_limit_error", "message": "Rate limit exceeded"}}
-                )
+                body = json.dumps({"error": {"type": "rate_limit_error", "message": "Rate limit exceeded"}})
                 return body, 429, {}
             pi = self._make_pi(params)
             return json.dumps(pi), 200, {}

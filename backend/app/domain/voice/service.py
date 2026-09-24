@@ -299,8 +299,7 @@ class VoiceCallLifecycleService:
         """
         if CallStatus(call.status) != CallStatus.CONNECTED:
             raise StateTransitionError(
-                f"Cannot start a session for a call in status "
-                f"'{call.status}'. Call must be CONNECTED."
+                f"Cannot start a session for a call in status '{call.status}'. Call must be CONNECTED."
             )
 
         existing = await self.session_repo.get_active_for_call(call.id)
@@ -794,9 +793,7 @@ class VoiceCallLifecycleService:
         """Resolve the business id for a call id (escalation audit path)."""
         from sqlalchemy import select
 
-        result = await self.session.execute(
-            select(VoiceCall.business_id).where(VoiceCall.id == call_id)
-        )
+        result = await self.session.execute(select(VoiceCall.business_id).where(VoiceCall.id == call_id))
         business_id = result.scalar_one_or_none()
         if business_id is None:
             raise ConflictError("Escalation references a missing call")

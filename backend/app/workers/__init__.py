@@ -67,9 +67,7 @@ async def process_outbox_events(
             # the voice orchestrator, everything else to 14A.
             if event.event_type.startswith("voice."):
                 if voice_orchestrator is None:
-                    raise RuntimeError(
-                        "voice outbox event encountered but no voice orchestrator is configured"
-                    )
+                    raise RuntimeError("voice outbox event encountered but no voice orchestrator is configured")
                 await voice_orchestrator.process_event(
                     business_id=event.business_id,
                     event_type=event.event_type,

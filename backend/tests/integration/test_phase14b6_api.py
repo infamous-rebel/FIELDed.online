@@ -151,9 +151,7 @@ async def voice_env(db_session: AsyncSession, client: AsyncClient) -> dict:
     await db_session.flush()
     member_rows = (
         await db_session.execute(
-            BusinessMember.__table__.select().where(
-                BusinessMember.user_id.in_([staff.id, other.id])
-            )
+            BusinessMember.__table__.select().where(BusinessMember.user_id.in_([staff.id, other.id]))
         )
     ).all()
     member_ids = {row.user_id: row.id for row in member_rows}
@@ -226,9 +224,7 @@ async def make_customer(
     return user
 
 
-async def make_brain(
-    db_session: AsyncSession, biz: Business, *, voice_agent: dict | None = None
-) -> BrainVersion:
+async def make_brain(db_session: AsyncSession, biz: Business, *, voice_agent: dict | None = None) -> BrainVersion:
     brain = BusinessBrain(business_id=biz.id)
     db_session.add(brain)
     await db_session.flush()
@@ -298,9 +294,7 @@ class TestAuthMatrix:
         env = voice_env
         headers = env["other_headers"]
         biz_id = env["biz_a"].id
-        assert (
-            await client.get(f"/api/v1/{biz_id}/voice/calls", headers=headers)
-        ).status_code == 403
+        assert (await client.get(f"/api/v1/{biz_id}/voice/calls", headers=headers)).status_code == 403
         assert (
             await client.post(
                 f"/api/v1/{biz_id}/voice/calls",
@@ -308,9 +302,7 @@ class TestAuthMatrix:
                 json={"to_number": "+447700900123", "purpose": "BOOKING_REMINDER"},
             )
         ).status_code == 403
-        assert (
-            await client.get(f"/api/v1/{biz_id}/voice/campaigns", headers=headers)
-        ).status_code == 403
+        assert (await client.get(f"/api/v1/{biz_id}/voice/campaigns", headers=headers)).status_code == 403
 
     async def test_staff_cannot_access_admin_endpoints(self, client: AsyncClient, voice_env):
         env = voice_env
@@ -404,9 +396,7 @@ async def advance_to_connected(db_session: AsyncSession, provider, call_id: uuid
     await db_session.flush()
 
 
-async def begun_connected_call(
-    client: AsyncClient, env: dict, db_session: AsyncSession, provider
-) -> uuid.UUID:
+async def begun_connected_call(client: AsyncClient, env: dict, db_session: AsyncSession, provider) -> uuid.UUID:
     """Create an API call, sync it to CONNECTED, begin a governed session."""
     await make_config(db_session, env["biz_a"].id)
     await make_brain(db_session, env["biz_a"], voice_agent=VOICE_AGENT_CONFIG)
@@ -423,9 +413,7 @@ async def begun_connected_call(
 
 
 class TestCalls:
-    async def test_request_and_initiate_call(
-        self, client: AsyncClient, voice_env, db_session, stub_providers
-    ):
+    async def test_request_and_initiate_call(self, client: AsyncClient, voice_env, db_session, stub_providers):
         env = voice_env
         biz_id = env["biz_a"].id
         await make_config(db_session, biz_id)
@@ -443,9 +431,7 @@ class TestCalls:
         assert len(stub_providers.requests) == 1
         assert stub_providers.requests[0].to == "+447700900123"
 
-    async def test_request_without_initiation(
-        self, client: AsyncClient, voice_env, db_session, stub_providers
-    ):
+    async def test_request_without_initiation(self, client: AsyncClient, voice_env, db_session, stub_providers):
         env = voice_env
         biz_id = env["biz_a"].id
         await make_config(db_session, biz_id)
@@ -457,9 +443,7 @@ class TestCalls:
         assert body["provider_reference"] is None
         assert not stub_providers.requests
 
-    async def test_idempotent_call_creation(
-        self, client: AsyncClient, voice_env, db_session, stub_providers
-    ):
+    async def test_idempotent_call_creation(self, client: AsyncClient, voice_env, db_session, stub_providers):
         env = voice_env
         biz_id = env["biz_a"].id
         await make_config(db_session, biz_id)
@@ -474,9 +458,7 @@ class TestCalls:
         # The replay never dials the provider again.
         assert len(stub_providers.requests) == 1
 
-    async def test_list_and_get_calls(
-        self, client: AsyncClient, voice_env, db_session, stub_providers
-    ):
+    async def test_list_and_get_calls(self, client: AsyncClient, voice_env, db_session, stub_providers):
         env = voice_env
         biz_id = env["biz_a"].id
         await make_config(db_session, biz_id)
@@ -524,9 +506,7 @@ class TestCalls:
 
 
 class TestAgentTurn:
-    async def test_governed_turn_end_to_end(
-        self, client: AsyncClient, voice_env, db_session, stub_providers
-    ):
+    async def test_governed_turn_end_to_end(self, client: AsyncClient, voice_env, db_session, stub_providers):
         env = voice_env
         biz_id = env["biz_a"].id
         call_id = await begun_connected_call(client, env, db_session, stub_providers)
@@ -545,9 +525,7 @@ class TestAgentTurn:
         # IN_PROGRESS on the first turn.
         assert body["call_status"] == "IN_PROGRESS"
 
-    async def test_turn_requires_active_session(
-        self, client: AsyncClient, voice_env, db_session, stub_providers
-    ):
+    async def test_turn_requires_active_session(self, client: AsyncClient, voice_env, db_session, stub_providers):
         env = voice_env
         biz_id = env["biz_a"].id
         await make_config(db_session, biz_id)
@@ -584,9 +562,7 @@ class TestOutcome:
         assert body["outcome"] == "CONFIRMED"
         assert body["call_status"] == "IN_PROGRESS"
 
-    async def test_unknown_outcome_rejected(
-        self, client: AsyncClient, voice_env, db_session, stub_providers
-    ):
+    async def test_unknown_outcome_rejected(self, client: AsyncClient, voice_env, db_session, stub_providers):
         env = voice_env
         biz_id = env["biz_a"].id
         call_id = await begun_connected_call(client, env, db_session, stub_providers)
@@ -603,9 +579,7 @@ class TestOutcome:
 
 
 class TestEscalations:
-    async def test_escalation_lifecycle(
-        self, client: AsyncClient, voice_env, db_session, stub_providers
-    ):
+    async def test_escalation_lifecycle(self, client: AsyncClient, voice_env, db_session, stub_providers):
         env = voice_env
         biz_id = env["biz_a"].id
         call_id = await begun_connected_call(client, env, db_session, stub_providers)
@@ -705,9 +679,7 @@ class TestCampaigns:
         assert recipient.status_code == 201, recipient.text
         assert recipient.json()["status"] == "PENDING"
 
-        recipients = await client.get(
-            f"{base}/{campaign_id}/recipients", headers=env["staff_headers"]
-        )
+        recipients = await client.get(f"{base}/{campaign_id}/recipients", headers=env["staff_headers"])
         assert [r["status"] for r in recipients.json()] == ["PENDING"]
 
         # Governed activation: marketing campaigns without a governing
@@ -745,9 +717,7 @@ class TestCampaigns:
         assert executed.status_code == 200, executed.text
         assert executed.json()["contacted"] == 1
 
-        recipients = await client.get(
-            f"{base}/{campaign_id}/recipients", headers=env["staff_headers"]
-        )
+        recipients = await client.get(f"{base}/{campaign_id}/recipients", headers=env["staff_headers"])
         assert recipients.json()[0]["status"] == "CONTACTED"
         assert len(stub_providers.requests) == 1
 
@@ -771,9 +741,7 @@ def _signed_headers(secret: str, body: bytes) -> dict[str, str]:
 
 
 class TestWebhook:
-    async def test_signature_and_state_sync(
-        self, client: AsyncClient, voice_env, db_session, stub_providers
-    ):
+    async def test_signature_and_state_sync(self, client: AsyncClient, voice_env, db_session, stub_providers):
         env = voice_env
         biz_id = env["biz_a"].id
         configured = await client.post(
@@ -799,9 +767,7 @@ class TestWebhook:
         assert unsigned.status_code == 401
 
         # Signed callback — accepted and synchronized.
-        signed = await client.post(
-            webhook_url, content=body, headers=_signed_headers("s3cret-value", body)
-        )
+        signed = await client.post(webhook_url, content=body, headers=_signed_headers("s3cret-value", body))
         assert signed.status_code == 202, signed.text
         assert signed.json()["status"] == "accepted"
         assert signed.json()["call_id"] == created.json()["id"]
@@ -813,17 +779,13 @@ class TestWebhook:
         assert call.json()["status"] == "RINGING"
 
         # Replayed event — idempotent duplicate acknowledgment.
-        replay = await client.post(
-            webhook_url, content=body, headers=_signed_headers("s3cret-value", body)
-        )
+        replay = await client.post(webhook_url, content=body, headers=_signed_headers("s3cret-value", body))
         assert replay.status_code == 202
         assert replay.json()["status"] == "duplicate"
 
         # A distinct status is a distinct event.
         body2 = json.dumps({"CallSid": reference, "CallStatus": "in-progress"}).encode()
-        connected = await client.post(
-            webhook_url, content=body2, headers=_signed_headers("s3cret-value", body2)
-        )
+        connected = await client.post(webhook_url, content=body2, headers=_signed_headers("s3cret-value", body2))
         assert connected.status_code == 202, connected.text
 
         call = await client.get(

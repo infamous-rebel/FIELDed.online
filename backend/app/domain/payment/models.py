@@ -77,23 +77,17 @@ class Payment(BaseModel):
     # Payment details
     amount: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GBP")
-    payment_method: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="card"
-    )  # PaymentMethod enum value
+    payment_method: Mapped[str] = mapped_column(String(50), nullable=False, default="card")  # PaymentMethod enum value
 
     # Lifecycle
-    status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="pending"
-    )  # PaymentStatus enum value
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending")  # PaymentStatus enum value
 
     # Provider tracking
     provider: Mapped[str] = mapped_column(String(50), nullable=False, default="stub")
     provider_reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Refund tracking
-    refunded_amount: Mapped[str] = mapped_column(
-        Numeric(precision=12, scale=2), nullable=False, default="0.00"
-    )
+    refunded_amount: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False, default="0.00")
     refund_provider_reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Timestamps
@@ -111,9 +105,7 @@ class Payment(BaseModel):
     business: Mapped[Business] = relationship(foreign_keys=[business_id])
     customer: Mapped[User] = relationship(foreign_keys=[customer_id])
     invoice: Mapped[Invoice | None] = relationship(foreign_keys=[invoice_id])
-    attempts: Mapped[list[PaymentAttempt]] = relationship(
-        back_populates="payment", cascade="all, delete-orphan"
-    )
+    attempts: Mapped[list[PaymentAttempt]] = relationship(back_populates="payment", cascade="all, delete-orphan")
 
 
 class PaymentAttempt(BaseModel):

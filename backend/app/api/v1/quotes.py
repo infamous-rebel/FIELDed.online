@@ -78,9 +78,7 @@ async def list_business_quotes(
 ) -> list[QuoteRead]:
     """List quotes for a business."""
     service = QuoteService(db)
-    quotes = await service.list_business_quotes(
-        business_id, status=status, limit=limit, offset=offset
-    )
+    quotes = await service.list_business_quotes(business_id, status=status, limit=limit, offset=offset)
     return [_quote_to_read(q) for q in quotes]
 
 

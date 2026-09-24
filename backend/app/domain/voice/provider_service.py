@@ -152,8 +152,7 @@ class VoiceProviderOrchestrationService:
         # already (or has been) dialed.  Never dial twice.
         if call.provider_reference is not None:
             live = any(
-                attempt.provider_reference == call.provider_reference
-                and attempt.status != CallStatus.FAILED.value
+                attempt.provider_reference == call.provider_reference and attempt.status != CallStatus.FAILED.value
                 for attempt in attempts
             )
             if live:
@@ -172,11 +171,7 @@ class VoiceProviderOrchestrationService:
             )
 
         last_attempt = attempts[-1] if attempts else None
-        if (
-            last_attempt is not None
-            and last_attempt.status == CallStatus.FAILED.value
-            and last_attempt.retryable
-        ):
+        if last_attempt is not None and last_attempt.status == CallStatus.FAILED.value and last_attempt.retryable:
             elapsed = (_utcnow() - last_attempt.requested_at).total_seconds()
             if elapsed < config.retry_interval_seconds:
                 raise DomainError(
@@ -189,13 +184,9 @@ class VoiceProviderOrchestrationService:
             raise DomainError("Call has no from_number configured for dialing")
 
         if CallStatus(call.status) == CallStatus.AUTHORIZED:
-            call = await self.lifecycle.queue_call(
-                call, actor_id=actor_id, reason="provider orchestration dial"
-            )
+            call = await self.lifecycle.queue_call(call, actor_id=actor_id, reason="provider orchestration dial")
         if CallStatus(call.status) == CallStatus.QUEUED:
-            call = await self.lifecycle.mark_initiating(
-                call, actor_id=actor_id, reason="provider orchestration dial"
-            )
+            call = await self.lifecycle.mark_initiating(call, actor_id=actor_id, reason="provider orchestration dial")
 
         attempt = await self.lifecycle.record_attempt(
             call,
@@ -325,12 +316,8 @@ class VoiceProviderOrchestrationService:
         reason = failure_reason or f"provider reported '{normalized}'"
 
         if target is CallStatus.COMPLETED and current is CallStatus.RINGING:
-            call = await self.lifecycle.mark_connected(
-                call, actor_id=actor_id, reason="provider state sync"
-            )
-            call = await self.lifecycle.complete_call(
-                call, actor_id=actor_id, reason="provider state sync"
-            )
+            call = await self.lifecycle.mark_connected(call, actor_id=actor_id, reason="provider state sync")
+            call = await self.lifecycle.complete_call(call, actor_id=actor_id, reason="provider state sync")
         elif target in _PROVIDER_CONNECTION_FAILURES and current is CallStatus.INITIATING:
             call = await self.lifecycle.fail_call(
                 call,
@@ -346,17 +333,11 @@ class VoiceProviderOrchestrationService:
                 actor_id=actor_id,
             )
         elif target is CallStatus.RINGING:
-            call = await self.lifecycle.mark_ringing(
-                call, actor_id=actor_id, reason="provider state sync"
-            )
+            call = await self.lifecycle.mark_ringing(call, actor_id=actor_id, reason="provider state sync")
         elif target is CallStatus.CONNECTED:
-            call = await self.lifecycle.mark_connected(
-                call, actor_id=actor_id, reason="provider state sync"
-            )
+            call = await self.lifecycle.mark_connected(call, actor_id=actor_id, reason="provider state sync")
         elif target is CallStatus.COMPLETED:
-            call = await self.lifecycle.complete_call(
-                call, actor_id=actor_id, reason="provider state sync"
-            )
+            call = await self.lifecycle.complete_call(call, actor_id=actor_id, reason="provider state sync")
         elif target is CallStatus.BUSY:
             call = await self.lifecycle.mark_busy(call, actor_id=actor_id, reason=reason)
         elif target is CallStatus.NO_ANSWER:
@@ -364,13 +345,9 @@ class VoiceProviderOrchestrationService:
         elif target is CallStatus.DECLINED:
             call = await self.lifecycle.mark_declined(call, actor_id=actor_id, reason=reason)
         elif target is CallStatus.CANCELLED:
-            call = await self.lifecycle.cancel_call(
-                call, actor_id=actor_id, reason="provider state sync"
-            )
+            call = await self.lifecycle.cancel_call(call, actor_id=actor_id, reason="provider state sync")
         else:  # pragma: no cover — PROVIDER_STATUS_TRANSITIONS is total
-            raise DomainError(
-                f"Provider status '{provider_status}' has no deterministic transition"
-            )
+            raise DomainError(f"Provider status '{provider_status}' has no deterministic transition")
 
         await self._sync_latest_attempt(call, target, reason=reason)
         return call

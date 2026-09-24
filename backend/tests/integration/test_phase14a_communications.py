@@ -200,9 +200,7 @@ async def configured_biz(db_session: AsyncSession, biz_a: tuple[User, Business])
 
 
 @pytest_asyncio.fixture
-async def brain_with_version(
-    db_session: AsyncSession, biz_a: tuple[User, Business]
-) -> BrainVersion:
+async def brain_with_version(db_session: AsyncSession, biz_a: tuple[User, Business]) -> BrainVersion:
     """Active BusinessBrain + BrainVersion for biz_a."""
     _, biz = biz_a
     brain = BusinessBrain(business_id=biz.id)
@@ -270,25 +268,18 @@ class TestSchemaVerification:
         assert "idempotency_key" in cols
 
     async def test_communications_idempotency_unique(self, db_session: AsyncSession):
-        result = await db_session.execute(
-            text("SELECT indexdef FROM pg_indexes WHERE tablename = 'communications'")
-        )
+        result = await db_session.execute(text("SELECT indexdef FROM pg_indexes WHERE tablename = 'communications'"))
         indexes = [r[0] for r in result.all()]
         assert any("idempotency_key" in idx and "unique" in idx.lower() for idx in indexes)
 
     async def test_outbox_status_available_index(self, db_session: AsyncSession):
-        result = await db_session.execute(
-            text("SELECT indexname FROM pg_indexes WHERE tablename = 'outbox_events'")
-        )
+        result = await db_session.execute(text("SELECT indexname FROM pg_indexes WHERE tablename = 'outbox_events'"))
         indexes = {r[0] for r in result.all()}
         assert any("status_available" in idx for idx in indexes)
 
     async def test_preference_expression_unique_index(self, db_session: AsyncSession):
         result = await db_session.execute(
-            text(
-                "SELECT indexdef FROM pg_indexes "
-                "WHERE tablename = 'customer_communication_preferences'"
-            )
+            text("SELECT indexdef FROM pg_indexes WHERE tablename = 'customer_communication_preferences'")
         )
         indexes = [r[0] for r in result.all()]
         assert any("COALESCE" in idx for idx in indexes)
@@ -307,9 +298,7 @@ class TestSchemaVerification:
 class TestTenantIsolation:
     """Verify cross-business access prevention."""
 
-    async def test_communication_tenant_scoped(
-        self, db_session: AsyncSession, biz_a: tuple, biz_b: tuple
-    ):
+    async def test_communication_tenant_scoped(self, db_session: AsyncSession, biz_a: tuple, biz_b: tuple):
         _, biz_a_obj = biz_a
         _, biz_b_obj = biz_b
         repo = CommunicationRepository(db_session)
@@ -328,9 +317,7 @@ class TestTenantIsolation:
         not_found = await repo.get_by_id(comm.id, business_id=biz_b_obj.id)
         assert not_found is None
 
-    async def test_template_tenant_scoped(
-        self, db_session: AsyncSession, biz_a: tuple, biz_b: tuple
-    ):
+    async def test_template_tenant_scoped(self, db_session: AsyncSession, biz_a: tuple, biz_b: tuple):
         _, biz_a_obj = biz_a
         _, biz_b_obj = biz_b
         repo = CommunicationTemplateRepository(db_session)
@@ -346,9 +333,7 @@ class TestTenantIsolation:
         not_found = await repo.get_by_id(template.id, business_id=biz_b_obj.id)
         assert not_found is None
 
-    async def test_notification_tenant_scoped(
-        self, db_session: AsyncSession, biz_a: tuple, biz_b: tuple
-    ):
+    async def test_notification_tenant_scoped(self, db_session: AsyncSession, biz_a: tuple, biz_b: tuple):
         _, biz_a_obj = biz_a
         _, biz_b_obj = biz_b
         repo = NotificationRepository(db_session)
@@ -452,9 +437,7 @@ class TestCommunicationConfiguration:
 class TestConsentSuppression:
     """Customer communication preferences."""
 
-    async def test_opt_in_creates_preference(
-        self, db_session: AsyncSession, biz_a: tuple, customer: User
-    ):
+    async def test_opt_in_creates_preference(self, db_session: AsyncSession, biz_a: tuple, customer: User):
         _, biz = biz_a
         repo = ConsentRepository(db_session)
         pref = CustomerCommunicationPreference(
@@ -501,9 +484,7 @@ class TestConsentSuppression:
         result = await repo.upsert(pref)
         assert result.do_not_contact is True
 
-    async def test_upsert_updates_existing(
-        self, db_session: AsyncSession, biz_a: tuple, customer: User
-    ):
+    async def test_upsert_updates_existing(self, db_session: AsyncSession, biz_a: tuple, customer: User):
         _, biz = biz_a
         repo = ConsentRepository(db_session)
         pref1 = CustomerCommunicationPreference(
@@ -530,9 +511,7 @@ class TestConsentSuppression:
         matching = [p for p in prefs if p.channel == "EMAIL" and p.purpose == "MARKETING"]
         assert len(matching) == 1
 
-    async def test_null_wildcard_preference(
-        self, db_session: AsyncSession, biz_a: tuple, customer: User
-    ):
+    async def test_null_wildcard_preference(self, db_session: AsyncSession, biz_a: tuple, customer: User):
         _, biz = biz_a
         repo = ConsentRepository(db_session)
         pref = CustomerCommunicationPreference(
@@ -570,9 +549,7 @@ class TestPolicyDecisions:
         )
         assert decision.decision == "REQUIRE_APPROVAL"
 
-    async def test_disabled_channel_returns_deny(
-        self, db_session: AsyncSession, biz_a: tuple, customer: User
-    ):
+    async def test_disabled_channel_returns_deny(self, db_session: AsyncSession, biz_a: tuple, customer: User):
         _, biz = biz_a
         repo = CommunicationConfigRepository(db_session)
         await repo.upsert_channel_config(
@@ -700,10 +677,7 @@ class TestPolicyDecisions:
             ),
         )
         assert decision.decision == "DENY"
-        assert (
-            "do-not-contact" in decision.reason.lower()
-            or "do_not_contact" in decision.reason.lower()
-        )
+        assert "do-not-contact" in decision.reason.lower() or "do_not_contact" in decision.reason.lower()
 
     async def test_suppressed_returns_deny(
         self,
@@ -803,9 +777,7 @@ class TestPolicyDecisions:
         )
         assert decision.decision == "DENY"
 
-    async def test_missing_brain_returns_require_approval(
-        self, db_session: AsyncSession, biz_b: tuple, customer: User
-    ):
+    async def test_missing_brain_returns_require_approval(self, db_session: AsyncSession, biz_b: tuple, customer: User):
         _, biz = biz_b
         repo = CommunicationConfigRepository(db_session)
         await repo.upsert_channel_config(
@@ -891,9 +863,7 @@ class TestPolicyDecisions:
 class TestNotificationPersistence:
     """Notification CRUD, idempotency, unread count."""
 
-    async def test_create_notification(
-        self, db_session: AsyncSession, biz_a: tuple, customer: User
-    ):
+    async def test_create_notification(self, db_session: AsyncSession, biz_a: tuple, customer: User):
         _, biz = biz_a
         repo = NotificationRepository(db_session)
         n = Notification(
@@ -908,9 +878,7 @@ class TestNotificationPersistence:
         assert result.id is not None
         assert result.read_at is None
 
-    async def test_idempotent_notification(
-        self, db_session: AsyncSession, biz_a: tuple, customer: User
-    ):
+    async def test_idempotent_notification(self, db_session: AsyncSession, biz_a: tuple, customer: User):
         _, biz = biz_a
         from app.domain.communication.notification_service import NotificationService
 
@@ -988,9 +956,7 @@ class TestNotificationPersistence:
 class TestCommunicationPersistence:
     """Communication lifecycle, recipients, attempts."""
 
-    async def test_create_communication_with_recipient(
-        self, db_session: AsyncSession, biz_a: tuple, customer: User
-    ):
+    async def test_create_communication_with_recipient(self, db_session: AsyncSession, biz_a: tuple, customer: User):
         _, biz = biz_a
         repo = CommunicationRepository(db_session)
         comm = Communication(
@@ -1038,9 +1004,7 @@ class TestCommunicationPersistence:
         assert len(attempts) == 1
         assert attempts[0].provider_reference == "msg_123"
 
-    async def test_communication_idempotency_key_unique(
-        self, db_session: AsyncSession, biz_a: tuple
-    ):
+    async def test_communication_idempotency_key_unique(self, db_session: AsyncSession, biz_a: tuple):
         _, biz = biz_a
         repo = CommunicationRepository(db_session)
         key = f"unique-key-{uuid.uuid4().hex[:8]}"
@@ -1233,9 +1197,7 @@ class TestOutboxLifecycle:
 class TestDomainOutboxIntegration:
     """Verify domain services emit outbox events atomically."""
 
-    async def test_quote_emits_outbox_event(
-        self, db_session: AsyncSession, biz_a: tuple, customer: User
-    ):
+    async def test_quote_emits_outbox_event(self, db_session: AsyncSession, biz_a: tuple, customer: User):
         _, biz = biz_a
         cat = service_category_factory()
         db_session.add(cat)
@@ -1283,9 +1245,7 @@ class TestDomainOutboxIntegration:
         assert quote.id is not None
         assert quote.status == "issued"
 
-    async def test_booking_emits_outbox_event(
-        self, db_session: AsyncSession, biz_a: tuple, customer: User
-    ):
+    async def test_booking_emits_outbox_event(self, db_session: AsyncSession, biz_a: tuple, customer: User):
         _, biz = biz_a
         cat = service_category_factory()
         db_session.add(cat)
@@ -1367,9 +1327,7 @@ class TestCommunicationAPIAuthorization:
         )
         assert response.status_code == 200
 
-    async def test_cross_business_template_access_denied(
-        self, db_session: AsyncSession, biz_a: tuple, biz_b: tuple
-    ):
+    async def test_cross_business_template_access_denied(self, db_session: AsyncSession, biz_a: tuple, biz_b: tuple):
         _, biz_a_obj = biz_a
         _, biz_b_obj = biz_b
         # Template-level tenant isolation verified at repository level
@@ -1395,9 +1353,7 @@ class TestCommunicationAPIAuthorization:
         # Unauthenticated request should be rejected
         assert response.status_code in (401, 422)
 
-    async def test_customer_notifications_with_customer_auth(
-        self, client: AsyncClient, customer_auth_headers: dict
-    ):
+    async def test_customer_notifications_with_customer_auth(self, client: AsyncClient, customer_auth_headers: dict):
         response = await client.get(
             "/api/v1/notifications/my-notifications",
             headers=customer_auth_headers,

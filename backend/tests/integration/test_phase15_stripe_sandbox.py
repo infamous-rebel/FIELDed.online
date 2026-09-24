@@ -293,9 +293,7 @@ async def biz_auth_headers(client: AsyncClient, biz_with_member: tuple[User, Bus
     return {"Authorization": f"Bearer {tokens['access_token']}"}
 
 
-def _make_stripe_webhook(
-    event_type, pi_id, status, amount=20000, secret="whsec_sandbox_secret", event_id=None
-):
+def _make_stripe_webhook(event_type, pi_id, status, amount=20000, secret="whsec_sandbox_secret", event_id=None):
     """Create a signed Stripe webhook payload."""
     payload_dict = {
         "id": event_id or f"evt_{uuid.uuid4().hex[:24]}",

@@ -67,9 +67,7 @@ async def list_business_bookings(
 ) -> list[BookingRead]:
     """List bookings for a business."""
     service = BookingService(db)
-    bookings = await service.list_business_bookings(
-        business_id, status=status, limit=limit, offset=offset
-    )
+    bookings = await service.list_business_bookings(business_id, status=status, limit=limit, offset=offset)
     return [_booking_to_read(b) for b in bookings]
 
 
@@ -170,9 +168,7 @@ async def list_my_bookings(
 ) -> list[BookingRead]:
     """List all bookings for the authenticated customer."""
     service = BookingService(db)
-    bookings = await service.list_customer_bookings(
-        user.id, status=status, limit=limit, offset=offset
-    )
+    bookings = await service.list_customer_bookings(user.id, status=status, limit=limit, offset=offset)
     return [_booking_to_read(b) for b in bookings]
 
 
@@ -255,8 +251,6 @@ async def pay_my_booking(
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
 
-    result = await db.execute(
-        select(Payment).where(Payment.id == payment.id).options(selectinload(Payment.attempts))
-    )
+    result = await db.execute(select(Payment).where(Payment.id == payment.id).options(selectinload(Payment.attempts)))
     payment = result.scalar_one()
     return PaymentRead.model_validate(payment)

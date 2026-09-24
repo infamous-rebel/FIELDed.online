@@ -107,9 +107,7 @@ class CampaignExecutionService:
         self.session = session
         self.voice_provider = voice_provider
         self.lifecycle = lifecycle or VoiceCallLifecycleService(session)
-        self.orchestration = VoiceProviderOrchestrationService(
-            session, voice_provider, lifecycle=self.lifecycle
-        )
+        self.orchestration = VoiceProviderOrchestrationService(session, voice_provider, lifecycle=self.lifecycle)
         self.campaigns = CampaignService(session)
         self.policy = policy_service or CommunicationPolicyService(session)
         self.campaign_repo = CampaignRepository(session)
@@ -296,9 +294,7 @@ class CampaignExecutionService:
         """
         moment = _aware(now or _utcnow())
         if CampaignStatus(campaign.status) != CampaignStatus.ACTIVE:
-            raise StateTransitionError(
-                f"Campaign '{campaign.id}' is not ACTIVE (status: {campaign.status})"
-            )
+            raise StateTransitionError(f"Campaign '{campaign.id}' is not ACTIVE (status: {campaign.status})")
         config = await self.config_repo.get_for_business(campaign.business_id)
         if config is None:
             raise DomainError("Call Agent is not configured for this business")
@@ -352,9 +348,7 @@ class CampaignExecutionService:
             # 1. Calling window
             in_window, window_reason = self._in_calling_window(config, moment)
             if not in_window:
-                await self._skip_recipient(
-                    campaign, recipient, reason=window_reason, actor_id=actor_id
-                )
+                await self._skip_recipient(campaign, recipient, reason=window_reason, actor_id=actor_id)
                 results["skipped"] += 1
                 results["recipients"].append(
                     {
@@ -366,13 +360,9 @@ class CampaignExecutionService:
                 continue
 
             # 2. Frequency limits
-            allowed, exhausted, freq_reason = await self._frequency_check(
-                config, campaign, recipient, now=moment
-            )
+            allowed, exhausted, freq_reason = await self._frequency_check(config, campaign, recipient, now=moment)
             if not allowed:
-                target = (
-                    CampaignRecipientStatus.FAILED if exhausted else CampaignRecipientStatus.SKIPPED
-                )
+                target = CampaignRecipientStatus.FAILED if exhausted else CampaignRecipientStatus.SKIPPED
                 await self.campaigns.transition_recipient(recipient, target)
                 if target == CampaignRecipientStatus.SKIPPED:
                     await self._audit_campaign(
@@ -405,9 +395,7 @@ class CampaignExecutionService:
                 ),
             )
             if decision.decision == "DENY":
-                await self.campaigns.transition_recipient(
-                    recipient, CampaignRecipientStatus.SUPPRESSED
-                )
+                await self.campaigns.transition_recipient(recipient, CampaignRecipientStatus.SUPPRESSED)
                 await self._audit_campaign(
                     campaign,
                     AuditEventType.CAMPAIGN_RECIPIENT_SUPPRESSED,
@@ -425,9 +413,7 @@ class CampaignExecutionService:
                 )
                 continue
             if not decision.is_allowed:
-                await self.campaigns.transition_recipient(
-                    recipient, CampaignRecipientStatus.SKIPPED
-                )
+                await self.campaigns.transition_recipient(recipient, CampaignRecipientStatus.SKIPPED)
                 await self._audit_campaign(
                     campaign,
                     AuditEventType.CAMPAIGN_RECIPIENT_SKIPPED,
@@ -469,9 +455,7 @@ class CampaignExecutionService:
                 await self.campaigns.transition_recipient(recipient, CampaignRecipientStatus.FAILED)
                 results["failed"] += 1
             else:
-                await self.campaigns.transition_recipient(
-                    recipient, CampaignRecipientStatus.CONTACTED
-                )
+                await self.campaigns.transition_recipient(recipient, CampaignRecipientStatus.CONTACTED)
                 results["contacted"] += 1
 
             results["recipients"].append(
@@ -542,9 +526,7 @@ class CampaignExecutionService:
         await self._maybe_complete_campaign(campaign_id=campaign_id, business_id=call.business_id)
         return recipient
 
-    async def _maybe_complete_campaign(
-        self, *, campaign_id: uuid.UUID, business_id: uuid.UUID
-    ) -> None:
+    async def _maybe_complete_campaign(self, *, campaign_id: uuid.UUID, business_id: uuid.UUID) -> None:
         """Auto-complete an ACTIVE campaign once no open recipients remain."""
         campaign = await self.campaign_repo.get_by_id(campaign_id, business_id=business_id)
         if campaign is None or CampaignStatus(campaign.status) != CampaignStatus.ACTIVE:

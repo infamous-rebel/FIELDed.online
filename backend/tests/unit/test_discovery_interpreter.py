@@ -84,9 +84,7 @@ class TestDiscoveryInterpreter:
             }
         )
         interpreter = DiscoveryInterpreter(provider)
-        intent = await interpreter.interpret(
-            "I need an electrical inspection for my apartment wiring"
-        )
+        intent = await interpreter.interpret("I need an electrical inspection for my apartment wiring")
 
         assert intent.status == IntentStatus.COMPLETE
         assert intent.service.service_name == "Electrical Inspection"

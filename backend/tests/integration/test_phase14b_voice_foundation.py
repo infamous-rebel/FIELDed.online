@@ -212,9 +212,7 @@ async def drive_call_to(
     raise ValueError(f"Cannot drive call to {target}")
 
 
-async def call_audit_events(
-    db_session: AsyncSession, business_id: uuid.UUID
-) -> list[CommunicationAuditEvent]:
+async def call_audit_events(db_session: AsyncSession, business_id: uuid.UUID) -> list[CommunicationAuditEvent]:
     """All CALL_* audit events for a business.
 
     PostgreSQL ``now()`` is transaction-stable, so created_at is
@@ -434,10 +432,7 @@ class TestSchemaVerification:
             },
         }.items():
             result = await db_session.execute(
-                text(
-                    "SELECT column_name FROM information_schema.columns "
-                    f"WHERE table_name = '{table}'"
-                )
+                text(f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table}'")
             )
             found = {r[0] for r in result.all()}
             assert cols.issubset(found), f"{table} missing: {cols - found}"
@@ -469,10 +464,7 @@ class TestSchemaVerification:
 
     async def test_idempotency_unique_per_business(self, db_session: AsyncSession):
         result = await db_session.execute(
-            text(
-                "SELECT indexdef FROM pg_indexes "
-                "WHERE indexname = 'uq_voice_calls_business_idempotency'"
-            )
+            text("SELECT indexdef FROM pg_indexes WHERE indexname = 'uq_voice_calls_business_idempotency'")
         )
         row = result.scalar_one_or_none()
         assert row is not None
@@ -484,10 +476,7 @@ class TestSchemaVerification:
 
     async def test_attempt_uniqueness_constraint(self, db_session: AsyncSession):
         result = await db_session.execute(
-            text(
-                "SELECT indexdef FROM pg_indexes "
-                "WHERE indexname = 'uq_voice_call_attempts_call_attempt'"
-            )
+            text("SELECT indexdef FROM pg_indexes WHERE indexname = 'uq_voice_call_attempts_call_attempt'")
         )
         row = result.scalar_one_or_none()
         assert row is not None
@@ -496,10 +485,7 @@ class TestSchemaVerification:
 
     async def test_config_unique_per_business(self, db_session: AsyncSession):
         result = await db_session.execute(
-            text(
-                "SELECT indexdef FROM pg_indexes "
-                "WHERE indexname = 'uq_call_agent_configurations_business'"
-            )
+            text("SELECT indexdef FROM pg_indexes WHERE indexname = 'uq_call_agent_configurations_business'")
         )
         row = result.scalar_one_or_none()
         assert row is not None
@@ -598,9 +584,7 @@ class TestCallLifecycle:
         lifecycle = VoiceCallLifecycleService(db_session)
         await drive_call_to(lifecycle, call, CallStatus.RINGING)
 
-        call = await lifecycle.fail_call(
-            call, failure_code="PROVIDER_ERROR", failure_reason="trunk dropped"
-        )
+        call = await lifecycle.fail_call(call, failure_code="PROVIDER_ERROR", failure_reason="trunk dropped")
         assert call.status == CallStatus.FAILED.value
         assert call.failed_at is not None
         assert call.failure_code == "PROVIDER_ERROR"
@@ -706,11 +690,7 @@ class TestCallLifecycle:
 
         call = await lifecycle.fail_call(call, failure_code="DROPPED")
         sessions = (
-            (
-                await db_session.execute(
-                    select(VoiceCallSession).where(VoiceCallSession.call_id == call.id)
-                )
-            )
+            (await db_session.execute(select(VoiceCallSession).where(VoiceCallSession.call_id == call.id)))
             .scalars()
             .all()
         )
@@ -745,9 +725,7 @@ class TestPurposeTypeGating:
                 call_type=CallType.MARKETING.value,
             )
 
-    async def test_marketing_call_blocked_when_marketing_disabled(
-        self, db_session: AsyncSession, biz_a
-    ):
+    async def test_marketing_call_blocked_when_marketing_disabled(self, db_session: AsyncSession, biz_a):
         _, biz, _ = biz_a
         with pytest.raises(DomainError):
             await request_call(
@@ -757,9 +735,7 @@ class TestPurposeTypeGating:
                 config_kwargs={"marketing_calling_enabled": False},
             )
 
-    async def test_transactional_call_blocked_when_transactional_disabled(
-        self, db_session: AsyncSession, biz_a
-    ):
+    async def test_transactional_call_blocked_when_transactional_disabled(self, db_session: AsyncSession, biz_a):
         _, biz, _ = biz_a
         with pytest.raises(DomainError):
             await request_call(
@@ -779,9 +755,7 @@ class TestPurposeTypeGating:
         with pytest.raises(DomainError):
             await request_call(db_session, biz, with_config=False)
 
-    async def test_existing_customer_marketing_call_stays_marketing(
-        self, db_session: AsyncSession, biz_a
-    ):
+    async def test_existing_customer_marketing_call_stays_marketing(self, db_session: AsyncSession, biz_a):
         user, biz, _ = biz_a
         # The recipient is an existing customer — the call must still be
         # classified MARKETING and require marketing enablement.
@@ -817,9 +791,7 @@ class TestIdempotency:
         second = await request_call(db_session, biz, idempotency_key="k2")
         assert first.id != second.id
 
-    async def test_same_key_different_business_is_independent(
-        self, db_session: AsyncSession, biz_a, biz_b
-    ):
+    async def test_same_key_different_business_is_independent(self, db_session: AsyncSession, biz_a, biz_b):
         _, biz_a_row, _ = biz_a
         _, biz_b_row, _ = biz_b
         key = f"shared-key:{uuid.uuid4().hex}"
@@ -853,9 +825,7 @@ class TestTenantIsolation:
 
         call = await request_call(db_session, biz_a_row)
         lifecycle = VoiceCallLifecycleService(db_session)
-        attempt = await lifecycle.record_attempt(
-            call, provider=PROVIDER, provider_reference="CA123"
-        )
+        attempt = await lifecycle.record_attempt(call, provider=PROVIDER, provider_reference="CA123")
 
         attempt_repo = VoiceCallAttemptRepository(db_session)
         assert await attempt_repo.get_by_id(attempt.id, business_id=biz_a_row.id) is not None
@@ -881,9 +851,7 @@ class TestTenantIsolation:
         call = await request_call(db_session, biz_a_row)
         lifecycle = VoiceCallLifecycleService(db_session)
         await drive_call_to(lifecycle, call, CallStatus.IN_PROGRESS)
-        escalation = await lifecycle.escalate_call(
-            call, escalation_reason="customer asked for a human"
-        )
+        escalation = await lifecycle.escalate_call(call, escalation_reason="customer asked for a human")
 
         escalation_repo = VoiceCallEscalationRepository(db_session)
         assert await escalation_repo.get_by_id(escalation.id, business_id=biz_a_row.id) is not None
@@ -902,9 +870,7 @@ class TestTenantIsolation:
         )
 
         participant_repo = VoiceCallParticipantRepository(db_session)
-        assert (
-            await participant_repo.get_by_id(participant.id, business_id=biz_a_row.id) is not None
-        )
+        assert await participant_repo.get_by_id(participant.id, business_id=biz_a_row.id) is not None
         assert await participant_repo.get_by_id(participant.id, business_id=biz_b_row.id) is None
 
     async def test_configuration_is_tenant_scoped(self, db_session: AsyncSession, biz_a, biz_b):
@@ -916,9 +882,7 @@ class TestTenantIsolation:
         assert await config_repo.get_for_business(biz_a_row.id) is not None
         assert await config_repo.get_for_business(biz_b_row.id) is None
 
-    async def test_campaigns_and_recipients_are_tenant_scoped(
-        self, db_session: AsyncSession, biz_a, biz_b
-    ):
+    async def test_campaigns_and_recipients_are_tenant_scoped(self, db_session: AsyncSession, biz_a, biz_b):
         _, biz_a_row, _ = biz_a
         _, biz_b_row, _ = biz_b
 
@@ -1029,9 +993,7 @@ class TestRelationships:
             "invoice": invoice,
         }
 
-    async def test_call_with_all_relationship_anchors(
-        self, db_session: AsyncSession, biz_a, transaction_chain
-    ):
+    async def test_call_with_all_relationship_anchors(self, db_session: AsyncSession, biz_a, transaction_chain):
         chain = transaction_chain
         biz = chain["biz"]
 
@@ -1202,9 +1164,7 @@ class TestEscalation:
         lifecycle = VoiceCallLifecycleService(db_session)
         await drive_call_to(lifecycle, call, CallStatus.IN_PROGRESS)
 
-        escalation = await lifecycle.escalate_call(
-            call, escalation_reason="customer requested a human"
-        )
+        escalation = await lifecycle.escalate_call(call, escalation_reason="customer requested a human")
         assert escalation.escalation_status == EscalationStatus.REQUESTED.value
         assert escalation.requested_at is not None
         assert call.status == CallStatus.ESCALATED.value
@@ -1217,9 +1177,7 @@ class TestEscalation:
         assert escalation.escalation_status == EscalationStatus.ACCEPTED.value
         assert escalation.accepted_at is not None
 
-        escalation = await lifecycle.resolve_escalation(
-            escalation, resolution_notes="resolved with the customer"
-        )
+        escalation = await lifecycle.resolve_escalation(escalation, resolution_notes="resolved with the customer")
         assert escalation.escalation_status == EscalationStatus.RESOLVED.value
         assert escalation.resolved_at is not None
         assert escalation.resolution_notes == "resolved with the customer"
@@ -1231,9 +1189,7 @@ class TestEscalation:
         await drive_call_to(lifecycle, call, CallStatus.CONNECTED)
 
         escalation = await lifecycle.escalate_call(call, escalation_reason="unclear request")
-        escalation = await lifecycle.cancel_escalation(
-            escalation, reason="customer changed their mind"
-        )
+        escalation = await lifecycle.cancel_escalation(escalation, reason="customer changed their mind")
         assert escalation.escalation_status == EscalationStatus.CANCELLED.value
 
     async def test_invalid_escalation_transition(self, db_session: AsyncSession, biz_a):
@@ -1262,9 +1218,7 @@ class TestEscalation:
         await drive_call_to(lifecycle, call, CallStatus.IN_PROGRESS)
 
         session_row = (
-            await db_session.execute(
-                select(VoiceCallSession).where(VoiceCallSession.call_id == call.id)
-            )
+            await db_session.execute(select(VoiceCallSession).where(VoiceCallSession.call_id == call.id))
         ).scalar_one()
 
         await lifecycle.escalate_call(call, escalation_reason="complex case")
@@ -1444,9 +1398,7 @@ class TestCallAgentConfiguration:
         configs = (
             (
                 await db_session.execute(
-                    select(CallAgentConfiguration).where(
-                        CallAgentConfiguration.business_id == biz.id
-                    )
+                    select(CallAgentConfiguration).where(CallAgentConfiguration.business_id == biz.id)
                 )
             )
             .scalars()

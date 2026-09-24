@@ -161,9 +161,7 @@ async def make_brain(
     brain = BusinessBrain(business_id=biz.id)
     db_session.add(brain)
     await db_session.flush()
-    communication_config = (
-        {"voice_agent": voice_agent or VOICE_AGENT_CONFIG} if include_voice_agent else {}
-    )
+    communication_config = {"voice_agent": voice_agent or VOICE_AGENT_CONFIG} if include_voice_agent else {}
     version = BrainVersion(
         brain_id=brain.id,
         version_number=1,
@@ -392,9 +390,7 @@ class TestAgentTurns:
         assert types[AuditEventType.CALL_ESCALATED.value] == 1
 
     async def test_request_human_disabled_raises(self, db_session, biz_a):
-        call, _, _ = await connected_call(
-            db_session, biz_a, config_kwargs={"human_escalation_enabled": False}
-        )
+        call, _, _ = await connected_call(db_session, biz_a, config_kwargs={"human_escalation_enabled": False})
         await make_brain(db_session, biz_a)
         ai = StubAIProvider(
             responses=[
@@ -598,9 +594,7 @@ class TestInstructionAuthority:
         assert "may never confirm bookings" in system
 
     async def test_operational_agent_instructions_appended_as_style(self, db_session, biz_a):
-        call, _, config = await connected_call(
-            db_session, biz_a, config_kwargs={"agent_instructions": "Speak warmly."}
-        )
+        call, _, config = await connected_call(db_session, biz_a, config_kwargs={"agent_instructions": "Speak warmly."})
         await make_brain(db_session, biz_a)
         ai = StubAIProvider()
         agent = agent_for(db_session, ai)
@@ -620,9 +614,7 @@ class TestRecordOutcome:
     async def test_record_outcome_on_active_session(self, db_session, biz_a):
         call, agent, _, _ = await begin_session(db_session, biz_a)
 
-        session_row = await agent.record_outcome(
-            call, "CALLBACK_REQUESTED", "Recipient asked for an evening callback"
-        )
+        session_row = await agent.record_outcome(call, "CALLBACK_REQUESTED", "Recipient asked for an evening callback")
 
         assert session_row.outcome == "CALLBACK_REQUESTED"
         assert session_row.outcome_summary == ("Recipient asked for an evening callback")

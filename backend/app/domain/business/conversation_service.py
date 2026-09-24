@@ -28,10 +28,8 @@ from app.domain.business.models import (
     BrainProposal,
     BrainVersion,
     BusinessBrain,
-    BusinessRule,
 )
 from app.domain.business.registry import (
-    ConfigCategory,
     is_known_rule_type,
 )
 from app.domain.business.repository import (
@@ -174,9 +172,7 @@ class BrainConversationService:
     # Conversation management
     # ------------------------------------------------------------------
 
-    async def get_or_create_active_conversation(
-        self, brain_id: uuid.UUID, business_id: uuid.UUID
-    ) -> BrainConversation:
+    async def get_or_create_active_conversation(self, brain_id: uuid.UUID, business_id: uuid.UUID) -> BrainConversation:
         """Get the active conversation for a brain, creating one if needed."""
         conversation = await self.conversation_repo.get_active_by_brain_id(brain_id)
         if conversation is not None:
@@ -230,9 +226,7 @@ class BrainConversationService:
         )
 
         # Generate Brain response with proposal extraction
-        brain_response_content, proposal_data = await self._generate_brain_response(
-            conversation, content
-        )
+        brain_response_content, proposal_data = await self._generate_brain_response(conversation, content)
 
         brain_message = await self.message_repo.create(
             BrainMessage(
@@ -256,21 +250,13 @@ class BrainConversationService:
 
         return owner_message, brain_message
 
-    async def list_messages(
-        self, conversation_id: uuid.UUID, limit: int = 100
-    ) -> list[BrainMessage]:
-        return await self.message_repo.list_by_conversation_id(
-            conversation_id, limit=limit
-        )
+    async def list_messages(self, conversation_id: uuid.UUID, limit: int = 100) -> list[BrainMessage]:
+        return await self.message_repo.list_by_conversation_id(conversation_id, limit=limit)
 
-    async def list_conversations(
-        self, brain_id: uuid.UUID, limit: int = 20
-    ) -> list[BrainConversation]:
+    async def list_conversations(self, brain_id: uuid.UUID, limit: int = 20) -> list[BrainConversation]:
         return await self.conversation_repo.list_by_brain_id(brain_id, limit=limit)
 
-    async def archive_conversation(
-        self, conversation_id: uuid.UUID
-    ) -> BrainConversation:
+    async def archive_conversation(self, conversation_id: uuid.UUID) -> BrainConversation:
         conversation = await self.conversation_repo.get_by_id(conversation_id)
         if conversation is None:
             raise NotFoundError(f"Conversation {conversation_id} not found")
@@ -281,14 +267,10 @@ class BrainConversationService:
     # Proposal management + governance connection
     # ------------------------------------------------------------------
 
-    async def list_proposals(
-        self, brain_id: uuid.UUID, limit: int = 50
-    ) -> list[BrainProposal]:
+    async def list_proposals(self, brain_id: uuid.UUID, limit: int = 50) -> list[BrainProposal]:
         return await self.proposal_repo.list_by_brain_id(brain_id, limit=limit)
 
-    async def list_pending_proposals(
-        self, brain_id: uuid.UUID
-    ) -> list[BrainProposal]:
+    async def list_pending_proposals(self, brain_id: uuid.UUID) -> list[BrainProposal]:
         return await self.proposal_repo.list_pending_by_brain_id(brain_id)
 
     async def approve_proposal(
@@ -307,9 +289,7 @@ class BrainConversationService:
             raise NotFoundError(f"Proposal {proposal_id} not found")
 
         if proposal.status != BrainProposalStatus.PENDING:
-            raise DomainError(
-                f"Cannot approve proposal in status {proposal.status}"
-            )
+            raise DomainError(f"Cannot approve proposal in status {proposal.status}")
 
         # Apply edits if provided
         final_change = edited_change if edited_change is not None else proposal.proposed_change
@@ -343,9 +323,7 @@ class BrainConversationService:
             raise NotFoundError(f"Proposal {proposal_id} not found")
 
         if proposal.status != BrainProposalStatus.PENDING:
-            raise DomainError(
-                f"Cannot reject proposal in status {proposal.status}"
-            )
+            raise DomainError(f"Cannot reject proposal in status {proposal.status}")
 
         proposal.status = BrainProposalStatus.REJECTED
         proposal.resolved_at = datetime.now(UTC)
@@ -355,9 +333,7 @@ class BrainConversationService:
     # Brain knowledge & attention
     # ------------------------------------------------------------------
 
-    async def get_brain_knowledge_summary(
-        self, brain_id: uuid.UUID, business_id: uuid.UUID
-    ) -> dict[str, Any]:
+    async def get_brain_knowledge_summary(self, brain_id: uuid.UUID, business_id: uuid.UUID) -> dict[str, Any]:
         """Return a comprehensive summary of Brain knowledge state.
 
         Includes: known (approved), proposed (pending), uncertain,
@@ -413,8 +389,14 @@ class BrainConversationService:
                         missing_areas.append(area)
         else:
             missing_areas = [
-                "identity", "services", "pricing", "availability",
-                "qualification", "policies", "escalation", "communication",
+                "identity",
+                "services",
+                "pricing",
+                "availability",
+                "qualification",
+                "policies",
+                "escalation",
+                "communication",
             ]
 
         return {
@@ -439,14 +421,16 @@ class BrainConversationService:
         # 1. Pending proposals
         pending = await self.proposal_repo.list_pending_by_brain_id(brain_id)
         for p in pending:
-            items.append({
-                "type": "pending_proposal",
-                "id": str(p.id),
-                "title": f"Proposal: {p.proposed_change.get('summary', p.proposal_type)}",
-                "proposal_type": p.proposal_type,
-                "is_urgent": p.is_urgent,
-                "confidence": p.confidence,
-            })
+            items.append(
+                {
+                    "type": "pending_proposal",
+                    "id": str(p.id),
+                    "title": f"Proposal: {p.proposed_change.get('summary', p.proposal_type)}",
+                    "proposal_type": p.proposal_type,
+                    "is_urgent": p.is_urgent,
+                    "confidence": p.confidence,
+                }
+            )
 
         # 2. Missing critical areas (services and pricing are critical)
         brain = await self.brain_repo.get_by_id(brain_id)
@@ -463,37 +447,39 @@ class BrainConversationService:
                     critical_missing.append("availability")
 
                 for area in critical_missing:
-                    items.append({
-                        "type": "missing_configuration",
-                        "title": f"Missing {area} configuration",
-                        "affected_area": area,
-                        "is_urgent": area in ("services", "pricing"),
-                    })
+                    items.append(
+                        {
+                            "type": "missing_configuration",
+                            "title": f"Missing {area} configuration",
+                            "affected_area": area,
+                            "is_urgent": area in ("services", "pricing"),
+                        }
+                    )
         elif brain is None or not brain.active_version_id:
-            items.append({
-                "type": "no_active_version",
-                "title": "No active Brain version — business rules are not governing transactions",
-                "affected_area": "all",
-                "is_urgent": True,
-            })
+            items.append(
+                {
+                    "type": "no_active_version",
+                    "title": "No active Brain version — business rules are not governing transactions",
+                    "affected_area": "all",
+                    "is_urgent": True,
+                }
+            )
 
         # 3. Operational events needing business action
         await self._add_operational_attention_items(items, brain)
 
         return items
 
-    async def _add_operational_attention_items(
-        self, items: list[dict[str, Any]], brain: BusinessBrain | None
-    ) -> None:
+    async def _add_operational_attention_items(self, items: list[dict[str, Any]], brain: BusinessBrain | None) -> None:
         """Add operational events that need business attention."""
         if not brain:
             return
 
         # Import repositories for operational queries
-        from app.domain.enquiry.repository import EnquiryRepository
-        from app.domain.quote.repository import QuoteRepository
         from app.domain.booking.repository import BookingRepository
+        from app.domain.enquiry.repository import EnquiryRepository
         from app.domain.invoice.repository import InvoiceRepository
+        from app.domain.quote.repository import QuoteRepository
 
         enquiry_repo = EnquiryRepository(self.session)
         quote_repo = QuoteRepository(self.session)
@@ -502,44 +488,44 @@ class BrainConversationService:
 
         # New enquiries awaiting business response (received, in_review, needs_information)
         all_enquiries = await enquiry_repo.get_by_business(brain.business_id, limit=20)
-        awaiting_enquiries = [
-            e for e in all_enquiries
-            if e.status in ("received", "in_review", "needs_information")
-        ]
+        awaiting_enquiries = [e for e in all_enquiries if e.status in ("received", "in_review", "needs_information")]
         if awaiting_enquiries:
-            items.append({
-                "type": "new_enquiries",
-                "title": f"{len(awaiting_enquiries)} enquiry{'s' if len(awaiting_enquiries) != 1 else ''} awaiting your response",
-                "affected_area": "enquiries",
-                "is_urgent": True,
-                "count": len(awaiting_enquiries),
-            })
+            items.append(
+                {
+                    "type": "new_enquiries",
+                    "title": f"{len(awaiting_enquiries)} enquiry{'s' if len(awaiting_enquiries) != 1 else ''} awaiting your response",
+                    "affected_area": "enquiries",
+                    "is_urgent": True,
+                    "count": len(awaiting_enquiries),
+                }
+            )
 
         # Quotes issued awaiting customer response
         issued_quotes = await quote_repo.get_by_business(brain.business_id, status="issued", limit=10)
         if issued_quotes:
-            items.append({
-                "type": "pending_quotes",
-                "title": f"{len(issued_quotes)} quote{'s' if len(issued_quotes) != 1 else ''} awaiting customer response",
-                "affected_area": "quotes",
-                "is_urgent": False,
-                "count": len(issued_quotes),
-            })
+            items.append(
+                {
+                    "type": "pending_quotes",
+                    "title": f"{len(issued_quotes)} quote{'s' if len(issued_quotes) != 1 else ''} awaiting customer response",
+                    "affected_area": "quotes",
+                    "is_urgent": False,
+                    "count": len(issued_quotes),
+                }
+            )
 
         # Bookings needing business action (requested, proposed)
         all_bookings = await booking_repo.get_by_business(brain.business_id, limit=20)
-        action_bookings = [
-            b for b in all_bookings
-            if b.status in ("requested", "proposed")
-        ]
+        action_bookings = [b for b in all_bookings if b.status in ("requested", "proposed")]
         if action_bookings:
-            items.append({
-                "type": "pending_bookings",
-                "title": f"{len(action_bookings)} booking{'s' if len(action_bookings) != 1 else ''} need{'s' if len(action_bookings) == 1 else ''} your action",
-                "affected_area": "bookings",
-                "is_urgent": True,
-                "count": len(action_bookings),
-            })
+            items.append(
+                {
+                    "type": "pending_bookings",
+                    "title": f"{len(action_bookings)} booking{'s' if len(action_bookings) != 1 else ''} need{'s' if len(action_bookings) == 1 else ''} your action",
+                    "affected_area": "bookings",
+                    "is_urgent": True,
+                    "count": len(action_bookings),
+                }
+            )
 
         # Unpaid invoices
         unpaid_invoices = await invoice_repo.get_by_business(
@@ -548,21 +534,21 @@ class BrainConversationService:
             limit=10,
         )
         if unpaid_invoices:
-            items.append({
-                "type": "unpaid_invoices",
-                "title": f"{len(unpaid_invoices)} unpaid invoice{'s' if len(unpaid_invoices) != 1 else ''}",
-                "affected_area": "invoices",
-                "is_urgent": False,
-                "count": len(unpaid_invoices),
-            })
+            items.append(
+                {
+                    "type": "unpaid_invoices",
+                    "title": f"{len(unpaid_invoices)} unpaid invoice{'s' if len(unpaid_invoices) != 1 else ''}",
+                    "affected_area": "invoices",
+                    "is_urgent": False,
+                    "count": len(unpaid_invoices),
+                }
+            )
 
     # ------------------------------------------------------------------
     # Private: Context building
     # ------------------------------------------------------------------
 
-    async def _generate_initial_greeting(
-        self, brain_id: uuid.UUID, business_id: uuid.UUID
-    ) -> str:
+    async def _generate_initial_greeting(self, brain_id: uuid.UUID, business_id: uuid.UUID) -> str:
         """Generate context-aware initial greeting."""
         brain = await self.brain_repo.get_by_business_id(business_id)
         has_active = brain is not None and brain.active_version_id is not None
@@ -609,13 +595,9 @@ class BrainConversationService:
     ) -> tuple[str, dict | None]:
         """Generate Brain response with structured proposal extraction."""
         # Build comprehensive context
-        business_context = await self._build_business_context(
-            conversation.business_id
-        )
+        business_context = await self._build_business_context(conversation.business_id)
         active_config = await self._build_active_config_text(conversation.brain_id)
-        approved_knowledge = await self._build_approved_knowledge_text(
-            conversation.brain_id
-        )
+        approved_knowledge = await self._build_approved_knowledge_text(conversation.brain_id)
         pending_text = await self._build_pending_proposals_text(conversation.brain_id)
         missing_text = await self._build_missing_info_text(conversation.brain_id)
 
@@ -628,9 +610,7 @@ class BrainConversationService:
         )
 
         # Build conversation history for multi-turn chat
-        history = await self.message_repo.list_by_conversation_id(
-            conversation.id, limit=20
-        )
+        history = await self.message_repo.list_by_conversation_id(conversation.id, limit=20)
         chat_messages = [
             {"role": "assistant" if m.role == "brain" else m.role, "content": m.content}
             for m in history
@@ -663,13 +643,12 @@ class BrainConversationService:
 
         # Build a prompt that asks for both response and potential proposal
         conversation_text = "\n".join(
-            f"{'Brain' if m['role'] == 'assistant' else 'Owner'}: {m['content']}"
-            for m in chat_messages
+            f"{'Brain' if m['role'] == 'assistant' else 'Owner'}: {m['content']}" for m in chat_messages
         )
 
         full_prompt = (
             f"Conversation so far:\n{conversation_text}\n\n"
-            f"Owner's latest message: \"{owner_message}\"\n\n"
+            f'Owner\'s latest message: "{owner_message}"\n\n'
             "Respond to the owner. If their message contains business information "
             "that should become a rule or configuration, include a [PROPOSAL] block "
             "with the structured data. Otherwise, just respond conversationally."
@@ -699,9 +678,7 @@ class BrainConversationService:
 
         return display_text, proposal_data
 
-    async def _build_business_context(
-        self, business_id: uuid.UUID
-    ) -> str:
+    async def _build_business_context(self, business_id: uuid.UUID) -> str:
         """Build real business context from database."""
         from app.domain.identity.repository import BusinessRepository
 
@@ -726,14 +703,10 @@ class BrainConversationService:
             draft_offers = [o for o in offers if o.status == "draft"]
             if active_offers:
                 parts.append(
-                    f"Active services ({len(active_offers)}): "
-                    + ", ".join(o.name for o in active_offers[:10])
+                    f"Active services ({len(active_offers)}): " + ", ".join(o.name for o in active_offers[:10])
                 )
             if draft_offers:
-                parts.append(
-                    f"Draft services ({len(draft_offers)}): "
-                    + ", ".join(o.name for o in draft_offers[:5])
-                )
+                parts.append(f"Draft services ({len(draft_offers)}): " + ", ".join(o.name for o in draft_offers[:5]))
         else:
             parts.append("No service offers configured yet.")
 
@@ -744,8 +717,8 @@ class BrainConversationService:
                 parts.append(f"Description: {profile.description[:200]}")
 
         # Include recent operational activity
-        from app.domain.enquiry.repository import EnquiryRepository
         from app.domain.booking.repository import BookingRepository
+        from app.domain.enquiry.repository import EnquiryRepository
         from app.domain.invoice.repository import InvoiceRepository
 
         enquiry_repo = EnquiryRepository(self.session)
@@ -755,16 +728,22 @@ class BrainConversationService:
         # Recent enquiries
         recent_enquiries = await enquiry_repo.get_by_business(business_id, limit=5)
         if recent_enquiries:
-            active_count = sum(1 for e in recent_enquiries if e.status in ("received", "in_review", "needs_information"))
+            active_count = sum(
+                1 for e in recent_enquiries if e.status in ("received", "in_review", "needs_information")
+            )
             completed_count = sum(1 for e in recent_enquiries if e.status == "completed")
-            parts.append(f"Recent enquiries: {len(recent_enquiries)} total, {active_count} active, {completed_count} completed")
+            parts.append(
+                f"Recent enquiries: {len(recent_enquiries)} total, {active_count} active, {completed_count} completed"
+            )
 
         # Recent bookings
         recent_bookings = await booking_repo.get_by_business(business_id, limit=5)
         if recent_bookings:
             confirmed_count = sum(1 for b in recent_bookings if b.status == "confirmed")
             completed_count = sum(1 for b in recent_bookings if b.status == "completed")
-            parts.append(f"Recent bookings: {len(recent_bookings)} total, {confirmed_count} confirmed, {completed_count} completed")
+            parts.append(
+                f"Recent bookings: {len(recent_bookings)} total, {confirmed_count} confirmed, {completed_count} completed"
+            )
 
         # Unpaid invoices
         unpaid_invoices = await invoice_repo.get_by_business(business_id, payment_status="unpaid", limit=5)
@@ -774,9 +753,7 @@ class BrainConversationService:
 
         return "\n".join(parts)
 
-    async def _build_active_config_text(
-        self, brain_id: uuid.UUID
-    ) -> str:
+    async def _build_active_config_text(self, brain_id: uuid.UUID) -> str:
         """Build text summary of active Brain configuration."""
         version = await self.version_repo.get_active_by_brain_id(brain_id)
         if not version:
@@ -808,14 +785,14 @@ class BrainConversationService:
 
         return "\n".join(parts)
 
-    async def _build_approved_knowledge_text(
-        self, brain_id: uuid.UUID
-    ) -> str:
+    async def _build_approved_knowledge_text(self, brain_id: uuid.UUID) -> str:
         """Build text of approved/applied proposals (known knowledge)."""
         proposals = await self.proposal_repo.list_by_brain_id(brain_id, limit=30)
         approved = [
-            p for p in proposals
-            if p.status in (
+            p
+            for p in proposals
+            if p.status
+            in (
                 BrainProposalStatus.APPROVED,
                 BrainProposalStatus.EDITED,
                 BrainProposalStatus.APPLIED,
@@ -832,9 +809,7 @@ class BrainConversationService:
             lines.append(f"- [{status_label}] {p.proposal_type}: {summary}")
         return "\n".join(lines)
 
-    async def _build_pending_proposals_text(
-        self, brain_id: uuid.UUID
-    ) -> str:
+    async def _build_pending_proposals_text(self, brain_id: uuid.UUID) -> str:
         pending = await self.proposal_repo.list_pending_by_brain_id(brain_id)
         if not pending:
             return "No pending proposals."
@@ -976,9 +951,7 @@ class BrainConversationService:
         draft_version = await self._get_or_create_draft_version(brain, brain_service)
 
         proposal_type = BrainProposalType(proposal.proposal_type)
-        config_area_key, default_rule_type = _PROPOSAL_TYPE_TO_RULE.get(
-            proposal_type, (None, None)
-        )
+        config_area_key, default_rule_type = _PROPOSAL_TYPE_TO_RULE.get(proposal_type, (None, None))
 
         # Determine if this is a rule-based proposal or a config-only proposal
         rule_type = change_data.get("rule_type", default_rule_type)
@@ -1012,12 +985,16 @@ class BrainConversationService:
             else:
                 # Use the whole proposed_change as config (minus meta fields)
                 meta_keys = {
-                    "proposal_type", "summary", "reasoning", "confidence",
-                    "affected_area", "rule_type", "rule_name", "rule_data",
+                    "proposal_type",
+                    "summary",
+                    "reasoning",
+                    "confidence",
+                    "affected_area",
+                    "rule_type",
+                    "rule_name",
+                    "rule_data",
                 }
-                config_update = {
-                    k: v for k, v in change_data.items() if k not in meta_keys
-                }
+                config_update = {k: v for k, v in change_data.items() if k not in meta_keys}
                 merged = {**existing_config, **config_update} if config_update else existing_config
 
             if merged and merged != existing_config:
@@ -1036,12 +1013,16 @@ class BrainConversationService:
             # so it's tracked but doesn't affect deterministic evaluation
             if change_data:
                 meta_keys = {
-                    "proposal_type", "summary", "reasoning", "confidence",
-                    "affected_area", "rule_type", "rule_name", "rule_data",
+                    "proposal_type",
+                    "summary",
+                    "reasoning",
+                    "confidence",
+                    "affected_area",
+                    "rule_type",
+                    "rule_name",
+                    "rule_data",
                 }
-                knowledge_data = {
-                    k: v for k, v in change_data.items() if k not in meta_keys
-                }
+                knowledge_data = {k: v for k, v in change_data.items() if k not in meta_keys}
                 if not knowledge_data:
                     knowledge_data = {"summary": change_data.get("summary", "")}
 

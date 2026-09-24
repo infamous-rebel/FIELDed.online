@@ -93,11 +93,7 @@ class ApprovalPolicy:
 
         # Determine required role (elevated for sensitive rules)
         required_role = self.minimum_approver_role
-        if (
-            rule_types
-            and self.sensitive_rule_types
-            and any(rt in self.sensitive_rule_types for rt in rule_types)
-        ):
+        if rule_types and self.sensitive_rule_types and any(rt in self.sensitive_rule_types for rt in rule_types):
             required_role = self.sensitive_approver_role
 
         required_level = role_levels.get(required_role, 0)
@@ -185,8 +181,6 @@ def resolve_approval_policy(
     # For now, allow basic overrides from config
     return ApprovalPolicy(
         self_approval_allowed=business_config.get("self_approval_allowed", True),
-        minimum_approver_role=BusinessMemberRole(
-            business_config.get("minimum_approver_role", "owner")
-        ),
+        minimum_approver_role=BusinessMemberRole(business_config.get("minimum_approver_role", "owner")),
         required_approvals=business_config.get("required_approvals", 1),
     )

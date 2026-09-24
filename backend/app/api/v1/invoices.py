@@ -132,9 +132,7 @@ async def list_my_invoices(
 ) -> list[InvoiceRead]:
     """List invoices for the authenticated customer."""
     service = InvoiceService(db)
-    invoices = await service.list_customer_invoices(
-        user.id, payment_status=payment_status, limit=limit, offset=offset
-    )
+    invoices = await service.list_customer_invoices(user.id, payment_status=payment_status, limit=limit, offset=offset)
     return [_invoice_to_read(i) for i in invoices]
 
 

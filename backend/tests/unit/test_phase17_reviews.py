@@ -163,9 +163,7 @@ class TestReviewEligibility:
     """Deterministic review submission eligibility."""
 
     @pytest.mark.asyncio
-    async def test_eligible_completed_transaction_review_succeeds(
-        self, db_session: AsyncSession, customer, owner
-    ):
+    async def test_eligible_completed_transaction_review_succeeds(self, db_session: AsyncSession, customer, owner):
         biz, execution = await _make_chain(db_session, customer=customer, owner=owner)
         service = ReviewService(db_session)
 
@@ -184,9 +182,7 @@ class TestReviewEligibility:
         assert review.service_execution_id == execution.id
 
     @pytest.mark.asyncio
-    async def test_cancelled_execution_review_rejected(
-        self, db_session: AsyncSession, customer, owner
-    ):
+    async def test_cancelled_execution_review_rejected(self, db_session: AsyncSession, customer, owner):
         _, execution = await _make_chain(
             db_session,
             customer=customer,
@@ -203,9 +199,7 @@ class TestReviewEligibility:
             )
 
     @pytest.mark.asyncio
-    async def test_incomplete_service_review_rejected(
-        self, db_session: AsyncSession, customer, owner
-    ):
+    async def test_incomplete_service_review_rejected(self, db_session: AsyncSession, customer, owner):
         _, execution = await _make_chain(
             db_session,
             customer=customer,
@@ -222,9 +216,7 @@ class TestReviewEligibility:
             )
 
     @pytest.mark.asyncio
-    async def test_wrong_customer_review_rejected(
-        self, db_session: AsyncSession, customer, other_customer, owner
-    ):
+    async def test_wrong_customer_review_rejected(self, db_session: AsyncSession, customer, other_customer, owner):
         _, execution = await _make_chain(db_session, customer=customer, owner=owner)
         service = ReviewService(db_session)
 
@@ -258,9 +250,7 @@ class TestBusinessResponse:
     """Review responses are restricted to the owning business."""
 
     @pytest.mark.asyncio
-    async def test_business_response_authorized_allowed(
-        self, db_session: AsyncSession, customer, owner
-    ):
+    async def test_business_response_authorized_allowed(self, db_session: AsyncSession, customer, owner):
         biz, execution = await _make_chain(db_session, customer=customer, owner=owner)
         service = ReviewService(db_session)
         review = await service.submit_review(
@@ -281,9 +271,7 @@ class TestBusinessResponse:
         assert responded.responded_by == owner.id
 
     @pytest.mark.asyncio
-    async def test_wrong_business_response_rejected(
-        self, db_session: AsyncSession, customer, owner
-    ):
+    async def test_wrong_business_response_rejected(self, db_session: AsyncSession, customer, owner):
         _, execution = await _make_chain(db_session, customer=customer, owner=owner)
         service = ReviewService(db_session)
         review = await service.submit_review(
@@ -307,9 +295,7 @@ class TestRatingAggregation:
     """Business profile aggregates are database-driven and deterministic."""
 
     @pytest.mark.asyncio
-    async def test_rating_aggregation_correctness(
-        self, db_session: AsyncSession, customer, other_customer, owner
-    ):
+    async def test_rating_aggregation_correctness(self, db_session: AsyncSession, customer, other_customer, owner):
         biz, execution = await _make_chain(db_session, customer=customer, owner=owner)
         service = ReviewService(db_session)
 

@@ -43,9 +43,7 @@ class ServiceCategoryRepository:
     async def get_all(self) -> list[ServiceCategory]:
         """Fetch all active categories."""
         result = await self.session.execute(
-            select(ServiceCategory)
-            .where(ServiceCategory.deleted_at.is_(None))
-            .order_by(ServiceCategory.name)
+            select(ServiceCategory).where(ServiceCategory.deleted_at.is_(None)).order_by(ServiceCategory.name)
         )
         return list(result.scalars().all())
 
@@ -99,9 +97,7 @@ class ServiceOfferRepository:
         )
         return list(result.scalars().all())
 
-    async def get_by_business_and_status(
-        self, business_id: uuid.UUID, status: str
-    ) -> list[ServiceOffer]:
+    async def get_by_business_and_status(self, business_id: uuid.UUID, status: str) -> list[ServiceOffer]:
         """Fetch service offers for a business filtered by status."""
         result = await self.session.execute(
             select(ServiceOffer)

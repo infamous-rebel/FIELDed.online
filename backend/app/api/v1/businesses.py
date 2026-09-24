@@ -415,10 +415,7 @@ async def update_business(
                 "notification_body": "Business name was updated.",
                 "updated_fields": ["name"],
             },
-            idempotency_key=(
-                f"BUSINESS_SETTINGS_UPDATED:business:{business_id}"
-                f":{int(datetime.now(UTC).timestamp())}"
-            ),
+            idempotency_key=(f"BUSINESS_SETTINGS_UPDATED:business:{business_id}:{int(datetime.now(UTC).timestamp())}"),
         )
 
     await db.flush()
@@ -568,13 +565,10 @@ async def update_business_profile(
         payload={
             "notification_title": "Business settings updated",
             "notification_body": "Business profile settings were updated.",
-            "updated_fields": sorted(
-                set(update_data) | ({"social_links"} if body.social_links is not None else set())
-            ),
+            "updated_fields": sorted(set(update_data) | ({"social_links"} if body.social_links is not None else set())),
         },
         idempotency_key=(
-            f"BUSINESS_SETTINGS_UPDATED:business_profile:{profile.id}"
-            f":{int(datetime.now(UTC).timestamp())}"
+            f"BUSINESS_SETTINGS_UPDATED:business_profile:{profile.id}:{int(datetime.now(UTC).timestamp())}"
         ),
     )
 
@@ -628,9 +622,7 @@ async def add_member(
     _, membership = await _get_user_business(business_id, user, db)
     _check_minimum_role(membership, BusinessMemberRole.OWNER)
 
-    result = await db.execute(
-        select(User).where(User.email == body.user_email, User.deleted_at.is_(None))
-    )
+    result = await db.execute(select(User).where(User.email == body.user_email, User.deleted_at.is_(None)))
     target_user = result.scalar_one_or_none()
     if target_user is None:
         raise NotFoundError(f"User with email {body.user_email} not found")
@@ -718,9 +710,7 @@ async def remove_member(
                 " was removed from the business."
             ),
         },
-        idempotency_key=(
-            f"MEMBER_REMOVED:member:{target_member.id}:{int(datetime.now(UTC).timestamp())}"
-        ),
+        idempotency_key=(f"MEMBER_REMOVED:member:{target_member.id}:{int(datetime.now(UTC).timestamp())}"),
     )
 
     return MessageResponse(message="Member removed successfully")
@@ -944,8 +934,7 @@ async def update_member_role(
                 ),
             },
             idempotency_key=(
-                f"MEMBER_ROLE_CHANGED:member:{target_member.id}"
-                f":{new_role.value}:{int(datetime.now(UTC).timestamp())}"
+                f"MEMBER_ROLE_CHANGED:member:{target_member.id}:{new_role.value}:{int(datetime.now(UTC).timestamp())}"
             ),
         )
 

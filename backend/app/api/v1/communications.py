@@ -274,9 +274,7 @@ async def list_templates(
 ) -> list[CommunicationTemplateRead]:
     """List templates for a business."""
     repo = CommunicationTemplateRepository(db)
-    templates = await repo.list_for_business(
-        business_id, channel=channel, purpose=purpose, limit=limit, offset=offset
-    )
+    templates = await repo.list_for_business(business_id, channel=channel, purpose=purpose, limit=limit, offset=offset)
     return [CommunicationTemplateRead.model_validate(t) for t in templates]
 
 

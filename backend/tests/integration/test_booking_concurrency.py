@@ -365,10 +365,7 @@ class TestBookingConcurrency:
 
         # Verify no orphaned/partial bookings
         result = await db_session.execute(
-            text(
-                "SELECT id, customer_id, status FROM bookings "
-                "WHERE business_id = :bid AND requested_at = :rat"
-            ),
+            text("SELECT id, customer_id, status FROM bookings WHERE business_id = :bid AND requested_at = :rat"),
             {"bid": str(business.id), "rat": requested_at},
         )
         rows = result.fetchall()

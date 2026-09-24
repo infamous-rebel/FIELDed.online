@@ -85,9 +85,7 @@ class StubConversationalAI(AIProvider):
     async def complete(self, prompt: str, **kwargs: Any) -> AIResponse:
         return AIResponse(content="stub", model="stub-v1")
 
-    async def structured_output(
-        self, prompt: str, schema: dict[str, Any], **kwargs: Any
-    ) -> dict[str, Any]:
+    async def structured_output(self, prompt: str, schema: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
         """Return a valid AGENT_DECISION_SCHEMA response."""
         return {
             "reply": "Thank you for calling. How can I help you today?",
@@ -230,9 +228,7 @@ class TestTwilioSignatureVerification:
     def _sign(self, url: str, params: dict[str, str]) -> str:
         """Compute a valid Twilio signature for testing."""
         data = url + urlencode(sorted(params.items()))
-        return base64.b64encode(
-            hmac.new(self.AUTH_TOKEN.encode(), data.encode(), hashlib.sha256).digest()
-        ).decode()
+        return base64.b64encode(hmac.new(self.AUTH_TOKEN.encode(), data.encode(), hashlib.sha256).digest()).decode()
 
     def test_valid_signature_accepted(self):
         url = "https://api.fielded.com/api/v1/webhooks/voice/twilio/twiml/abc"
@@ -333,9 +329,7 @@ class TestConversationalAIProvider:
 class TestTwiMLWebhookEndpoint:
     """Integration tests for the TwiML webhook endpoint."""
 
-    async def test_initial_twiml_returns_gather(
-        self, db_session: AsyncSession, biz: Business, client
-    ):
+    async def test_initial_twiml_returns_gather(self, db_session: AsyncSession, biz: Business, client):
         """Initial TwiML webhook returns valid Gather TwiML."""
         call = await _connected_call(db_session, biz, provider_ref=f"CA{uuid.uuid4().hex[:24]}")
 
@@ -350,9 +344,7 @@ class TestTwiMLWebhookEndpoint:
         assert "<Say>" in body
         assert 'input="speech"' in body
 
-    async def test_terminal_call_returns_hangup(
-        self, db_session: AsyncSession, biz: Business, client
-    ):
+    async def test_terminal_call_returns_hangup(self, db_session: AsyncSession, biz: Business, client):
         """A completed call should get a Hangup response."""
         call = await _connected_call(db_session, biz, provider_ref=f"CA{uuid.uuid4().hex[:24]}")
         lifecycle = VoiceCallLifecycleService(db_session)
@@ -408,9 +400,7 @@ class TestGatherCallbackEndpoint:
         assert "<Say>" in body
         assert 'input="speech"' in body
 
-    async def test_empty_speech_returns_retry(
-        self, db_session: AsyncSession, biz: Business, client
-    ):
+    async def test_empty_speech_returns_retry(self, db_session: AsyncSession, biz: Business, client):
         """Empty speech result returns a retry prompt, no LLM call."""
         call = await _connected_call(db_session, biz, provider_ref=f"CA{uuid.uuid4().hex[:24]}")
 
@@ -428,9 +418,7 @@ class TestGatherCallbackEndpoint:
         assert "didn't catch that" in body
         assert 'input="speech"' in body
 
-    async def test_gather_on_terminal_call_hangs_up(
-        self, db_session: AsyncSession, biz: Business, client
-    ):
+    async def test_gather_on_terminal_call_hangs_up(self, db_session: AsyncSession, biz: Business, client):
         """Gather on a completed call returns Hangup."""
         call = await _connected_call(db_session, biz, provider_ref=f"CA{uuid.uuid4().hex[:24]}")
         lifecycle = VoiceCallLifecycleService(db_session)
@@ -461,9 +449,7 @@ class TestCrossTenantIsolation:
         await agent.begin(call)
 
         # Use a CallSid from a call in the OTHER business
-        other_call = await _connected_call(
-            db_session, other_biz, provider_ref=f"CA{uuid.uuid4().hex[:24]}"
-        )
+        other_call = await _connected_call(db_session, other_biz, provider_ref=f"CA{uuid.uuid4().hex[:24]}")
 
         # The URL has call.id (biz's call) but CallSid is from other_biz
         response = await client.post(

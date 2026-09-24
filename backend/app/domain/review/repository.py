@@ -116,9 +116,7 @@ class ReviewRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_average_rating_for_business(
-        self, business_id: uuid.UUID
-    ) -> tuple[float | None, int]:
+    async def get_average_rating_for_business(self, business_id: uuid.UUID) -> tuple[float | None, int]:
         """Calculate average rating and count for a business.
 
         Returns (average_rating, review_count) from visible reviews.

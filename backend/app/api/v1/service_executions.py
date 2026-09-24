@@ -73,9 +73,7 @@ async def list_business_service_executions(
 ) -> list[ServiceExecutionRead]:
     """List service executions for a business."""
     service = ServiceExecutionService(db)
-    executions = await service.list_business_executions(
-        business_id, status=status, limit=limit, offset=offset
-    )
+    executions = await service.list_business_executions(business_id, status=status, limit=limit, offset=offset)
     return [_execution_to_read(e) for e in executions]
 
 
@@ -168,9 +166,7 @@ async def list_my_service_executions(
 ) -> list[ServiceExecutionRead]:
     """List service executions for the authenticated customer."""
     service = ServiceExecutionService(db)
-    executions = await service.list_customer_executions(
-        user.id, status=status, limit=limit, offset=offset
-    )
+    executions = await service.list_customer_executions(user.id, status=status, limit=limit, offset=offset)
     return [_execution_to_read(e) for e in executions]
 
 

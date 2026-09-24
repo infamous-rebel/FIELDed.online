@@ -161,9 +161,7 @@ class ServiceOfferService:
 
     async def get_active_offers_for_business(self, business_id: uuid.UUID) -> list[ServiceOffer]:
         """Get only ACTIVE service offers for public display."""
-        return await self.offer_repo.get_by_business_and_status(
-            business_id, ServiceOfferStatus.ACTIVE
-        )
+        return await self.offer_repo.get_by_business_and_status(business_id, ServiceOfferStatus.ACTIVE)
 
     async def update_offer(
         self,

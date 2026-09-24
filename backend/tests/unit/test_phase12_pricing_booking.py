@@ -940,9 +940,7 @@ class TestE2EFlowUnit:
         context = _make_context()
 
         # Step 1: Calculate pricing
-        pricing_result = pricing_engine.calculate(
-            service_offer=offer, brain_version=brain, context=context
-        )
+        pricing_result = pricing_engine.calculate(service_offer=offer, brain_version=brain, context=context)
         assert pricing_result.amount == Decimal("175.00")
         assert pricing_result.brain_version_id == brain.id
 
@@ -977,9 +975,7 @@ class TestE2EFlowUnit:
             (BookingStatus.IN_PROGRESS, BookingStatus.COMPLETED),
         ]
         for from_status, to_status in path:
-            assert to_status in BOOKING_TRANSITIONS[from_status], (
-                f"{from_status} → {to_status} should be valid"
-            )
+            assert to_status in BOOKING_TRANSITIONS[from_status], f"{from_status} → {to_status} should be valid"
 
     def test_full_transaction_traceability(self):
         """Verify that pricing evidence retains brain version traceability."""

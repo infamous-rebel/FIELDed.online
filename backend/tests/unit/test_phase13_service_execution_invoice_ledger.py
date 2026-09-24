@@ -180,9 +180,7 @@ class TestServiceExecutionLifecycle:
         assert execution.business_id == biz.id
         assert execution.customer_id == confirmed_booking.customer_id
 
-    async def test_cannot_create_from_unconfirmed_booking(
-        self, db_session: AsyncSession, business_owner: User
-    ):
+    async def test_cannot_create_from_unconfirmed_booking(self, db_session: AsyncSession, business_owner: User):
         """Cannot create execution from a non-confirmed booking."""
         biz = business_owner._business
 
@@ -271,9 +269,7 @@ class TestServiceExecutionLifecycle:
                 business_id=biz.id,
             )
 
-    async def test_valid_transitions(
-        self, db_session: AsyncSession, business_owner: User, confirmed_booking: Booking
-    ):
+    async def test_valid_transitions(self, db_session: AsyncSession, business_owner: User, confirmed_booking: Booking):
         """Test valid state transitions."""
         biz = business_owner._business
         service = ServiceExecutionService(db_session)
@@ -511,9 +507,7 @@ class TestInvoiceService:
         invoice = await inv_service.get_business_invoice(
             (
                 await db_session.execute(
-                    __import__("sqlalchemy")
-                    .select(Invoice.id)
-                    .where(Invoice.service_execution_id == execution.id)
+                    __import__("sqlalchemy").select(Invoice.id).where(Invoice.service_execution_id == execution.id)
                 )
             ).scalar_one(),
             biz.id,
@@ -525,9 +519,7 @@ class TestInvoiceService:
         )
         assert invoice.payment_status == InvoicePaymentStatus.PAID
 
-    async def test_void_invoice(
-        self, db_session: AsyncSession, business_owner: User, confirmed_booking: Booking
-    ):
+    async def test_void_invoice(self, db_session: AsyncSession, business_owner: User, confirmed_booking: Booking):
         """Voiding an invoice changes its status."""
         biz = business_owner._business
         exec_service = ServiceExecutionService(db_session)
@@ -542,9 +534,7 @@ class TestInvoiceService:
 
         from sqlalchemy import select
 
-        result = await db_session.execute(
-            select(Invoice.id).where(Invoice.service_execution_id == execution.id)
-        )
+        result = await db_session.execute(select(Invoice.id).where(Invoice.service_execution_id == execution.id))
         invoice_id = result.scalar_one()
 
         invoice = await inv_service.get_invoice(invoice_id)
@@ -558,9 +548,7 @@ class TestInvoiceService:
 class TestLedgerService:
     """Test ledger service operations."""
 
-    async def test_ledger_summary(
-        self, db_session: AsyncSession, business_owner: User, confirmed_booking: Booking
-    ):
+    async def test_ledger_summary(self, db_session: AsyncSession, business_owner: User, confirmed_booking: Booking):
         """Ledger summary returns correct totals."""
         biz = business_owner._business
         exec_service = ServiceExecutionService(db_session)
@@ -579,9 +567,7 @@ class TestLedgerService:
         assert Decimal(summary["outstanding_amount"]) == Decimal("150.00")
         assert Decimal(summary["paid_amount"]) == Decimal("0.00")
 
-    async def test_csv_export(
-        self, db_session: AsyncSession, business_owner: User, confirmed_booking: Booking
-    ):
+    async def test_csv_export(self, db_session: AsyncSession, business_owner: User, confirmed_booking: Booking):
         """CSV export contains ledger data."""
         biz = business_owner._business
         exec_service = ServiceExecutionService(db_session)
@@ -599,9 +585,7 @@ class TestLedgerService:
         assert "150.00" in csv_content
         assert "TOTALS" in csv_content
 
-    async def test_pdf_export(
-        self, db_session: AsyncSession, business_owner: User, confirmed_booking: Booking
-    ):
+    async def test_pdf_export(self, db_session: AsyncSession, business_owner: User, confirmed_booking: Booking):
         """PDF export generates bytes."""
         biz = business_owner._business
         exec_service = ServiceExecutionService(db_session)
@@ -639,9 +623,7 @@ class TestInvoicePDF:
 
         from sqlalchemy import select
 
-        result = await db_session.execute(
-            select(Invoice.id).where(Invoice.service_execution_id == execution.id)
-        )
+        result = await db_session.execute(select(Invoice.id).where(Invoice.service_execution_id == execution.id))
         invoice_id = result.scalar_one()
 
         invoice = await inv_service.get_invoice(invoice_id)

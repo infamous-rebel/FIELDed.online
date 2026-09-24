@@ -195,18 +195,14 @@ class TestCompletionCascade:
     """Execution completion deterministically cascades up the chain."""
 
     @pytest.mark.asyncio
-    async def test_execution_completion_cascades_to_booking_completed(
-        self, db_session: AsyncSession, customer, owner
-    ):
+    async def test_execution_completion_cascades_to_booking_completed(self, db_session: AsyncSession, customer, owner):
         biz, enquiry, quote, booking = await _make_chain(db_session, customer=customer, owner=owner)
 
         # Production flow: the confirmed booking moves to in_progress
         # before the service is completed (CONFIRMED → COMPLETED is not
         # a valid booking transition).
         booking_service = BookingService(db_session)
-        booking = await booking_service.transition_booking(
-            booking, BookingStatus.IN_PROGRESS, actor="business"
-        )
+        booking = await booking_service.transition_booking(booking, BookingStatus.IN_PROGRESS, actor="business")
 
         service = ServiceExecutionService(db_session)
         execution = await service.create_from_booking(booking_id=booking.id, business_id=biz.id)
@@ -225,12 +221,8 @@ class TestCompletionCascade:
         assert invoice is not None
 
     @pytest.mark.asyncio
-    async def test_booking_completion_cascades_to_enquiry_completed(
-        self, db_session: AsyncSession, customer, owner
-    ):
-        _, enquiry, _, booking = await _make_chain(
-            db_session, customer=customer, owner=owner, enquiry_status="booked"
-        )
+    async def test_booking_completion_cascades_to_enquiry_completed(self, db_session: AsyncSession, customer, owner):
+        _, enquiry, _, booking = await _make_chain(db_session, customer=customer, owner=owner, enquiry_status="booked")
         assert enquiry.status == EnquiryStatus.BOOKED
 
         service = BookingService(db_session)
@@ -246,13 +238,9 @@ class TestPaymentValidation:
     """Payment amounts are validated deterministically against the invoice."""
 
     @pytest.mark.asyncio
-    async def test_payment_amount_validated_against_invoice(
-        self, db_session: AsyncSession, customer, owner
-    ):
+    async def test_payment_amount_validated_against_invoice(self, db_session: AsyncSession, customer, owner):
         biz, _, _, booking = await _make_chain(db_session, customer=customer, owner=owner)
-        invoice = await _make_paid_invoice(
-            db_session, customer=customer, owner=owner, biz=biz, booking=booking
-        )
+        invoice = await _make_paid_invoice(db_session, customer=customer, owner=owner, biz=biz, booking=booking)
 
         service = PaymentService(db_session, payment_provider=StubPaymentProvider())
         payment = await service.create_payment(
@@ -282,13 +270,9 @@ class TestPaymentValidation:
         assert second.status == PaymentStatus.PENDING
 
     @pytest.mark.asyncio
-    async def test_payment_amount_mismatch_rejected(
-        self, db_session: AsyncSession, customer, owner
-    ):
+    async def test_payment_amount_mismatch_rejected(self, db_session: AsyncSession, customer, owner):
         biz, _, _, booking = await _make_chain(db_session, customer=customer, owner=owner)
-        invoice = await _make_paid_invoice(
-            db_session, customer=customer, owner=owner, biz=biz, booking=booking
-        )
+        invoice = await _make_paid_invoice(db_session, customer=customer, owner=owner, biz=biz, booking=booking)
 
         service = PaymentService(db_session, payment_provider=StubPaymentProvider())
 

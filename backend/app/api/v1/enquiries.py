@@ -85,9 +85,7 @@ async def list_my_enquiries(
 ) -> list[EnquiryRead]:
     """List all enquiries for the authenticated customer."""
     service = EnquiryService(db)
-    enquiries = await service.list_customer_enquiries(
-        user.id, status=status, limit=limit, offset=offset
-    )
+    enquiries = await service.list_customer_enquiries(user.id, status=status, limit=limit, offset=offset)
     return [_enquiry_to_read(e) for e in enquiries]
 
 

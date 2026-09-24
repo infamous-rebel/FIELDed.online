@@ -41,9 +41,7 @@ class LedgerService:
             raise NotFoundError("Ledger entry not found")
         return entry
 
-    async def get_business_entry(
-        self, entry_id: uuid.UUID, business_id: uuid.UUID
-    ) -> ServiceLedgerEntry:
+    async def get_business_entry(self, entry_id: uuid.UUID, business_id: uuid.UUID) -> ServiceLedgerEntry:
         """Get a ledger entry, verifying it belongs to the business."""
         entry = await self.get_entry(entry_id)
         if entry.business_id != business_id:
@@ -154,9 +152,7 @@ class LedgerService:
         for entry in entries:
             writer.writerow(
                 [
-                    entry.completion_date.strftime("%Y-%m-%d %H:%M")
-                    if entry.completion_date
-                    else "",
+                    entry.completion_date.strftime("%Y-%m-%d %H:%M") if entry.completion_date else "",
                     str(entry.service_offer_id),
                     str(entry.customer_id),
                     str(entry.booking_id),
@@ -222,9 +218,7 @@ class LedgerService:
             offset=0,
         )
 
-        summary = await self.ledger_repo.get_summary(
-            business_id, date_from=date_from, date_to=date_to
-        )
+        summary = await self.ledger_repo.get_summary(business_id, date_from=date_from, date_to=date_to)
 
         return _build_ledger_pdf(business_id, entries, summary, date_from, date_to)
 
@@ -419,11 +413,7 @@ def _build_ledger_pdf(
 
     except ImportError:
         # Fallback: minimal PDF
-        content = (
-            f"FIELDed Operational Service Ledger\n"
-            f"Business: {business_id}\n"
-            f"Entries: {len(entries)}\n"
-        )
+        content = f"FIELDed Operational Service Ledger\nBusiness: {business_id}\nEntries: {len(entries)}\n"
         pdf_head = f"""%PDF-1.4
 1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj

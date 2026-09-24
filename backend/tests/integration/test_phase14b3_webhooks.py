@@ -362,9 +362,7 @@ class TestWebhookStateSync:
                 payload={"CallSid": call.provider_reference},
             )
 
-        webhook = await WebhookRepository(db_session).get_by_provider_event(
-            WEBHOOK_PROVIDER, event_id
-        )
+        webhook = await WebhookRepository(db_session).get_by_provider_event(WEBHOOK_PROVIDER, event_id)
         assert webhook.processing_status == "FAILED"
         assert "Unknown provider call status" in webhook.error_metadata["error"]
         assert call.status == CallStatus.INITIATING.value

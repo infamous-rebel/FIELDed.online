@@ -165,9 +165,7 @@ class DiscoveryMatchingService:
             conditions.append(
                 or_(
                     BusinessProfile.city.ilike(f"%{location_city}%"),
-                    BusinessProfile.service_area.is_(
-                        None
-                    ),  # No area constraint = serves everywhere
+                    BusinessProfile.service_area.is_(None),  # No area constraint = serves everywhere
                 )
             )
 

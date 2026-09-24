@@ -1,16 +1,25 @@
 #!/usr/bin/env python3
 """E2E transaction test: Discovery → Enquiry → Quote → Booking → Execution → Payment → Review"""
-import json, sys, time, uuid
-import urllib.request, urllib.error
+
+import json
+import sys
+import time
+import urllib.error
+import urllib.request
+import uuid
 
 API = "http://localhost:8000/api/v1"
 
+
 def login(email, password):
-    req = urllib.request.Request(f"{API}/auth/login", 
+    req = urllib.request.Request(
+        f"{API}/auth/login",
         data=json.dumps({"email": email, "password": password}).encode(),
-        headers={"Content-Type": "application/json"})
+        headers={"Content-Type": "application/json"},
+    )
     with urllib.request.urlopen(req) as r:
         return json.loads(r.read())["access_token"]
+
 
 def api(method, path, token, body=None):
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
@@ -25,8 +34,10 @@ def api(method, path, token, body=None):
         print(f"  ERROR {e.code}: {body_text[:300]}")
         return {"_error": True, "_status": e.code, "_body": body_text}
 
+
 def section(msg):
-    print(f"\n{'='*60}\n{msg}\n{'='*60}")
+    print(f"\n{'=' * 60}\n{msg}\n{'=' * 60}")
+
 
 def main():
     # ── Auth ──
@@ -62,11 +73,16 @@ def main():
 
     # ── Create Enquiry ──
     section("3. ENQUIRY — Customer creates enquiry")
-    enquiry = api("POST", f"/enquiries/{biz_id}/enquiries", cust_token, {
-        "service_offer_id": offer_id,
-        "subject": "E2E integration test",
-        "message": "Need this service completed urgently as part of full E2E transaction test.",
-    })
+    enquiry = api(
+        "POST",
+        f"/enquiries/{biz_id}/enquiries",
+        cust_token,
+        {
+            "service_offer_id": offer_id,
+            "subject": "E2E integration test",
+            "message": "Need this service completed urgently as part of full E2E transaction test.",
+        },
+    )
     if enquiry.get("_error"):
         print(f"  Failed: {enquiry}")
         sys.exit(1)
@@ -92,9 +108,9 @@ def main():
 
     # ── Business transitions enquiry to received ──
     section("4b. ENQUIRY — Business transitions to 'received'")
-    trans = api("POST", f"/businesses/{biz_id}/enquiries/{enquiry_id}/transition", biz_token, {
-        "target_status": "received"
-    })
+    trans = api(
+        "POST", f"/businesses/{biz_id}/enquiries/{enquiry_id}/transition", biz_token, {"target_status": "received"}
+    )
     if trans.get("_error"):
         print(f"  Transition failed: {trans}")
     else:
@@ -102,20 +118,25 @@ def main():
 
     # ── Business sends message (Communication) ──
     section("5. COMMUNICATIONS — Business sends message in conversation")
-    msg = api("POST", f"/businesses/{biz_id}/enquiries/{enquiry_id}/messages", biz_token, {
-        "content": "Thanks for your enquiry! We'll prepare a quote shortly."
-    })
+    msg = api(
+        "POST",
+        f"/businesses/{biz_id}/enquiries/{enquiry_id}/messages",
+        biz_token,
+        {"content": "Thanks for your enquiry! We'll prepare a quote shortly."},
+    )
     if msg and not msg.get("_error"):
-        print(f"  Message sent by business")
+        print("  Message sent by business")
     else:
         print(f"  Message result: {msg}")
 
     # ── Quote ──
     section("6. QUOTE — Business issues quote (Brain pricing rules apply)")
-    quote = api("POST", f"/businesses/{biz_id}/quotes", biz_token, {
-        "enquiry_id": enquiry_id,
-        "notes": "E2E test quote — pricing per service offer"
-    })
+    quote = api(
+        "POST",
+        f"/businesses/{biz_id}/quotes",
+        biz_token,
+        {"enquiry_id": enquiry_id, "notes": "E2E test quote — pricing per service offer"},
+    )
     if quote.get("_error"):
         print(f"  Quote failed: {quote}")
         sys.exit(1)
@@ -125,9 +146,7 @@ def main():
     print(f"  Total: {quote.get('total_amount', 'N/A')} {quote.get('currency', '')}")
 
     # Business transitions quote from draft to issued
-    issue = api("POST", f"/businesses/{biz_id}/quotes/{quote_id}/transition", biz_token, {
-        "target_status": "issued"
-    })
+    issue = api("POST", f"/businesses/{biz_id}/quotes/{quote_id}/transition", biz_token, {"target_status": "issued"})
     if issue.get("_error"):
         print(f"  Issue quote failed: {issue}")
         sys.exit(1)
@@ -135,9 +154,7 @@ def main():
 
     # ── Customer accepts quote ──
     section("7. QUOTE ACCEPTANCE — Customer transitions quote to accepted")
-    accept = api("POST", f"/businesses/my-quotes/{quote_id}/transition", cust_token, {
-        "target_status": "accepted"
-    })
+    accept = api("POST", f"/businesses/my-quotes/{quote_id}/transition", cust_token, {"target_status": "accepted"})
     if accept.get("_error"):
         print(f"  Accept failed: {accept}")
         sys.exit(1)
@@ -145,11 +162,12 @@ def main():
 
     # ── Booking — Customer creates booking from accepted quote ──
     section("8. BOOKING — Customer creates booking (Brain availability check)")
-    booking = api("POST", "/businesses/my-bookings", cust_token, {
-        "quote_id": quote_id,
-        "requested_at": "2026-10-15T10:00:00",
-        "notes": "E2E test booking"
-    })
+    booking = api(
+        "POST",
+        "/businesses/my-bookings",
+        cust_token,
+        {"quote_id": quote_id, "requested_at": "2026-10-15T10:00:00", "notes": "E2E test booking"},
+    )
     if booking.get("_error"):
         print(f"  Booking failed: {booking}")
         sys.exit(1)
@@ -159,25 +177,25 @@ def main():
 
     # ── Business proposes → Customer accepts → Business confirms ──
     section("9. BOOKING LIFECYCLE — Propose → Accept → Confirm")
-    propose = api("POST", f"/businesses/{biz_id}/bookings/{booking_id}/transition", biz_token, {
-        "target_status": "proposed"
-    })
+    propose = api(
+        "POST", f"/businesses/{biz_id}/bookings/{booking_id}/transition", biz_token, {"target_status": "proposed"}
+    )
     if propose.get("_error"):
         print(f"  Propose failed: {propose}")
     else:
         print(f"  Business proposed: {propose['status']}")
-    
-    cust_accept = api("POST", f"/businesses/my-bookings/{booking_id}/transition", cust_token, {
-        "target_status": "accepted"
-    })
+
+    cust_accept = api(
+        "POST", f"/businesses/my-bookings/{booking_id}/transition", cust_token, {"target_status": "accepted"}
+    )
     if cust_accept.get("_error"):
         print(f"  Customer accept failed: {cust_accept}")
     else:
         print(f"  Customer accepted: {cust_accept['status']}")
-    
-    confirm = api("POST", f"/businesses/{biz_id}/bookings/{booking_id}/transition", biz_token, {
-        "target_status": "confirmed"
-    })
+
+    confirm = api(
+        "POST", f"/businesses/{biz_id}/bookings/{booking_id}/transition", biz_token, {"target_status": "confirmed"}
+    )
     if confirm.get("_error"):
         print(f"  Confirm failed: {confirm}")
     else:
@@ -185,9 +203,7 @@ def main():
 
     # ── Service Execution — Start work ──
     section("10. SERVICE EXECUTION — Business starts work")
-    execution = api("POST", f"/businesses/{biz_id}/service-executions", biz_token, {
-        "booking_id": booking_id
-    })
+    execution = api("POST", f"/businesses/{biz_id}/service-executions", biz_token, {"booking_id": booking_id})
     if execution.get("_error"):
         print(f"  Execution creation failed: {execution}")
         sys.exit(1)
@@ -196,10 +212,12 @@ def main():
     print(f"  Status: {execution['status']}")
 
     # Transition to in_progress
-    prog = api("POST", f"/businesses/{biz_id}/service-executions/{exec_id}/transition", biz_token, {
-        "target_status": "in_progress",
-        "notes": "Work underway"
-    })
+    prog = api(
+        "POST",
+        f"/businesses/{biz_id}/service-executions/{exec_id}/transition",
+        biz_token,
+        {"target_status": "in_progress", "notes": "Work underway"},
+    )
     if prog.get("_error"):
         print(f"  In-progress failed: {prog}")
     else:
@@ -259,10 +277,15 @@ def main():
     # ── Payment ──
     section("14. PAYMENT — Customer pays via booking pay endpoint")
     idem_key = str(uuid.uuid4())
-    payment = api("POST", f"/businesses/my-bookings/{booking_id}/pay", cust_token, {
-        "payment_method": "card",
-        "idempotency_key": idem_key,
-    })
+    payment = api(
+        "POST",
+        f"/businesses/my-bookings/{booking_id}/pay",
+        cust_token,
+        {
+            "payment_method": "card",
+            "idempotency_key": idem_key,
+        },
+    )
     if payment.get("_error"):
         print(f"  Payment failed: {payment}")
     else:
@@ -294,12 +317,17 @@ def main():
 
     # ── Review ──
     section("16. REVIEW — Customer submits review (eligibility verified)")
-    review = api("POST", "/my-reviews", cust_token, {
-        "service_execution_id": exec_id,
-        "rating": 5,
-        "title": "Excellent E2E service",
-        "body": "Full transaction completed successfully. All integrations working."
-    })
+    review = api(
+        "POST",
+        "/my-reviews",
+        cust_token,
+        {
+            "service_execution_id": exec_id,
+            "rating": 5,
+            "title": "Excellent E2E service",
+            "body": "Full transaction completed successfully. All integrations working.",
+        },
+    )
     if review.get("_error"):
         print(f"  Review failed: {review}")
     else:
@@ -316,7 +344,7 @@ def main():
         notif_count = len(n_list)
         print(f"  Customer notifications: {notif_count}")
         for n in n_list[:10]:
-            print(f"    [{n.get('notification_type','')}] {n.get('title','(no title)')}")
+            print(f"    [{n.get('notification_type', '')}] {n.get('title', '(no title)')}")
     else:
         print(f"  Customer notifications error: {cust_notifs}")
 
@@ -325,7 +353,7 @@ def main():
         bn_list = biz_notifs if isinstance(biz_notifs, list) else biz_notifs.get("items", [])
         print(f"  Business notifications: {len(bn_list)}")
         for n in bn_list[:10]:
-            print(f"    [{n.get('notification_type','')}] {n.get('title','(no title)')}")
+            print(f"    [{n.get('notification_type', '')}] {n.get('title', '(no title)')}")
     else:
         print(f"  Business notifications error: {biz_notifs}")
 
@@ -342,6 +370,7 @@ def main():
     print(f"  Notifications:    {notif_count}")
     print()
     print("  FULL TRANSACTION COMPLETE")
+
 
 if __name__ == "__main__":
     main()

@@ -255,9 +255,7 @@ class TestInitiateCallSuccess:
 
 class TestRetryableFailure:
     async def test_retryable_failure_keeps_call_initiating(self, db_session, biz_a):
-        provider = StubVoiceProvider(
-            [ProviderResult.failure("provider temporarily unavailable", retryable=True)]
-        )
+        provider = StubVoiceProvider([ProviderResult.failure("provider temporarily unavailable", retryable=True)])
         service = orchestration_for(db_session, provider)
         call, _, _ = await authorized_call(db_session, biz_a)
 
@@ -297,9 +295,7 @@ class TestRetryableFailure:
 
         attempt_repo = VoiceCallAttemptRepository(db_session)
         attempts = await attempt_repo.list_for_call(call.id)
-        attempts[0].requested_at = datetime.now(UTC) - timedelta(
-            seconds=config.retry_interval_seconds + 1
-        )
+        attempts[0].requested_at = datetime.now(UTC) - timedelta(seconds=config.retry_interval_seconds + 1)
         await db_session.flush()
 
         provider.results.append(ProviderResult.ok("CA-second-attempt"))
@@ -339,9 +335,7 @@ class TestAttemptExhaustion:
 
 class TestNonRetryableFailure:
     async def test_non_retryable_failure_fails_call(self, db_session, biz_a):
-        provider = StubVoiceProvider(
-            [ProviderResult.failure("invalid phone number", retryable=False)]
-        )
+        provider = StubVoiceProvider([ProviderResult.failure("invalid phone number", retryable=False)])
         service = orchestration_for(db_session, provider)
         call, _, _ = await authorized_call(db_session, biz_a)
 
@@ -404,9 +398,7 @@ class TestInitiateInvalidState:
 
 
 class TestSyncProviderStatus:
-    async def _initiated_call(
-        self, db_session, biz
-    ) -> tuple[VoiceCall, VoiceProviderOrchestrationService]:
+    async def _initiated_call(self, db_session, biz) -> tuple[VoiceCall, VoiceProviderOrchestrationService]:
         provider = StubVoiceProvider()
         service = orchestration_for(db_session, provider)
         call, _, _ = await authorized_call(db_session, biz)

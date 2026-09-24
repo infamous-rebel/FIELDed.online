@@ -162,9 +162,7 @@ class EnquiryService:
                 "enquiry_blocked_by_brain",
                 business_id=str(business_id),
                 customer_id=str(customer.id),
-                brain_version_id=str(decision.brain_version_id)
-                if decision.brain_version_id
-                else None,
+                brain_version_id=str(decision.brain_version_id) if decision.brain_version_id else None,
                 brain_decision=decision.decision.value,
                 reason=decision.reason,
             )
@@ -257,9 +255,7 @@ class EnquiryService:
         offset: int = 0,
     ) -> list[Enquiry]:
         """List enquiries for a customer."""
-        return await self.enquiry_repo.get_by_customer(
-            customer_id, status=status, limit=limit, offset=offset
-        )
+        return await self.enquiry_repo.get_by_customer(customer_id, status=status, limit=limit, offset=offset)
 
     # --- Business operations ---
 
@@ -285,9 +281,7 @@ class EnquiryService:
         offset: int = 0,
     ) -> list[Enquiry]:
         """List enquiries for a business."""
-        return await self.enquiry_repo.get_by_business(
-            business_id, status=status, limit=limit, offset=offset
-        )
+        return await self.enquiry_repo.get_by_business(business_id, status=status, limit=limit, offset=offset)
 
     # --- Lifecycle transitions ---
 
@@ -328,8 +322,7 @@ class EnquiryService:
 
         if target_status not in actor_allowed:
             raise AuthorizationError(
-                f"'{actor}' is not authorized to transition from "
-                f"'{current.value}' to '{target_status.value}'"
+                f"'{actor}' is not authorized to transition from '{current.value}' to '{target_status.value}'"
             )
 
         old_status = enquiry.status
@@ -446,9 +439,7 @@ class EnquiryService:
         offset: int = 0,
     ) -> list[Message]:
         """List messages in a conversation (oldest first)."""
-        return await self.message_repo.get_by_conversation(
-            conversation_id, limit=limit, offset=offset
-        )
+        return await self.message_repo.get_by_conversation(conversation_id, limit=limit, offset=offset)
 
     async def mark_messages_read(
         self,
@@ -558,10 +549,7 @@ class EnquiryService:
         if BusinessStatus(business.status) not in (BusinessStatus.ACTIVE, BusinessStatus.PENDING):
             raise ValidationError("Business is not currently active")
 
-        if (
-            profile is None
-            or BusinessProfileStatus(profile.public_status) != BusinessProfileStatus.ACTIVE
-        ):
+        if profile is None or BusinessProfileStatus(profile.public_status) != BusinessProfileStatus.ACTIVE:
             raise ValidationError("Business profile is not publicly available")
 
         return business

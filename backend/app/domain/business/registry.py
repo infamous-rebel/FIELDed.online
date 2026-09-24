@@ -126,9 +126,7 @@ class RuleTypeDefinition:
     required_fields: tuple[str, ...] = ()
     optional_fields: tuple[str, ...] = ()
     supported_operators: frozenset[str] = field(default_factory=lambda: SUPPORTED_OPERATORS)
-    supported_scopes: frozenset[str] = field(
-        default_factory=lambda: frozenset(s.value for s in RuleScope)
-    )
+    supported_scopes: frozenset[str] = field(default_factory=lambda: frozenset(s.value for s in RuleScope))
 
 
 # ---------------------------------------------------------------------------

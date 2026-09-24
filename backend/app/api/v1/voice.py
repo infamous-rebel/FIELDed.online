@@ -362,9 +362,7 @@ async def record_outcome(
 
     ai_provider = _resolve_call_agent_ai_provider(request.app.state.settings)
     agent = VoiceCallAgent(db, ai_provider)
-    session_row = await agent.record_outcome(
-        call, body.outcome, body.summary, actor_id=member.user_id
-    )
+    session_row = await agent.record_outcome(call, body.outcome, body.summary, actor_id=member.user_id)
     return {
         "outcome": session_row.outcome,
         "outcome_summary": session_row.outcome_summary,
@@ -421,12 +419,8 @@ async def create_escalation(
     return EscalationRead.model_validate(escalation)
 
 
-async def _get_escalation_or_404(
-    db: AsyncSession, business_id: uuid.UUID, escalation_id: uuid.UUID
-):
-    escalation = await VoiceCallEscalationRepository(db).get_by_id(
-        escalation_id, business_id=business_id
-    )
+async def _get_escalation_or_404(db: AsyncSession, business_id: uuid.UUID, escalation_id: uuid.UUID):
+    escalation = await VoiceCallEscalationRepository(db).get_by_id(escalation_id, business_id=business_id)
     if escalation is None:
         raise HTTPException(status_code=404, detail="Escalation not found")
     return escalation
@@ -695,12 +689,7 @@ async def execute_campaign(
 
 def _extract_voice_event(payload: dict) -> tuple[str, str]:
     """Extract (provider call reference, event status) from a payload."""
-    call_sid = (
-        payload.get("CallSid")
-        or payload.get("call_sid")
-        or payload.get("CallUUID")
-        or str(uuid.uuid4())
-    )
+    call_sid = payload.get("CallSid") or payload.get("call_sid") or payload.get("CallUUID") or str(uuid.uuid4())
     status = payload.get("CallStatus") or payload.get("Status") or "unknown"
     return str(call_sid), str(status)
 
@@ -969,9 +958,7 @@ async def twilio_gather_callback(
             "twilio_gather_agent_turn_failed",
             extra={"call_id": str(call_id), "error": str(exc)},
         )
-        return _twilio_xml(
-            error_response(message="Sorry, I encountered an error. Please try again.")
-        )
+        return _twilio_xml(error_response(message="Sorry, I encountered an error. Please try again."))
 
     reply = result["reply"]
     action = result["action"]

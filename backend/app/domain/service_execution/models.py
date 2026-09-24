@@ -107,9 +107,7 @@ class ServiceExecution(BaseModel):
     booking: Mapped[Booking] = relationship(foreign_keys=[booking_id])
     service_offer: Mapped[ServiceOffer] = relationship(foreign_keys=[service_offer_id])
     quote: Mapped[Quote | None] = relationship(foreign_keys=[quote_id])
-    invoices: Mapped[list[Invoice]] = relationship(
-        back_populates="service_execution", cascade="all, delete-orphan"
-    )
+    invoices: Mapped[list[Invoice]] = relationship(back_populates="service_execution", cascade="all, delete-orphan")
     ledger_entries: Mapped[list[ServiceLedgerEntry]] = relationship(
         back_populates="service_execution", cascade="all, delete-orphan"
     )

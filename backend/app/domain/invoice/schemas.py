@@ -64,9 +64,7 @@ class InvoiceRead(BaseModel):
 class InvoicePaymentUpdateRequest(BaseModel):
     """Request schema for updating invoice payment status."""
 
-    payment_status: str = Field(
-        ..., description="New payment status (unpaid, partially_paid, paid, void)"
-    )
+    payment_status: str = Field(..., description="New payment status (unpaid, partially_paid, paid, void)")
     notes: str | None = None
 
 

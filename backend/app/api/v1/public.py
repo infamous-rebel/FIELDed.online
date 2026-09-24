@@ -145,9 +145,7 @@ class PublicBusinessDirectoryResponse(BaseModel):
 # --- Helpers ---
 
 
-def _build_pricing_summary(
-    offer: ServiceOffer, currency: str | None = None
-) -> PublicPricingSummary | None:
+def _build_pricing_summary(offer: ServiceOffer, currency: str | None = None) -> PublicPricingSummary | None:
     """Derive a customer-visible pricing summary from pricing_config.
 
     Never exposes raw JSONB — only extracts safe display values.
@@ -435,9 +433,7 @@ async def list_public_businesses(
     for biz in businesses_list:
         profile = biz.profile
         active_offers = [
-            o
-            for o in (biz.service_offers or [])
-            if o.status == ServiceOfferStatus.ACTIVE and o.deleted_at is None
+            o for o in (biz.service_offers or []) if o.status == ServiceOfferStatus.ACTIVE and o.deleted_at is None
         ]
 
         # Extract top categories from active offers

@@ -61,6 +61,4 @@ class OutboxEvent(BaseModel):
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Lease/recovery: track when processing started
-    processing_started_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    processing_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

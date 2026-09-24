@@ -55,9 +55,7 @@ async def _refresh_payment(db: AsyncSession, payment: Payment) -> Payment:
     """Refresh a payment with attempts relationship loaded."""
     from sqlalchemy import select
 
-    result = await db.execute(
-        select(Payment).where(Payment.id == payment.id).options(selectinload(Payment.attempts))
-    )
+    result = await db.execute(select(Payment).where(Payment.id == payment.id).options(selectinload(Payment.attempts)))
     return result.scalar_one()
 
 
@@ -122,9 +120,7 @@ async def list_business_payments(
 ) -> list[PaymentRead]:
     """List payments for a business."""
     service = _payment_service(db, request)
-    payments = await service.list_business_payments(
-        business_id, status=status, limit=limit, offset=offset
-    )
+    payments = await service.list_business_payments(business_id, status=status, limit=limit, offset=offset)
     return [_payment_to_read(p) for p in payments]
 
 
@@ -212,9 +208,7 @@ async def get_transaction_history(
 ) -> list[PaymentRead]:
     """Get transaction history for a business."""
     service = _payment_service(db, request)
-    payments = await service.list_business_payments(
-        business_id, status=status, limit=limit, offset=offset
-    )
+    payments = await service.list_business_payments(business_id, status=status, limit=limit, offset=offset)
     return [_payment_to_read(p) for p in payments]
 
 
@@ -235,9 +229,7 @@ async def list_my_payments(
 ) -> list[PaymentRead]:
     """List payments for the authenticated customer."""
     service = _payment_service(db, request)
-    payments = await service.list_customer_payments(
-        user.id, status=status, limit=limit, offset=offset
-    )
+    payments = await service.list_customer_payments(user.id, status=status, limit=limit, offset=offset)
     return [_payment_to_read(p) for p in payments]
 
 
@@ -292,9 +284,7 @@ async def payment_webhook(
 
     # Read the signature from the provider-specific header.
     # Stripe uses "Stripe-Signature"; we also accept a generic header.
-    signature = request.headers.get("Stripe-Signature", "") or request.headers.get(
-        "X-Payment-Signature", ""
-    )
+    signature = request.headers.get("Stripe-Signature", "") or request.headers.get("X-Payment-Signature", "")
 
     # Verify signature if secret is configured
     if webhook_secret and signature:

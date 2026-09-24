@@ -88,9 +88,7 @@ class ServiceLedgerEntry(BaseModel):
 
     # Financial amounts (from the invoice/quote at completion time)
     gross_amount: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False)
-    discount: Mapped[str] = mapped_column(
-        Numeric(precision=12, scale=2), nullable=False, default="0.00"
-    )
+    discount: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False, default="0.00")
     tax: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False, default="0.00")
     net_amount: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False)
 
@@ -113,9 +111,7 @@ class ServiceLedgerEntry(BaseModel):
     )
 
     # Immutable transaction reference
-    transaction_reference: Mapped[str | None] = mapped_column(
-        String(100), nullable=True, unique=True
-    )
+    transaction_reference: Mapped[str | None] = mapped_column(String(100), nullable=True, unique=True)
 
     # Notes
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -43,26 +43,18 @@ api_router.include_router(customer.router, prefix="/customer", tags=["customer"]
 # UUID validation.
 api_router.include_router(quotes.router, prefix="/businesses", tags=["quotes"])
 api_router.include_router(bookings.router, prefix="/businesses", tags=["bookings"])
-api_router.include_router(
-    service_executions.router, prefix="/businesses", tags=["service-executions"]
-)
+api_router.include_router(service_executions.router, prefix="/businesses", tags=["service-executions"])
 api_router.include_router(invoices.router, prefix="/businesses", tags=["invoices"])
 
 api_router.include_router(businesses.router, prefix="/businesses", tags=["businesses"])
 api_router.include_router(service_offers.router, prefix="/businesses", tags=["service-offers"])
-api_router.include_router(
-    service_categories.router, prefix="/categories", tags=["service-categories"]
-)
+api_router.include_router(service_categories.router, prefix="/categories", tags=["service-categories"])
 api_router.include_router(public.router, prefix="/public", tags=["public"])
 api_router.include_router(discovery.router, prefix="/discovery", tags=["discovery"])
 api_router.include_router(enquiries.router, prefix="/enquiries", tags=["enquiries"])
-api_router.include_router(
-    business_enquiries.router, prefix="/businesses", tags=["business-enquiries"]
-)
+api_router.include_router(business_enquiries.router, prefix="/businesses", tags=["business-enquiries"])
 api_router.include_router(brain.router, prefix="/businesses", tags=["business-brain"])
-api_router.include_router(
-    brain_conversation.router, prefix="/businesses", tags=["brain-conversation"]
-)
+api_router.include_router(brain_conversation.router, prefix="/businesses", tags=["brain-conversation"])
 
 # Phase 14A — Communications, Notifications, Provider Infrastructure
 api_router.include_router(communications.router, prefix="", tags=["communications"])

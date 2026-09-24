@@ -153,10 +153,7 @@ class CommunicationPolicyService:
             if isinstance(permitted, list) and recipient.channel not in permitted:
                 return PolicyDecision(
                     decision="DENY",
-                    reason=(
-                        f"Channel '{recipient.channel}' not permitted for "
-                        f"purpose '{recipient.purpose}'"
-                    ),
+                    reason=(f"Channel '{recipient.channel}' not permitted for purpose '{recipient.purpose}'"),
                     recipient_context=recipient,
                 )
 
@@ -256,9 +253,7 @@ class CommunicationPolicyService:
             recipient_context=recipient,
         )
 
-    async def _get_channel_config(
-        self, business_id: uuid.UUID, channel: str
-    ) -> BusinessCommunicationChannel | None:
+    async def _get_channel_config(self, business_id: uuid.UUID, channel: str) -> BusinessCommunicationChannel | None:
         """Get business channel configuration."""
         result = await self.session.execute(
             select(BusinessCommunicationChannel).where(
@@ -269,9 +264,7 @@ class CommunicationPolicyService:
         )
         return result.scalar_one_or_none()
 
-    async def _get_purpose_config(
-        self, business_id: uuid.UUID, purpose: str
-    ) -> BusinessCommunicationPurpose | None:
+    async def _get_purpose_config(self, business_id: uuid.UUID, purpose: str) -> BusinessCommunicationPurpose | None:
         """Get business purpose configuration."""
         result = await self.session.execute(
             select(BusinessCommunicationPurpose).where(

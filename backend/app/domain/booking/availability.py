@@ -103,9 +103,7 @@ class AvailabilityEvaluator:
 
         # Collect availability rules
         availability_rules = [
-            r
-            for r in (brain_version.rules or [])
-            if r.rule_type in _AVAILABILITY_RULE_TYPES and r.is_active
+            r for r in (brain_version.rules or []) if r.rule_type in _AVAILABILITY_RULE_TYPES and r.is_active
         ]
 
         for rule in availability_rules:
@@ -114,11 +112,7 @@ class AvailabilityEvaluator:
                 conditions = rule_data.get("conditions", [])
 
                 # Check if rule conditions match
-                if (
-                    conditions
-                    and context is not None
-                    and not self._condition_eval.evaluate(conditions, context)
-                ):
+                if conditions and context is not None and not self._condition_eval.evaluate(conditions, context):
                     continue
 
                 matched_rules.append(
@@ -149,11 +143,7 @@ class AvailabilityEvaluator:
                 # A single rule failure must not crash the evaluation.
 
         available = len(blocked_by) == 0
-        reason = (
-            "All availability rules permit this time"
-            if available
-            else f"Blocked by: {'; '.join(blocked_by)}"
-        )
+        reason = "All availability rules permit this time" if available else f"Blocked by: {'; '.join(blocked_by)}"
 
         return AvailabilityResult(
             available=available,
@@ -278,9 +268,7 @@ class AvailabilityEvaluator:
         return False
 
     @staticmethod
-    def _check_minimum_notice(
-        rule_data: dict[str, Any], requested_at: datetime, now: datetime
-    ) -> bool:
+    def _check_minimum_notice(rule_data: dict[str, Any], requested_at: datetime, now: datetime) -> bool:
         """Check if minimum notice period is satisfied. Returns True if BLOCKED."""
         notice_hours = rule_data.get("notice_hours")
         if notice_hours is None:
@@ -292,9 +280,7 @@ class AvailabilityEvaluator:
             return False
 
     @staticmethod
-    def _check_maximum_advance(
-        rule_data: dict[str, Any], requested_at: datetime, now: datetime
-    ) -> bool:
+    def _check_maximum_advance(rule_data: dict[str, Any], requested_at: datetime, now: datetime) -> bool:
         """Check if the booking is within the allowed advance window. Returns True if BLOCKED."""
         advance_days = rule_data.get("advance_days")
         if advance_days is None:

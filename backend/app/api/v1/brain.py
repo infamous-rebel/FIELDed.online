@@ -130,9 +130,7 @@ async def get_brain(
 
     from app.domain.business.models import BrainVersion
 
-    result = await db.execute(
-        select(func.count()).select_from(BrainVersion).where(BrainVersion.brain_id == brain.id)
-    )
+    result = await db.execute(select(func.count()).select_from(BrainVersion).where(BrainVersion.brain_id == brain.id))
     version_count = result.scalar() or 0
 
     return BusinessBrainDetailRead(
@@ -386,9 +384,7 @@ async def validate_version(
     service = BrainService(db)
     result = await service.validate_version(version.id)
 
-    errors = [
-        ValidationErrorDetail(field=e.field, message=e.message, code=e.code) for e in result.errors
-    ]
+    errors = [ValidationErrorDetail(field=e.field, message=e.message, code=e.code) for e in result.errors]
     return ValidationResultRead(
         valid=result.is_valid,
         error_count=len(result.errors),

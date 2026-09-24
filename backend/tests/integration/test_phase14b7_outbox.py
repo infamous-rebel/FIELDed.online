@@ -249,9 +249,7 @@ async def voice_outbox_events(
 
 
 async def notifications_for(db_session: AsyncSession, business_id: uuid.UUID) -> list[Notification]:
-    result = await db_session.execute(
-        select(Notification).where(Notification.business_id == business_id)
-    )
+    result = await db_session.execute(select(Notification).where(Notification.business_id == business_id))
     return list(result.scalars().all())
 
 
@@ -292,9 +290,7 @@ class TestCallEvents:
         events = await voice_outbox_events(db_session, biz.id, "voice.call_initiated")
         assert len(events) == 1
 
-    async def test_retryable_failure_keeps_call_initiating_without_event(
-        self, db_session: AsyncSession
-    ):
+    async def test_retryable_failure_keeps_call_initiating_without_event(self, db_session: AsyncSession):
         biz = await make_business(db_session)
         await make_config(db_session, biz.id)
         provider = FailingVoiceProvider(retryable=True)
@@ -334,9 +330,7 @@ class TestEscalationEvent:
         call = await orchestration.sync_provider_status(call, "in-progress")
 
         lifecycle = VoiceCallLifecycleService(db_session)
-        escalation = await lifecycle.escalate_call(
-            call, escalation_reason="customer requested human"
-        )
+        escalation = await lifecycle.escalate_call(call, escalation_reason="customer requested human")
 
         events = await voice_outbox_events(db_session, biz.id, "voice.escalation_requested")
         assert len(events) == 1
@@ -357,9 +351,7 @@ class TestCampaignEvent:
         await setup_voice_policy(db_session, biz)
         customer = await make_customer(db_session, biz)
         campaign, campaigns = await make_campaign(db_session, biz, brain_version_id=version.id)
-        await campaigns.add_recipient(
-            campaign, phone_number="+447700900456", customer_id=customer.id
-        )
+        await campaigns.add_recipient(campaign, phone_number="+447700900456", customer_id=customer.id)
         provider = StubVoiceProvider()
         execution = CampaignExecutionService(db_session, provider)
         await execution.activate(campaign)
@@ -370,11 +362,7 @@ class TestCampaignEvent:
         assert await voice_outbox_events(db_session, biz.id, "voice.campaign_completed") == []
 
         # Settle the recipient through a completed call.
-        calls = list(
-            (
-                await db_session.execute(select(VoiceCall).where(VoiceCall.business_id == biz.id))
-            ).scalars()
-        )
+        calls = list((await db_session.execute(select(VoiceCall).where(VoiceCall.business_id == biz.id))).scalars())
         call = calls[0]
         call = await execution.orchestration.sync_provider_status(call, "ringing")
         call = await execution.orchestration.sync_provider_status(call, "in-progress")
@@ -470,9 +458,7 @@ class TestWorkerVoiceRouting:
         assert processed_again == 0
         assert len(await notifications_for(db_session, biz.id)) == len(events)
 
-    async def test_voice_events_without_voice_orchestrator_not_silently_dropped(
-        self, db_session: AsyncSession
-    ):
+    async def test_voice_events_without_voice_orchestrator_not_silently_dropped(self, db_session: AsyncSession):
         from app.workers import process_outbox_events
 
         biz = await make_business(db_session)

@@ -22,9 +22,7 @@ class TestCrossTenantIsolation:
         assert data["email"].endswith("@example.com")
 
     @pytest.mark.asyncio
-    async def test_different_users_get_different_profiles(
-        self, client: AsyncClient, auth_headers, second_auth_headers
-    ):
+    async def test_different_users_get_different_profiles(self, client: AsyncClient, auth_headers, second_auth_headers):
         """Two different users see different /me responses."""
         response1 = await client.get("/api/v1/auth/me", headers=auth_headers)
         response2 = await client.get("/api/v1/auth/me", headers=second_auth_headers)

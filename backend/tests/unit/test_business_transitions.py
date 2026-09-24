@@ -32,37 +32,23 @@ class TestBusinessTransitions:
 
     def test_no_transition_to_pending(self):
         for status, targets in BUSINESS_TRANSITIONS.items():
-            assert BusinessStatus.PENDING not in targets, (
-                f"{status} must not transition back to PENDING"
-            )
+            assert BusinessStatus.PENDING not in targets, f"{status} must not transition back to PENDING"
 
 
 class TestBusinessProfileTransitions:
     """Public profile visibility transitions."""
 
     def test_incomplete_can_publish(self):
-        assert (
-            BusinessProfileStatus.ACTIVE
-            in BUSINESS_PROFILE_TRANSITIONS[BusinessProfileStatus.INCOMPLETE]
-        )
+        assert BusinessProfileStatus.ACTIVE in BUSINESS_PROFILE_TRANSITIONS[BusinessProfileStatus.INCOMPLETE]
 
     def test_active_cannot_go_back_to_incomplete(self):
-        assert (
-            BusinessProfileStatus.INCOMPLETE
-            not in BUSINESS_PROFILE_TRANSITIONS[BusinessProfileStatus.ACTIVE]
-        )
+        assert BusinessProfileStatus.INCOMPLETE not in BUSINESS_PROFILE_TRANSITIONS[BusinessProfileStatus.ACTIVE]
 
     def test_active_can_suspend(self):
-        assert (
-            BusinessProfileStatus.SUSPENDED
-            in BUSINESS_PROFILE_TRANSITIONS[BusinessProfileStatus.ACTIVE]
-        )
+        assert BusinessProfileStatus.SUSPENDED in BUSINESS_PROFILE_TRANSITIONS[BusinessProfileStatus.ACTIVE]
 
     def test_suspended_can_republish(self):
-        assert (
-            BusinessProfileStatus.ACTIVE
-            in BUSINESS_PROFILE_TRANSITIONS[BusinessProfileStatus.SUSPENDED]
-        )
+        assert BusinessProfileStatus.ACTIVE in BUSINESS_PROFILE_TRANSITIONS[BusinessProfileStatus.SUSPENDED]
 
     def test_every_status_has_an_entry(self):
         for status in BusinessProfileStatus:

@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.adapters import _resolve_brain_ai_provider
 from app.config import get_settings
 from app.database import get_db_session
-from app.domain.business.auth import require_brain_access, require_brain_modify
+from app.domain.business.auth import require_brain_access, require_brain_approve, require_brain_modify
 from app.domain.business.conversation_service import BrainConversationService
 from app.domain.business.models import (
     BrainConversation,
@@ -260,9 +260,7 @@ async def get_active_conversation(
     If no active conversation exists, one is created with an initial greeting.
     """
     service = _get_brain_conversation_service(db)
-    conversation = await service.get_or_create_active_conversation(
-        brain.id, brain.business_id
-    )
+    conversation = await service.get_or_create_active_conversation(brain.id, brain.business_id)
     # Reload with messages
     from app.domain.business.repository import BrainConversationRepository
 
@@ -312,9 +310,7 @@ async def send_message(
     it will be created as a pending proposal.
     """
     service = _get_brain_conversation_service(db)
-    owner_msg, brain_msg = await service.send_owner_message(
-        conversation_id, body.content
-    )
+    owner_msg, brain_msg = await service.send_owner_message(conversation_id, body.content)
     return SendMessageResponse(
         owner_message=_message_to_read(owner_msg),
         brain_message=_message_to_read(brain_msg),
@@ -462,9 +458,7 @@ async def get_knowledge_summary(
     active configuration areas, and missing areas.
     """
     service = _get_brain_conversation_service(db)
-    summary = await service.get_brain_knowledge_summary(
-        brain.id, brain.business_id
-    )
+    summary = await service.get_brain_knowledge_summary(brain.id, brain.business_id)
     return KnowledgeSummaryResponse(**summary)
 
 
@@ -502,9 +496,7 @@ async def get_brain_context(
     into a single response for the Brain dashboard.
     """
     service = _get_brain_conversation_service(db)
-    knowledge = await service.get_brain_knowledge_summary(
-        brain.id, brain.business_id
-    )
+    knowledge = await service.get_brain_knowledge_summary(brain.id, brain.business_id)
     attention = await service.get_needs_attention(brain.id)
     active_config = await service._build_active_config_text(brain.id)
 

@@ -131,12 +131,9 @@ class QuoteService:
             raise ValidationError(f"Pricing calculation failed: {exc}") from exc
 
         # 8. Handle quote_required pricing model
-        if service_offer.pricing_model == "quote_required" and pricing_result.amount == Decimal(
-            "0"
-        ):
+        if service_offer.pricing_model == "quote_required" and pricing_result.amount == Decimal("0"):
             raise ValidationError(
-                "This service requires a manual quote. "
-                "Please set a custom amount in the pricing configuration."
+                "This service requires a manual quote. Please set a custom amount in the pricing configuration."
             )
 
         # 9. Create the quote
@@ -285,9 +282,7 @@ class QuoteService:
         offset: int = 0,
     ) -> list[Quote]:
         """List quotes for a customer."""
-        return await self.quote_repo.get_by_customer(
-            customer_id, status=status, limit=limit, offset=offset
-        )
+        return await self.quote_repo.get_by_customer(customer_id, status=status, limit=limit, offset=offset)
 
     async def list_business_quotes(
         self,
@@ -298,9 +293,7 @@ class QuoteService:
         offset: int = 0,
     ) -> list[Quote]:
         """List quotes for a business."""
-        return await self.quote_repo.get_by_business(
-            business_id, status=status, limit=limit, offset=offset
-        )
+        return await self.quote_repo.get_by_business(business_id, status=status, limit=limit, offset=offset)
 
     # --- Internal helpers ---
 

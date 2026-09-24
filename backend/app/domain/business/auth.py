@@ -109,9 +109,7 @@ async def _resolve_brain_with_membership(
     member_level = _ROLE_LEVELS.get(BusinessMemberRole(membership.role), 0)
     required_level = _ROLE_LEVELS.get(minimum_role, 0)
     if member_level < required_level:
-        raise AuthorizationError(
-            f"Requires {minimum_role.value} role or higher (current: {membership.role})"
-        )
+        raise AuthorizationError(f"Requires {minimum_role.value} role or higher (current: {membership.role})")
 
     # 4. Resolve brain (get or create)
     brain_repo = BusinessBrainRepository(db)

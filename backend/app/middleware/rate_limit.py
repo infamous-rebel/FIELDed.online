@@ -54,9 +54,7 @@ class SlidingWindowRateLimiter:
 # Pre-configured limiters for auth endpoints
 auth_login_limiter = SlidingWindowRateLimiter(max_requests=10, window_seconds=300)  # 10 per 5 min
 auth_register_limiter = SlidingWindowRateLimiter(max_requests=5, window_seconds=600)  # 5 per 10 min
-auth_forgot_password_limiter = SlidingWindowRateLimiter(
-    max_requests=3, window_seconds=900
-)  # 3 per 15 min
+auth_forgot_password_limiter = SlidingWindowRateLimiter(max_requests=3, window_seconds=900)  # 3 per 15 min
 
 
 def _get_client_ip(request: Request) -> str:

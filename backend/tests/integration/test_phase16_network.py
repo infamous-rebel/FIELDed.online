@@ -163,9 +163,7 @@ class TestPublicBusinessDirectory:
             "biz_d": biz_d,
         }
 
-    async def test_directory_lists_active_businesses(
-        self, client: AsyncClient, seed_network_data: dict
-    ):
+    async def test_directory_lists_active_businesses(self, client: AsyncClient, seed_network_data: dict):
         """Directory returns businesses with active public profiles."""
         response = await client.get("/api/v1/public/businesses")
         assert response.status_code == 200
@@ -175,9 +173,7 @@ class TestPublicBusinessDirectory:
         assert seed_network_data["biz_a"].slug in slugs
         assert seed_network_data["biz_b"].slug in slugs
 
-    async def test_directory_excludes_inactive_profiles(
-        self, client: AsyncClient, seed_network_data: dict
-    ):
+    async def test_directory_excludes_inactive_profiles(self, client: AsyncClient, seed_network_data: dict):
         """Businesses with incomplete public_status are NOT in directory."""
         response = await client.get("/api/v1/public/businesses")
         data = response.json()
@@ -207,15 +203,11 @@ class TestPublicBusinessDirectory:
         assert data["offset"] == 0
         assert data["total"] >= 2
 
-    async def test_directory_item_has_offer_count(
-        self, client: AsyncClient, seed_network_data: dict
-    ):
+    async def test_directory_item_has_offer_count(self, client: AsyncClient, seed_network_data: dict):
         """Directory items include active offer count."""
         response = await client.get("/api/v1/public/businesses")
         data = response.json()
-        biz_a_item = next(
-            b for b in data["businesses"] if b["slug"] == seed_network_data["biz_a"].slug
-        )
+        biz_a_item = next(b for b in data["businesses"] if b["slug"] == seed_network_data["biz_a"].slug)
         assert biz_a_item["active_offer_count"] == 2
 
     async def test_directory_no_auth_required(self, client: AsyncClient, seed_network_data: dict):
@@ -281,9 +273,7 @@ class TestPublicServiceDetail:
             "draft_offer": draft_offer,
         }
 
-    async def test_service_detail_returns_active_offer(
-        self, client: AsyncClient, seed_service_data: dict
-    ):
+    async def test_service_detail_returns_active_offer(self, client: AsyncClient, seed_service_data: dict):
         """Public service detail returns an active offer with full detail."""
         biz = seed_service_data["biz"]
         offer = seed_service_data["active_offer"]
@@ -297,18 +287,14 @@ class TestPublicServiceDetail:
         assert data["pricing_summary"]["pricing_model"] == "starting_at"
         assert data["pricing_summary"]["starting_price"] == "99.00"
 
-    async def test_service_detail_excludes_draft_offer(
-        self, client: AsyncClient, seed_service_data: dict
-    ):
+    async def test_service_detail_excludes_draft_offer(self, client: AsyncClient, seed_service_data: dict):
         """Draft offers are NOT accessible via public detail."""
         biz = seed_service_data["biz"]
         draft = seed_service_data["draft_offer"]
         response = await client.get(f"/api/v1/public/business/{biz.slug}/services/{draft.slug}")
         assert response.status_code == 404
 
-    async def test_service_detail_no_private_data(
-        self, client: AsyncClient, seed_service_data: dict
-    ):
+    async def test_service_detail_no_private_data(self, client: AsyncClient, seed_service_data: dict):
         """Public service detail does not expose raw pricing_config."""
         biz = seed_service_data["biz"]
         offer = seed_service_data["active_offer"]
@@ -321,16 +307,12 @@ class TestPublicServiceDetail:
         # Should have the safe summary instead
         assert "pricing_summary" in data
 
-    async def test_service_detail_nonexistent_business(
-        self, client: AsyncClient, seed_service_data: dict
-    ):
+    async def test_service_detail_nonexistent_business(self, client: AsyncClient, seed_service_data: dict):
         """Nonexistent business returns 404."""
         response = await client.get("/api/v1/public/business/nonexistent-biz/services/some-service")
         assert response.status_code == 404
 
-    async def test_service_detail_no_auth_required(
-        self, client: AsyncClient, seed_service_data: dict
-    ):
+    async def test_service_detail_no_auth_required(self, client: AsyncClient, seed_service_data: dict):
         """Service detail is accessible without authentication."""
         biz = seed_service_data["biz"]
         offer = seed_service_data["active_offer"]
@@ -392,9 +374,7 @@ class TestPublicProfileEnhancements:
         await db_session.flush()
         return {"biz": biz}
 
-    async def test_public_profile_has_offer_count(
-        self, client: AsyncClient, seed_profile_data: dict
-    ):
+    async def test_public_profile_has_offer_count(self, client: AsyncClient, seed_profile_data: dict):
         """Public business profile includes active_offer_count."""
         biz = seed_profile_data["biz"]
         response = await client.get(f"/api/v1/public/business/{biz.slug}")
@@ -403,9 +383,7 @@ class TestPublicProfileEnhancements:
         assert data["active_offer_count"] == 2  # Only ACTIVE offers counted
         assert len(data["service_offers"]) == 2
 
-    async def test_public_profile_shows_rating_and_reviews(
-        self, client: AsyncClient, seed_profile_data: dict
-    ):
+    async def test_public_profile_shows_rating_and_reviews(self, client: AsyncClient, seed_profile_data: dict):
         """Public profile exposes rating and review count."""
         biz = seed_profile_data["biz"]
         response = await client.get(f"/api/v1/public/business/{biz.slug}")

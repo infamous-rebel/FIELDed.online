@@ -71,9 +71,7 @@ class ValidationResult:
         return {
             "valid": self.is_valid,
             "error_count": len(self.errors),
-            "errors": [
-                {"field": e.field, "message": e.message, "code": e.code} for e in self.errors
-            ],
+            "errors": [{"field": e.field, "message": e.message, "code": e.code} for e in self.errors],
         }
 
 
@@ -128,18 +126,13 @@ def validate_brain_version_config(
         if key not in SUPPORTED_CONFIG_AREAS and key != "schema_version":
             result.add_error(
                 f"config.{key}",
-                f"Unknown configuration area: '{key}'. "
-                f"Supported areas: {sorted(SUPPORTED_CONFIG_AREAS)}",
+                f"Unknown configuration area: '{key}'. Supported areas: {sorted(SUPPORTED_CONFIG_AREAS)}",
                 "unknown_config_area",
             )
 
     # Check each area's value type
     for area_name in SUPPORTED_CONFIG_AREAS:
-        if (
-            area_name in config
-            and config[area_name] is not None
-            and not isinstance(config[area_name], dict)
-        ):
+        if area_name in config and config[area_name] is not None and not isinstance(config[area_name], dict):
             result.add_error(
                 f"config.{area_name}",
                 f"Configuration area '{area_name}' must be a dictionary or null",
@@ -158,8 +151,7 @@ def validate_brain_version_config(
         elif not is_supported_schema_version(sv):
             result.add_error(
                 "config.schema_version",
-                f"Unsupported schema version: '{sv}'. "
-                f"Supported versions: {sorted(SUPPORTED_SCHEMA_VERSIONS)}",
+                f"Unsupported schema version: '{sv}'. Supported versions: {sorted(SUPPORTED_SCHEMA_VERSIONS)}",
                 "unsupported_schema_version",
             )
 
@@ -196,8 +188,7 @@ def validate_rule_data(
     if not is_known_rule_type(rule_type):
         result.add_error(
             "rule_type",
-            f"Unknown rule type: '{rule_type}'. "
-            f"Use the rule-type registry to determine supported types.",
+            f"Unknown rule type: '{rule_type}'. Use the rule-type registry to determine supported types.",
             "unknown_rule_type",
         )
         # Cannot validate further without knowing the type
@@ -220,8 +211,7 @@ def validate_rule_data(
     if not is_supported_schema_version(effective_version):
         result.add_error(
             "rule_data.schema_version",
-            f"Unsupported schema version: '{effective_version}'. "
-            f"Supported: {sorted(SUPPORTED_SCHEMA_VERSIONS)}",
+            f"Unsupported schema version: '{effective_version}'. Supported: {sorted(SUPPORTED_SCHEMA_VERSIONS)}",
             "unsupported_schema_version",
         )
 

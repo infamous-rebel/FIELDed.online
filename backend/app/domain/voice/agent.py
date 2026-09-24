@@ -107,9 +107,7 @@ class VoiceCallAgent:
         the conversation log with the deterministic instructions.
         """
         if CallStatus(call.status) != CallStatus.CONNECTED:
-            raise StateTransitionError(
-                f"Call Agent can only begin on a CONNECTED call (call is '{call.status}')"
-            )
+            raise StateTransitionError(f"Call Agent can only begin on a CONNECTED call (call is '{call.status}')")
 
         brain_version, brain_config = await self._load_governance(call)
 
@@ -130,9 +128,7 @@ class VoiceCallAgent:
         instructions = self._build_instructions(call, brain_config, config, context)
 
         session_row = await self.lifecycle.start_session(call, language=language)
-        session_row.conversation_log = [
-            {"role": "system", "content": instructions, "at": _utcnow().isoformat()}
-        ]
+        session_row.conversation_log = [{"role": "system", "content": instructions, "at": _utcnow().isoformat()}]
         await self.lifecycle.session_repo.update(session_row)
 
         logger.info(
@@ -262,8 +258,7 @@ class VoiceCallAgent:
             "- Never promise or confirm bookings, changes, or payments — "
             "request a human for anything outside your scope.",
             "- Only request the governed collectible fields listed below.",
-            "- If the caller asks for a human, or a trigger below applies, "
-            "request a human immediately.",
+            "- If the caller asks for a human, or a trigger below applies, request a human immediately.",
             "",
             f"Allowed actions: {[a.value for a in allowed_actions]}",
             f"Maximum turns before forced handoff: {max_turns}",
@@ -375,9 +370,7 @@ class VoiceCallAgent:
         if action is AgentAction.REQUEST_HUMAN:
             state_affecting = True
             escalation_reason = proposal.get("escalation_reason") or "agent requested handoff"
-            await self.lifecycle.escalate_call(
-                call, escalation_reason=escalation_reason, actor_id=actor_id
-            )
+            await self.lifecycle.escalate_call(call, escalation_reason=escalation_reason, actor_id=actor_id)
         elif action is AgentAction.END_CALL:
             state_affecting = True
             await self.lifecycle.complete_call(
@@ -448,15 +441,12 @@ class VoiceCallAgent:
         )
         version = result.scalar_one_or_none()
         if version is None:
-            raise DomainError(
-                "No active Business Brain version found — the Call Agent cannot run ungoverned"
-            )
+            raise DomainError("No active Business Brain version found — the Call Agent cannot run ungoverned")
         comm_config = version.communication_config or {}
         voice_agent = comm_config.get("voice_agent")
         if not isinstance(voice_agent, dict) or not voice_agent:
             raise DomainError(
-                "Business Brain communication_config declares no 'voice_agent' "
-                "section — the Call Agent cannot run"
+                "Business Brain communication_config declares no 'voice_agent' section — the Call Agent cannot run"
             )
         return version, voice_agent
 
@@ -498,17 +488,13 @@ class VoiceCallAgent:
         config = await self.config_repo.get_for_business(call.business_id)
         instructions = self._build_instructions(call, brain_config, config, context)
 
-        transcript = [
-            entry for entry in (session_row.conversation_log or []) if entry.get("role") != "system"
-        ]
+        transcript = [entry for entry in (session_row.conversation_log or []) if entry.get("role") != "system"]
         prompt = (
             f"Conversation so far: {transcript}\n"
             f"Caller says: {user_utterance}\n"
             "Propose the next turn as JSON matching the schema."
         )
-        proposal = await self.ai_provider.structured_output(
-            prompt, AGENT_DECISION_SCHEMA, system=instructions
-        )
+        proposal = await self.ai_provider.structured_output(prompt, AGENT_DECISION_SCHEMA, system=instructions)
         return self._validate_proposal(call, brain_config, proposal)
 
     def _validate_proposal(
@@ -531,10 +517,7 @@ class VoiceCallAgent:
         except (ValueError, TypeError) as exc:
             raise DomainError(f"agent proposal rejected: unknown action {raw_action!r}") from exc
         if action not in self._allowed_actions(brain_config):
-            raise DomainError(
-                f"agent proposal rejected: action '{action.value}' is not "
-                f"allowed by the Business Brain"
-            )
+            raise DomainError(f"agent proposal rejected: action '{action.value}' is not allowed by the Business Brain")
 
         outcome = proposal.get("outcome")
         if outcome is not None:
@@ -582,9 +565,7 @@ class VoiceCallAgent:
     def _validate_outcome_for_call(call: VoiceCall, outcome: CallOutcome) -> None:
         """Transactional/marketing outcome separation (deterministic)."""
         if call.call_type == CallType.MARKETING.value and outcome in TRANSACTIONAL_ONLY_OUTCOMES:
-            raise DomainError(
-                f"Marketing calls may never record the transactional outcome '{outcome.value}'"
-            )
+            raise DomainError(f"Marketing calls may never record the transactional outcome '{outcome.value}'")
 
     # ── Audit ──
 

@@ -110,9 +110,7 @@ class CampaignService:
         )
         return campaign
 
-    async def get_campaign(
-        self, campaign_id: uuid.UUID, *, business_id: uuid.UUID
-    ) -> CommunicationCampaign:
+    async def get_campaign(self, campaign_id: uuid.UUID, *, business_id: uuid.UUID) -> CommunicationCampaign:
         """Fetch a campaign (tenant-scoped) or raise NotFoundError."""
         campaign = await self.campaign_repo.get_by_id(campaign_id, business_id=business_id)
         if campaign is None:

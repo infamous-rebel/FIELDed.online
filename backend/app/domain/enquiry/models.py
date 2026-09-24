@@ -118,9 +118,7 @@ class Conversation(BaseModel):
     )
 
     # Lifecycle
-    status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="active"
-    )  # ConversationStatus enum value
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="active")  # ConversationStatus enum value
 
     # Relationships
     enquiry: Mapped[Enquiry] = relationship(back_populates="conversation")

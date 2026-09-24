@@ -58,9 +58,7 @@ class VoiceCallRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_idempotency_key(
-        self, business_id: uuid.UUID, idempotency_key: str
-    ) -> VoiceCall | None:
+    async def get_by_idempotency_key(self, business_id: uuid.UUID, idempotency_key: str) -> VoiceCall | None:
         """Fetch a call by (business, idempotency key)."""
         result = await self.session.execute(
             select(VoiceCall).where(
@@ -120,9 +118,7 @@ class VoiceCallParticipantRepository:
         await self.session.flush()
         return participant
 
-    async def get_by_id(
-        self, participant_id: uuid.UUID, *, business_id: uuid.UUID
-    ) -> VoiceCallParticipant | None:
+    async def get_by_id(self, participant_id: uuid.UUID, *, business_id: uuid.UUID) -> VoiceCallParticipant | None:
         """Fetch a participant by ID (tenant-scoped via parent call)."""
         result = await self.session.execute(
             select(VoiceCallParticipant)
@@ -160,9 +156,7 @@ class VoiceCallAttemptRepository:
         await self.session.flush()
         return attempt
 
-    async def get_by_id(
-        self, attempt_id: uuid.UUID, *, business_id: uuid.UUID
-    ) -> VoiceCallAttempt | None:
+    async def get_by_id(self, attempt_id: uuid.UUID, *, business_id: uuid.UUID) -> VoiceCallAttempt | None:
         """Fetch an attempt by ID (tenant-scoped via parent call)."""
         result = await self.session.execute(
             select(VoiceCallAttempt)
@@ -190,9 +184,7 @@ class VoiceCallAttemptRepository:
     async def next_attempt_number(self, call_id: uuid.UUID) -> int:
         """Return the next append-only attempt number for a call."""
         result = await self.session.execute(
-            select(func.max(VoiceCallAttempt.attempt_number)).where(
-                VoiceCallAttempt.call_id == call_id
-            )
+            select(func.max(VoiceCallAttempt.attempt_number)).where(VoiceCallAttempt.call_id == call_id)
         )
         current_max = result.scalar_one_or_none()
         return (current_max or 0) + 1
@@ -220,9 +212,7 @@ class VoiceCallSessionRepository:
         await self.session.flush()
         return session_row
 
-    async def get_by_id(
-        self, session_id: uuid.UUID, *, business_id: uuid.UUID
-    ) -> VoiceCallSession | None:
+    async def get_by_id(self, session_id: uuid.UUID, *, business_id: uuid.UUID) -> VoiceCallSession | None:
         """Fetch a session by ID (tenant-scoped via parent call)."""
         result = await self.session.execute(
             select(VoiceCallSession)
@@ -264,9 +254,7 @@ class VoiceCallEscalationRepository:
         await self.session.flush()
         return escalation
 
-    async def get_by_id(
-        self, escalation_id: uuid.UUID, *, business_id: uuid.UUID
-    ) -> VoiceCallEscalation | None:
+    async def get_by_id(self, escalation_id: uuid.UUID, *, business_id: uuid.UUID) -> VoiceCallEscalation | None:
         """Fetch an escalation by ID (tenant-scoped via parent call)."""
         result = await self.session.execute(
             select(VoiceCallEscalation)
@@ -361,9 +349,7 @@ class CampaignRepository:
         await self.session.flush()
         return campaign
 
-    async def get_by_id(
-        self, campaign_id: uuid.UUID, *, business_id: uuid.UUID
-    ) -> CommunicationCampaign | None:
+    async def get_by_id(self, campaign_id: uuid.UUID, *, business_id: uuid.UUID) -> CommunicationCampaign | None:
         """Fetch a campaign by ID (tenant-scoped)."""
         result = await self.session.execute(
             select(CommunicationCampaign)
@@ -425,9 +411,7 @@ class CampaignRecipientRepository:
         await self.session.flush()
         return recipient
 
-    async def get_by_id(
-        self, recipient_id: uuid.UUID, *, business_id: uuid.UUID
-    ) -> CampaignRecipient | None:
+    async def get_by_id(self, recipient_id: uuid.UUID, *, business_id: uuid.UUID) -> CampaignRecipient | None:
         """Fetch a recipient by ID (tenant-scoped via parent campaign)."""
         result = await self.session.execute(
             select(CampaignRecipient)

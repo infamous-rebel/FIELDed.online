@@ -259,21 +259,13 @@ class ConditionEvaluator:
         if operator == "not_equals":
             return actual != expected
         if operator == "greater_than":
-            return _to_float(actual, None) is not None and _to_float(actual, 0) > _to_float(
-                expected, 0
-            )
+            return _to_float(actual, None) is not None and _to_float(actual, 0) > _to_float(expected, 0)
         if operator == "less_than":
-            return _to_float(actual, None) is not None and _to_float(actual, 0) < _to_float(
-                expected, 0
-            )
+            return _to_float(actual, None) is not None and _to_float(actual, 0) < _to_float(expected, 0)
         if operator == "greater_than_or_equal":
-            return _to_float(actual, None) is not None and _to_float(actual, 0) >= _to_float(
-                expected, 0
-            )
+            return _to_float(actual, None) is not None and _to_float(actual, 0) >= _to_float(expected, 0)
         if operator == "less_than_or_equal":
-            return _to_float(actual, None) is not None and _to_float(actual, 0) <= _to_float(
-                expected, 0
-            )
+            return _to_float(actual, None) is not None and _to_float(actual, 0) <= _to_float(expected, 0)
         if operator == "in":
             if isinstance(expected, list):
                 return actual in expected
@@ -537,9 +529,7 @@ class BrainEvaluator:
         # REQUIRE_APPROVAL
         if "require_approval" in outcomes:
             appr_rules = [m for m in matched if m.outcome == "require_approval"]
-            approval_reason = (
-                f"Approval required by rule(s): {', '.join(m.name for m in appr_rules)}"
-            )
+            approval_reason = f"Approval required by rule(s): {', '.join(m.name for m in appr_rules)}"
             return BrainDecision(
                 decision=BrainDecisionOutcome.REQUIRE_APPROVAL,
                 brain_version_id=version_id,

@@ -169,9 +169,7 @@ async def list_business_reviews(
     Requires authenticated business membership (tenant-scoped).
     """
     repo = ReviewRepository(db)
-    reviews = await repo.get_by_business(
-        business_id, status="visible", limit=limit, offset=offset
-    )
+    reviews = await repo.get_by_business(business_id, status="visible", limit=limit, offset=offset)
     return ReviewListRead(
         items=[ReviewRead.model_validate(r) for r in reviews],
         total=len(reviews),

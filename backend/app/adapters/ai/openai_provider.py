@@ -86,9 +86,7 @@ class OpenAIProvider(AIProvider):
         messages: list[dict[str, str]] = []
 
         system_content = system or ""
-        system_content += (
-            "\n\nYou MUST respond with a JSON object matching this schema: " + json.dumps(schema)
-        )
+        system_content += "\n\nYou MUST respond with a JSON object matching this schema: " + json.dumps(schema)
         messages.append({"role": "system", "content": system_content.strip()})
         messages.append({"role": "user", "content": prompt})
 
@@ -103,9 +101,7 @@ class OpenAIProvider(AIProvider):
         try:
             result = json.loads(content)
         except json.JSONDecodeError as exc:
-            raise ValueError(
-                f"OpenAI returned non-JSON structured output: {content[:200]}"
-            ) from exc
+            raise ValueError(f"OpenAI returned non-JSON structured output: {content[:200]}") from exc
 
         if not isinstance(result, dict):
             raise ValueError(f"OpenAI structured output is not an object: {type(result).__name__}")
@@ -142,9 +138,7 @@ class OpenAIProvider(AIProvider):
                 )
 
             if response.status_code not in (200, 201):
-                raise RuntimeError(
-                    f"OpenAI API error {response.status_code}: {response.text[:500]}"
-                )
+                raise RuntimeError(f"OpenAI API error {response.status_code}: {response.text[:500]}")
 
             return response.json()
 

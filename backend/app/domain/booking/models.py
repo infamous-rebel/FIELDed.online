@@ -84,9 +84,7 @@ class Booking(BaseModel):
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GBP")
 
     # Lifecycle
-    status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="requested"
-    )  # BookingStatus enum value
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="requested")  # BookingStatus enum value
 
     # Brain traceability
     brain_version_id: Mapped[uuid.UUID | None] = mapped_column(

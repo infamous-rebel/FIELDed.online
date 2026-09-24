@@ -39,9 +39,7 @@ class LedgerRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_primary_by_execution(
-        self, service_execution_id: uuid.UUID
-    ) -> ServiceLedgerEntry | None:
+    async def get_primary_by_execution(self, service_execution_id: uuid.UUID) -> ServiceLedgerEntry | None:
         """Fetch the primary ledger entry for a service execution."""
         result = await self.session.execute(
             select(ServiceLedgerEntry).where(

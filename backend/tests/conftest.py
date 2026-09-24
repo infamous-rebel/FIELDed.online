@@ -167,9 +167,7 @@ async def app(test_engine: AsyncEngine):
     settings = get_test_settings()
 
     # Pre-set the global engine so lifespan init_db doesn't create a second one
-    test_session_factory = async_sessionmaker(
-        bind=test_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    test_session_factory = async_sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
     db_module._engine = test_engine
     db_module._session_factory = test_session_factory
 

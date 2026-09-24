@@ -381,9 +381,7 @@ class TestBrainEvaluator:
 
     def test_single_allow_rule(self) -> None:
         rule = _make_rule(
-            conditions=[
-                {"field": "service_offer.pricing_model", "operator": "equals", "value": "fixed"}
-            ],
+            conditions=[{"field": "service_offer.pricing_model", "operator": "equals", "value": "fixed"}],
             actions=[{"outcome": "allow"}],
         )
         version = _make_version(rules=[rule])
@@ -398,9 +396,7 @@ class TestBrainEvaluator:
     def test_deny_rule_blocks(self) -> None:
         rule = _make_rule(
             name="No hourly enquiries",
-            conditions=[
-                {"field": "service_offer.pricing_model", "operator": "equals", "value": "hourly"}
-            ],
+            conditions=[{"field": "service_offer.pricing_model", "operator": "equals", "value": "hourly"}],
             actions=[{"outcome": "deny"}],
         )
         version = _make_version(rules=[rule])
@@ -603,9 +599,7 @@ class TestBrainDecisionContract:
         d_deny = BrainDecision(decision=BrainDecisionOutcome.DENY, brain_version_id=None)
         assert d_deny.is_denied
 
-        d_appr = BrainDecision(
-            decision=BrainDecisionOutcome.REQUIRE_APPROVAL, brain_version_id=None
-        )
+        d_appr = BrainDecision(decision=BrainDecisionOutcome.REQUIRE_APPROVAL, brain_version_id=None)
         assert d_appr.requires_approval
 
         d_esc = BrainDecision(decision=BrainDecisionOutcome.ESCALATE, brain_version_id=None)

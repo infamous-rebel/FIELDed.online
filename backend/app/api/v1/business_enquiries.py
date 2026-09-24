@@ -57,9 +57,7 @@ async def _get_user_business(
 
     from app.domain.identity.models import Business, BusinessMember
 
-    result = await db.execute(
-        select(Business).where(Business.id == business_id, Business.deleted_at.is_(None))
-    )
+    result = await db.execute(select(Business).where(Business.id == business_id, Business.deleted_at.is_(None)))
     business = result.scalar_one_or_none()
     if business is None:
         from app.exceptions import NotFoundError
@@ -107,9 +105,7 @@ async def list_business_enquiries(
     await _get_user_business(business_id, user, db)
 
     service = EnquiryService(db)
-    enquiries = await service.list_business_enquiries(
-        business_id, status=status, limit=limit, offset=offset
-    )
+    enquiries = await service.list_business_enquiries(business_id, status=status, limit=limit, offset=offset)
     return [_enquiry_to_read(e) for e in enquiries]
 
 

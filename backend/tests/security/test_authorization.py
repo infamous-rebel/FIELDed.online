@@ -98,9 +98,7 @@ class TestSessionSecurity:
     """Test session and token security."""
 
     @pytest.mark.asyncio
-    async def test_logout_invalidates_refresh_token(
-        self, client: AsyncClient, test_user, auth_headers
-    ):
+    async def test_logout_invalidates_refresh_token(self, client: AsyncClient, test_user, auth_headers):
         """After logout, the refresh token is revoked."""
         # Login to get tokens
         login_resp = await client.post(
@@ -247,9 +245,7 @@ class TestPasswordRecovery:
         assert resp2.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_reset_password_with_valid_token(
-        self, client: AsyncClient, db_session, test_user
-    ):
+    async def test_reset_password_with_valid_token(self, client: AsyncClient, db_session, test_user):
         """Password reset with valid token succeeds."""
         # Create a reset token
         from datetime import datetime, timedelta

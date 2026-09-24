@@ -12,8 +12,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-
 from app.adapters import (
     _resolve_ai_provider,
     _resolve_brain_ai_provider,

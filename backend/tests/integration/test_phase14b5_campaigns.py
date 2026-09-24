@@ -235,9 +235,7 @@ def execution_for(db_session: AsyncSession, provider: StubVoiceProvider):
 
 async def voice_calls_for(db_session: AsyncSession, business_id: uuid.UUID) -> list[VoiceCall]:
     result = await db_session.execute(
-        select(VoiceCall)
-        .where(VoiceCall.business_id == business_id)
-        .order_by(VoiceCall.created_at.asc())
+        select(VoiceCall).where(VoiceCall.business_id == business_id).order_by(VoiceCall.created_at.asc())
     )
     return list(result.scalars().all())
 
@@ -280,9 +278,7 @@ class TestActivation:
         assert result.status == CampaignStatus.ACTIVE.value
 
     async def test_transactional_activation_without_brain(self, db_session, biz_a):
-        campaign, _ = await make_campaign(
-            db_session, biz_a, purpose=CallPurpose.BOOKING_REMINDER.value
-        )
+        campaign, _ = await make_campaign(db_session, biz_a, purpose=CallPurpose.BOOKING_REMINDER.value)
         execution = execution_for(db_session, StubVoiceProvider())
 
         result = await execution.activate(campaign)
@@ -331,9 +327,7 @@ class TestCallingWindow:
                 "end_hour": 17,
             },
         )
-        campaign, campaigns = await make_campaign(
-            db_session, biz_a, purpose=CallPurpose.BOOKING_REMINDER.value
-        )
+        campaign, campaigns = await make_campaign(db_session, biz_a, purpose=CallPurpose.BOOKING_REMINDER.value)
         await campaigns.add_recipient(campaign, phone_number="+447700900123")
         provider = StubVoiceProvider()
         execution = execution_for(db_session, provider)
@@ -353,9 +347,7 @@ class TestCallingWindow:
             biz_a.id,
             quiet_periods=[{"start": "01-01", "end": "12-31"}],
         )
-        campaign, campaigns = await make_campaign(
-            db_session, biz_a, purpose=CallPurpose.BOOKING_REMINDER.value
-        )
+        campaign, campaigns = await make_campaign(db_session, biz_a, purpose=CallPurpose.BOOKING_REMINDER.value)
         await campaigns.add_recipient(campaign, phone_number="+447700900123")
         provider = StubVoiceProvider()
         execution = execution_for(db_session, provider)
@@ -388,9 +380,7 @@ class TestCallingWindow:
             purpose=CallPurpose.BOOKING_REMINDER.value,
             brain_version_id=version.id,
         )
-        recipient = await campaigns.add_recipient(
-            campaign, phone_number="+447700900123", customer_id=customer.id
-        )
+        recipient = await campaigns.add_recipient(campaign, phone_number="+447700900123", customer_id=customer.id)
         execution = execution_for(db_session, StubVoiceProvider())
         await execution.activate(campaign)
 
@@ -410,9 +400,7 @@ class TestPolicyGating:
         await setup_voice_policy(db_session, biz_a)
         customer = await make_customer(db_session, biz_a, opt_in=False, do_not_contact=True)
         campaign, campaigns = await make_campaign(db_session, biz_a, brain_version_id=version.id)
-        recipient = await campaigns.add_recipient(
-            campaign, phone_number="+447700900123", customer_id=customer.id
-        )
+        recipient = await campaigns.add_recipient(campaign, phone_number="+447700900123", customer_id=customer.id)
         provider = StubVoiceProvider()
         execution = execution_for(db_session, provider)
         await execution.activate(campaign)
@@ -425,9 +413,7 @@ class TestPolicyGating:
         assert provider.requests == []
 
         events = await campaign_audit_events(db_session, biz_a.id)
-        suppressed = [
-            e for e in events if e.event_type == AuditEventType.CAMPAIGN_RECIPIENT_SUPPRESSED.value
-        ]
+        suppressed = [e for e in events if e.event_type == AuditEventType.CAMPAIGN_RECIPIENT_SUPPRESSED.value]
         assert len(suppressed) == 1
         assert suppressed[0].customer_id == customer.id
         assert suppressed[0].decision_evidence["decision"] == "DENY"
@@ -438,9 +424,7 @@ class TestPolicyGating:
         await setup_voice_policy(db_session, biz_a)
         customer = await make_customer(db_session, biz_a, with_preference=False)
         campaign, campaigns = await make_campaign(db_session, biz_a, brain_version_id=version.id)
-        recipient = await campaigns.add_recipient(
-            campaign, phone_number="+447700900123", customer_id=customer.id
-        )
+        recipient = await campaigns.add_recipient(campaign, phone_number="+447700900123", customer_id=customer.id)
         provider = StubVoiceProvider()
         execution = execution_for(db_session, provider)
         await execution.activate(campaign)
@@ -455,9 +439,7 @@ class TestPolicyGating:
     async def test_missing_channel_config_skips(self, db_session, biz_a):
         """Closed-world: no VOICE channel config → REQUIRE_APPROVAL → SKIPPED."""
         await make_config(db_session, biz_a.id)
-        campaign, campaigns = await make_campaign(
-            db_session, biz_a, purpose=CallPurpose.BOOKING_REMINDER.value
-        )
+        campaign, campaigns = await make_campaign(db_session, biz_a, purpose=CallPurpose.BOOKING_REMINDER.value)
         recipient = await campaigns.add_recipient(campaign, phone_number="+447700900123")
         provider = StubVoiceProvider()
         execution = execution_for(db_session, provider)
@@ -477,9 +459,7 @@ class TestPolicyGating:
 class TestFrequencyLimits:
     async def test_attempt_budget_exhausted_marks_failed(self, db_session, biz_a):
         await make_config(db_session, biz_a.id)  # max_attempts = 3
-        campaign, campaigns = await make_campaign(
-            db_session, biz_a, purpose=CallPurpose.BOOKING_REMINDER.value
-        )
+        campaign, campaigns = await make_campaign(db_session, biz_a, purpose=CallPurpose.BOOKING_REMINDER.value)
         recipient = await campaigns.add_recipient(campaign, phone_number="+447700900123")
         recipient.attempt_count = 3
         await db_session.flush()
@@ -496,9 +476,7 @@ class TestFrequencyLimits:
 
     async def test_per_campaign_limit_marks_failed(self, db_session, biz_a):
         await make_config(db_session, biz_a.id, customer_frequency_limits={"per_campaign": 1})
-        campaign, campaigns = await make_campaign(
-            db_session, biz_a, purpose=CallPurpose.BOOKING_REMINDER.value
-        )
+        campaign, campaigns = await make_campaign(db_session, biz_a, purpose=CallPurpose.BOOKING_REMINDER.value)
         recipient = await campaigns.add_recipient(campaign, phone_number="+447700900123")
         recipient.attempt_count = 1
         await db_session.flush()
@@ -512,9 +490,7 @@ class TestFrequencyLimits:
 
     async def test_daily_limit_skips(self, db_session, biz_a):
         await make_config(db_session, biz_a.id, max_daily_attempts=1)
-        campaign, campaigns = await make_campaign(
-            db_session, biz_a, purpose=CallPurpose.BOOKING_REMINDER.value
-        )
+        campaign, campaigns = await make_campaign(db_session, biz_a, purpose=CallPurpose.BOOKING_REMINDER.value)
         attempted = await campaigns.add_recipient(campaign, phone_number="+447700900111")
         attempted.status = CampaignRecipientStatus.CONTACTED.value
         attempted.attempt_count = 1
@@ -543,9 +519,7 @@ class TestProcessing:
         await setup_voice_policy(db_session, biz_a)
         customer = await make_customer(db_session, biz_a, opt_in=True)
         campaign, campaigns = await make_campaign(db_session, biz_a, brain_version_id=version.id)
-        recipient = await campaigns.add_recipient(
-            campaign, phone_number="+447700900123", customer_id=customer.id
-        )
+        recipient = await campaigns.add_recipient(campaign, phone_number="+447700900123", customer_id=customer.id)
         provider = StubVoiceProvider()
         execution = execution_for(db_session, provider)
         await execution.activate(campaign)
@@ -583,9 +557,7 @@ class TestProcessing:
         await setup_voice_policy(db_session, biz_a)
         customer = await make_customer(db_session, biz_a, opt_in=True)
         campaign, campaigns = await make_campaign(db_session, biz_a, brain_version_id=version.id)
-        await campaigns.add_recipient(
-            campaign, phone_number="+447700900123", customer_id=customer.id
-        )
+        await campaigns.add_recipient(campaign, phone_number="+447700900123", customer_id=customer.id)
         provider = StubVoiceProvider()
         execution = execution_for(db_session, provider)
         await execution.activate(campaign)
@@ -609,9 +581,7 @@ class TestProcessing:
             purpose=CallPurpose.BOOKING_REMINDER.value,
             brain_version_id=version.id,
         )
-        recipient = await campaigns.add_recipient(
-            campaign, phone_number="+447700900123", customer_id=customer.id
-        )
+        recipient = await campaigns.add_recipient(campaign, phone_number="+447700900123", customer_id=customer.id)
         execution = execution_for(db_session, StubVoiceProvider())
         await execution.activate(campaign)
 
@@ -631,9 +601,7 @@ class TestOutcomeSettlement:
         await setup_voice_policy(db_session, biz_a)
         customer = await make_customer(db_session, biz_a, opt_in=True)
         campaign, campaigns = await make_campaign(db_session, biz_a, brain_version_id=version.id)
-        recipient = await campaigns.add_recipient(
-            campaign, phone_number="+447700900123", customer_id=customer.id
-        )
+        recipient = await campaigns.add_recipient(campaign, phone_number="+447700900123", customer_id=customer.id)
         execution = execution_for(db_session, StubVoiceProvider())
         await execution.activate(campaign)
         await execution.process_campaign(campaign, now=NOW)
@@ -641,9 +609,7 @@ class TestOutcomeSettlement:
         return campaign, recipient, calls[0], execution
 
     async def test_completed_call_settles_recipient_and_campaign(self, db_session, biz_a):
-        campaign, recipient, call, execution = await self._campaign_with_contacted_recipient(
-            db_session, biz_a
-        )
+        campaign, recipient, call, execution = await self._campaign_with_contacted_recipient(db_session, biz_a)
         call = await execution.orchestration.sync_provider_status(call, "ringing")
         call = await execution.orchestration.sync_provider_status(call, "in-progress")
         call = await execution.orchestration.sync_provider_status(call, "completed")
@@ -662,29 +628,21 @@ class TestOutcomeSettlement:
         customer_a = await make_customer(db_session, biz_a, opt_in=True)
         customer_b = await make_customer(db_session, biz_a, opt_in=True)
         campaign, campaigns = await make_campaign(db_session, biz_a, brain_version_id=version.id)
-        await campaigns.add_recipient(
-            campaign, phone_number="+447700900111", customer_id=customer_a.id
-        )
-        await campaigns.add_recipient(
-            campaign, phone_number="+447700900222", customer_id=customer_b.id
-        )
+        await campaigns.add_recipient(campaign, phone_number="+447700900111", customer_id=customer_a.id)
+        await campaigns.add_recipient(campaign, phone_number="+447700900222", customer_id=customer_b.id)
         execution = execution_for(db_session, StubVoiceProvider())
         await execution.activate(campaign)
         await execution.process_campaign(campaign, now=NOW)
         calls = {c.to_number: c for c in await voice_calls_for(db_session, biz_a.id)}
 
-        failed_call = await execution.orchestration.sync_provider_status(
-            calls["+447700900111"], "no-answer"
-        )
+        failed_call = await execution.orchestration.sync_provider_status(calls["+447700900111"], "no-answer")
         settled = await execution.complete_campaign_recipient(failed_call)
 
         assert settled.status == CampaignRecipientStatus.FAILED.value
         assert campaign.status == CampaignStatus.ACTIVE.value
 
     async def test_escalated_call_keeps_recipient_contacted(self, db_session, biz_a):
-        campaign, recipient, call, execution = await self._campaign_with_contacted_recipient(
-            db_session, biz_a
-        )
+        campaign, recipient, call, execution = await self._campaign_with_contacted_recipient(db_session, biz_a)
         call = await execution.orchestration.sync_provider_status(call, "ringing")
         call = await execution.orchestration.sync_provider_status(call, "in-progress")
         await execution.lifecycle.escalate_call(call, escalation_reason="customer requested human")
@@ -720,9 +678,7 @@ class TestCancellationAndAudit:
         await setup_voice_policy(db_session, biz_a)
         customer = await make_customer(db_session, biz_a, opt_in=True)
         campaign, campaigns = await make_campaign(db_session, biz_a, brain_version_id=version.id)
-        await campaigns.add_recipient(
-            campaign, phone_number="+447700900111", customer_id=customer.id
-        )
+        await campaigns.add_recipient(campaign, phone_number="+447700900111", customer_id=customer.id)
         execution = execution_for(db_session, StubVoiceProvider())
         await execution.activate(campaign)
         await execution.process_campaign(campaign, now=NOW)
@@ -743,13 +699,9 @@ class TestCancellationAndAudit:
         dnc = await make_customer(db_session, biz_a, opt_in=False, do_not_contact=True)
         unknown = await make_customer(db_session, biz_a, with_preference=False)
         campaign, campaigns = await make_campaign(db_session, biz_a, brain_version_id=version.id)
-        await campaigns.add_recipient(
-            campaign, phone_number="+447700900111", customer_id=allowed.id
-        )
+        await campaigns.add_recipient(campaign, phone_number="+447700900111", customer_id=allowed.id)
         await campaigns.add_recipient(campaign, phone_number="+447700900222", customer_id=dnc.id)
-        await campaigns.add_recipient(
-            campaign, phone_number="+447700900333", customer_id=unknown.id
-        )
+        await campaigns.add_recipient(campaign, phone_number="+447700900333", customer_id=unknown.id)
         execution = execution_for(db_session, StubVoiceProvider())
         await execution.activate(campaign)
 

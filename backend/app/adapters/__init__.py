@@ -68,10 +68,7 @@ def _resolve_email_provider(settings: object) -> EmailProvider:
         api_key = getattr(settings, "email_api_key", "")
         from_address = getattr(settings, "email_from", "noreply@fielded.local")
         if not api_key:
-            logger.warning(
-                "Resend email provider selected but EMAIL_API_KEY is empty. "
-                "Email sending will fail."
-            )
+            logger.warning("Resend email provider selected but EMAIL_API_KEY is empty. Email sending will fail.")
         return ResendEmailProvider(api_key=api_key, from_address=from_address)
 
     # Default: mock/stub — log and return a no-op
@@ -162,9 +159,7 @@ def _build_ai_provider(
         model = getattr(settings, "ai_model", "") or "gpt-4o-mini"
         base_url = base_url_override or getattr(settings, "ai_base_url", "") or None
         if not api_key:
-            logger.warning(
-                "OpenAI AI provider selected but AI_API_KEY is empty. AI calls will fail."
-            )
+            logger.warning("OpenAI AI provider selected but AI_API_KEY is empty. AI calls will fail.")
         kwargs: dict[str, Any] = {"api_key": api_key, "model": model}
         if base_url:
             kwargs["api_base"] = base_url
@@ -177,9 +172,7 @@ def _build_ai_provider(
         model = getattr(settings, "ai_model", "") or "llama-3.3-70b-versatile"
         base_url = base_url_override or getattr(settings, "ai_base_url", "") or None
         if not api_key:
-            logger.warning(
-                "Groq AI provider selected but AI_API_KEY is empty. AI calls will fail."
-            )
+            logger.warning("Groq AI provider selected but AI_API_KEY is empty. AI calls will fail.")
         kwargs: dict[str, Any] = {"api_key": api_key, "model": model}
         if base_url:
             kwargs["api_base"] = base_url
@@ -273,8 +266,7 @@ def _resolve_payment_provider(settings: object) -> PaymentProvider:
         webhook_secret = getattr(settings, "payment_webhook_secret", "")
         if not api_key:
             logger.warning(
-                "Stripe payment provider selected but PAYMENT_API_KEY is empty. "
-                "Payment operations will fail."
+                "Stripe payment provider selected but PAYMENT_API_KEY is empty. Payment operations will fail."
             )
         return StripePaymentProvider(
             api_key=api_key,

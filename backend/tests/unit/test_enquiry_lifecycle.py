@@ -123,9 +123,7 @@ class TestEnquiryPhase05Lifecycle:
         }
         for status in early_states:
             for target in ENQUIRY_TRANSITIONS.get(status, set()):
-                assert target not in phase12_states, (
-                    f"{status.value} -> {target.value} should not be valid"
-                )
+                assert target not in phase12_states, f"{status.value} -> {target.value} should not be valid"
 
     # --- Completeness ---
 

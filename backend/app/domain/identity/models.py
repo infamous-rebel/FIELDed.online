@@ -87,24 +87,18 @@ class Business(BaseModel):
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
-    status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="pending"
-    )  # BusinessStatus enum value
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending")  # BusinessStatus enum value
 
     # Operational currency — the business's default currency for transactions.
     # ISO 4217 code (e.g. "GBP", "USD", "EUR").  Must be explicit; no silent defaults.
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GBP")
 
     # Relationships
-    members: Mapped[list[BusinessMember]] = relationship(
-        back_populates="business", cascade="all, delete-orphan"
-    )
+    members: Mapped[list[BusinessMember]] = relationship(back_populates="business", cascade="all, delete-orphan")
     profile: Mapped[BusinessProfile | None] = relationship(
         back_populates="business", uselist=False, cascade="all, delete-orphan"
     )
-    service_offers: Mapped[list[ServiceOffer]] = relationship(
-        back_populates="business", cascade="all, delete-orphan"
-    )
+    service_offers: Mapped[list[ServiceOffer]] = relationship(back_populates="business", cascade="all, delete-orphan")
 
 
 class BusinessProfile(BaseModel):
@@ -166,9 +160,7 @@ class BusinessMember(BaseModel):
     """
 
     __tablename__ = "business_members"
-    __table_args__ = (
-        UniqueConstraint("user_id", "business_id", name="uq_business_member_user_business"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "business_id", name="uq_business_member_user_business"),)
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -180,9 +172,7 @@ class BusinessMember(BaseModel):
         ForeignKey("businesses.id", ondelete="CASCADE"),
         nullable=False,
     )
-    role: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="staff"
-    )  # BusinessMemberRole enum value
+    role: Mapped[str] = mapped_column(String(50), nullable=False, default="staff")  # BusinessMemberRole enum value
 
     # Relationships
     user: Mapped[User] = relationship(back_populates="business_memberships")

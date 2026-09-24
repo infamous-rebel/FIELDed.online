@@ -99,8 +99,7 @@ class ServiceExecutionService:
         allowed_statuses = {BookingStatus.CONFIRMED, BookingStatus.IN_PROGRESS}
         if BookingStatus(booking.status) not in allowed_statuses:
             raise ValidationError(
-                f"Booking must be confirmed or in_progress to create execution. "
-                f"Current status: {booking.status}"
+                f"Booking must be confirmed or in_progress to create execution. Current status: {booking.status}"
             )
 
         execution = ServiceExecution(
@@ -289,18 +288,14 @@ class ServiceExecutionService:
             raise NotFoundError("Service execution not found")
         return execution
 
-    async def get_business_execution(
-        self, execution_id: uuid.UUID, business_id: uuid.UUID
-    ) -> ServiceExecution:
+    async def get_business_execution(self, execution_id: uuid.UUID, business_id: uuid.UUID) -> ServiceExecution:
         """Get a service execution, verifying it belongs to the business."""
         execution = await self.get_execution(execution_id)
         if execution.business_id != business_id:
             raise AuthorizationError("Service execution does not belong to this business")
         return execution
 
-    async def get_customer_execution(
-        self, execution_id: uuid.UUID, customer_id: uuid.UUID
-    ) -> ServiceExecution:
+    async def get_customer_execution(self, execution_id: uuid.UUID, customer_id: uuid.UUID) -> ServiceExecution:
         """Get a service execution, verifying customer ownership."""
         execution = await self.get_execution(execution_id)
         if execution.customer_id != customer_id:
@@ -316,9 +311,7 @@ class ServiceExecutionService:
         offset: int = 0,
     ) -> list[ServiceExecution]:
         """List service executions for a business."""
-        return await self.execution_repo.get_by_business(
-            business_id, status=status, limit=limit, offset=offset
-        )
+        return await self.execution_repo.get_by_business(business_id, status=status, limit=limit, offset=offset)
 
     async def list_customer_executions(
         self,
@@ -329,9 +322,7 @@ class ServiceExecutionService:
         offset: int = 0,
     ) -> list[ServiceExecution]:
         """List service executions for a customer."""
-        return await self.execution_repo.get_by_customer(
-            customer_id, status=status, limit=limit, offset=offset
-        )
+        return await self.execution_repo.get_by_customer(customer_id, status=status, limit=limit, offset=offset)
 
     # --- Internal: completion flow ---
 
@@ -496,9 +487,7 @@ class ServiceExecutionService:
 
         booking_service = BookingService(self.session)
         with contextlib.suppress(StateTransitionError):
-            await booking_service.transition_booking(
-                booking, BookingStatus.COMPLETED, actor="system"
-            )
+            await booking_service.transition_booking(booking, BookingStatus.COMPLETED, actor="system")
         # Suppressed: StateTransitionError means another path already completed it
 
     async def _emit_outbox_event(

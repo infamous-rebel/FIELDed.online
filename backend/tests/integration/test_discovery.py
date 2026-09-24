@@ -232,9 +232,7 @@ class TestDiscoveryMatching:
         paused_slug = seed_data["biz_e"].slug
         assert paused_slug not in biz_slugs
 
-    async def test_zero_matches_for_nonexistent_category(
-        self, client: AsyncClient, seed_data: dict
-    ):
+    async def test_zero_matches_for_nonexistent_category(self, client: AsyncClient, seed_data: dict):
         """Search for nonexistent category returns empty results."""
         response = await client.post(
             "/api/v1/discovery/structured",
@@ -262,9 +260,7 @@ class TestDiscoveryMatching:
                 assert "booking_rules" not in offer
                 assert "cancellation_policy" not in offer
 
-    async def test_fabricated_ai_business_not_in_results(
-        self, client: AsyncClient, seed_data: dict
-    ):
+    async def test_fabricated_ai_business_not_in_results(self, client: AsyncClient, seed_data: dict):
         """Even if AI invents a business, it won't appear in results."""
         # The matching service only returns data from the database
         response = await client.post(

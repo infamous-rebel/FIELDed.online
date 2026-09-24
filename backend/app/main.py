@@ -40,8 +40,8 @@ async def _outbox_worker_loop() -> None:
     development / single-instance deployments.
     """
     from app.adapters import ProviderFactory
-    from app.domain.communication.orchestration import OrchestrationService
     from app.config import get_settings
+    from app.domain.communication.orchestration import OrchestrationService
     from app.domain.voice.outbox_integration import VoiceEventOrchestrator
     from app.workers import process_outbox_events
 
@@ -163,9 +163,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     @app.exception_handler(RequestValidationError)
-    async def validation_error_handler(
-        request: Request, exc: RequestValidationError
-    ) -> JSONResponse:
+    async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
         request_id = getattr(request.state, "request_id", None)
         return JSONResponse(
             status_code=422,

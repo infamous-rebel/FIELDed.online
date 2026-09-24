@@ -33,9 +33,7 @@ async def public_biz(db_session: AsyncSession, second_user: User) -> tuple[Busin
     db_session.add(biz)
     await db_session.flush()
 
-    db_session.add(
-        business_member_factory(user_id=second_user.id, business_id=biz.id, role="owner")
-    )
+    db_session.add(business_member_factory(user_id=second_user.id, business_id=biz.id, role="owner"))
     db_session.add(BusinessProfile(business_id=biz.id, public_status="active"))
     await db_session.flush()
 

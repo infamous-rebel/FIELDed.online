@@ -120,9 +120,7 @@ class TestEnquiryCreation:
         enquiry_id = response.json()["id"]
 
         # Verify conversation exists in DB
-        result = await db_session.execute(
-            select(Conversation).where(Conversation.enquiry_id == enquiry_id)
-        )
+        result = await db_session.execute(select(Conversation).where(Conversation.enquiry_id == enquiry_id))
         conversation = result.scalar_one_or_none()
         assert conversation is not None
         assert str(conversation.enquiry_id) == enquiry_id

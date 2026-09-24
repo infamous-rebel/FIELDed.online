@@ -108,18 +108,14 @@ class TestPublicPrivateExposure:
         await db_session.flush()
         return business
 
-    async def test_public_profile_returns_active_business(
-        self, client: AsyncClient, public_business: Business
-    ):
+    async def test_public_profile_returns_active_business(self, client: AsyncClient, public_business: Business):
         response = await client.get(f"/api/v1/public/business/{public_business.slug}")
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "Public Biz"
         assert data["description"] == "Public description"
 
-    async def test_public_profile_only_shows_active_offers(
-        self, client: AsyncClient, public_business: Business
-    ):
+    async def test_public_profile_only_shows_active_offers(self, client: AsyncClient, public_business: Business):
         response = await client.get(f"/api/v1/public/business/{public_business.slug}")
         data = response.json()
         offer_names = [o["name"] for o in data["service_offers"]]
@@ -128,30 +124,22 @@ class TestPublicPrivateExposure:
         assert "Paused Service" not in offer_names
         assert "Archived Service" not in offer_names
 
-    async def test_public_profile_does_not_expose_private_data(
-        self, client: AsyncClient, public_business: Business
-    ):
+    async def test_public_profile_does_not_expose_private_data(self, client: AsyncClient, public_business: Business):
         response = await client.get(f"/api/v1/public/business/{public_business.slug}")
         data = response.json()
         # These fields should NOT be in the public response
         assert (
-            "service_area" not in data
-            or data.get("service_area") is None
-            or isinstance(data.get("service_area"), dict)
+            "service_area" not in data or data.get("service_area") is None or isinstance(data.get("service_area"), dict)
         )
         # Ensure no internal fields leak
         assert "is_verified" in data  # This IS public
         assert "average_rating" in data  # This IS public
 
-    async def test_incomplete_public_profile_returns_404(
-        self, client: AsyncClient, private_business: Business
-    ):
+    async def test_incomplete_public_profile_returns_404(self, client: AsyncClient, private_business: Business):
         response = await client.get(f"/api/v1/public/business/{private_business.slug}")
         assert response.status_code == 404
 
-    async def test_public_services_endpoint_only_returns_active(
-        self, client: AsyncClient, public_business: Business
-    ):
+    async def test_public_services_endpoint_only_returns_active(self, client: AsyncClient, public_business: Business):
         response = await client.get(f"/api/v1/public/business/{public_business.slug}/services")
         assert response.status_code == 200
         data = response.json()

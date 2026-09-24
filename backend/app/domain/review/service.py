@@ -76,9 +76,7 @@ class ReviewService:
         #    (already covered by status == "completed" check above,
         #    but explicit for clarity per spec)
         if execution.status in ("cancelled", "no_show"):
-            raise ReviewEligibilityError(
-                "Service execution was cancelled or no-show — review not eligible"
-            )
+            raise ReviewEligibilityError("Service execution was cancelled or no-show — review not eligible")
 
         # 4. Customer must own the transaction
         if execution.customer_id != customer_id:
@@ -89,18 +87,14 @@ class ReviewService:
         if booking is None:
             raise ReviewEligibilityError("Linked booking not found")
         if booking.status in ("cancelled", "declined"):
-            raise ReviewEligibilityError(
-                "Linked booking was cancelled or declined — review not eligible"
-            )
+            raise ReviewEligibilityError("Linked booking was cancelled or declined — review not eligible")
 
         # 6. Load linked enquiry and verify status
         enquiry = await self.enquiry_repo.get_by_id(booking.enquiry_id)
         if enquiry is None:
             raise ReviewEligibilityError("Linked enquiry not found")
         if enquiry.status in ("declined", "cancelled"):
-            raise ReviewEligibilityError(
-                "Linked enquiry was declined or cancelled — review not eligible"
-            )
+            raise ReviewEligibilityError("Linked enquiry was declined or cancelled — review not eligible")
 
         # 7. No existing review for this execution (UNIQUE constraint)
         existing = await self.review_repo.get_by_service_execution(service_execution_id)

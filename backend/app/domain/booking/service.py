@@ -245,9 +245,7 @@ class BookingService:
         if current == BookingStatus.PROPOSED:
             customer_allowed.add(BookingStatus.ACCEPTED)
         if actor == "customer" and target_status not in customer_allowed:
-            raise AuthorizationError(
-                "Customers can only cancel bookings or accept proposed bookings"
-            )
+            raise AuthorizationError("Customers can only cancel bookings or accept proposed bookings")
 
         old_status = booking.status
         booking.status = target_status
@@ -383,9 +381,7 @@ class BookingService:
         offset: int = 0,
     ) -> list[Booking]:
         """List bookings for a customer."""
-        return await self.booking_repo.get_by_customer(
-            customer_id, status=status, limit=limit, offset=offset
-        )
+        return await self.booking_repo.get_by_customer(customer_id, status=status, limit=limit, offset=offset)
 
     async def list_business_bookings(
         self,
@@ -396,9 +392,7 @@ class BookingService:
         offset: int = 0,
     ) -> list[Booking]:
         """List bookings for a business."""
-        return await self.booking_repo.get_by_business(
-            business_id, status=status, limit=limit, offset=offset
-        )
+        return await self.booking_repo.get_by_business(business_id, status=status, limit=limit, offset=offset)
 
     # --- Internal helpers ---
 
@@ -410,9 +404,7 @@ class BookingService:
         if quote.customer_id != customer_id:
             raise AuthorizationError("Not your quote")
         if QuoteStatus(quote.status) != QuoteStatus.ACCEPTED:
-            raise ValidationError(
-                f"Quote must be accepted before creating a booking. Current status: {quote.status}"
-            )
+            raise ValidationError(f"Quote must be accepted before creating a booking. Current status: {quote.status}")
         return quote
 
     async def _resolve_service_offer(self, service_offer_id: uuid.UUID) -> ServiceOffer:

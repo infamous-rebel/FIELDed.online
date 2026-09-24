@@ -70,9 +70,7 @@ class StubPaymentProvider(PaymentProvider):
         return WebhookEvent(
             event_type=payload.get("type", "payment_intent.succeeded"),
             provider_event_id=payload.get("id", f"evt_{uuid.uuid4().hex[:16]}"),
-            provider_payment_reference=payload.get(
-                "payment_intent", f"stub_pi_{uuid.uuid4().hex[:24]}"
-            ),
+            provider_payment_reference=payload.get("payment_intent", f"stub_pi_{uuid.uuid4().hex[:24]}"),
             amount=Decimal(str(payload["amount"])) if "amount" in payload else None,
             currency=payload.get("currency"),
             status=payload.get("status", "succeeded"),

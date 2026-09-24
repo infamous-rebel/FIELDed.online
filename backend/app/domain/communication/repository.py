@@ -38,9 +38,7 @@ class CommunicationRepository:
         await self.session.flush()
         return communication
 
-    async def get_by_id(
-        self, communication_id: uuid.UUID, *, business_id: uuid.UUID
-    ) -> Communication | None:
+    async def get_by_id(self, communication_id: uuid.UUID, *, business_id: uuid.UUID) -> Communication | None:
         """Fetch a communication by ID (tenant-scoped)."""
         result = await self.session.execute(
             select(Communication)
@@ -136,9 +134,7 @@ class CommunicationTemplateRepository:
         await self.session.flush()
         return template
 
-    async def get_by_id(
-        self, template_id: uuid.UUID, *, business_id: uuid.UUID
-    ) -> CommunicationTemplate | None:
+    async def get_by_id(self, template_id: uuid.UUID, *, business_id: uuid.UUID) -> CommunicationTemplate | None:
         """Fetch a template by ID (tenant-scoped)."""
         result = await self.session.execute(
             select(CommunicationTemplate).where(
@@ -177,9 +173,7 @@ class CommunicationTemplateRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def add_version(
-        self, version: CommunicationTemplateVersion
-    ) -> CommunicationTemplateVersion:
+    async def add_version(self, version: CommunicationTemplateVersion) -> CommunicationTemplateVersion:
         """Add a new immutable version to a template."""
         self.session.add(version)
         await self.session.flush()
@@ -197,9 +191,7 @@ class CommunicationTemplateRepository:
     async def get_version(self, version_id: uuid.UUID) -> CommunicationTemplateVersion | None:
         """Fetch a specific template version."""
         result = await self.session.execute(
-            select(CommunicationTemplateVersion).where(
-                CommunicationTemplateVersion.id == version_id
-            )
+            select(CommunicationTemplateVersion).where(CommunicationTemplateVersion.id == version_id)
         )
         return result.scalar_one_or_none()
 
@@ -215,9 +207,7 @@ class CommunicationConfigRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def get_channel_config(
-        self, business_id: uuid.UUID, channel: str
-    ) -> BusinessCommunicationChannel | None:
+    async def get_channel_config(self, business_id: uuid.UUID, channel: str) -> BusinessCommunicationChannel | None:
         """Get channel configuration for a business."""
         result = await self.session.execute(
             select(BusinessCommunicationChannel).where(
@@ -228,9 +218,7 @@ class CommunicationConfigRepository:
         )
         return result.scalar_one_or_none()
 
-    async def list_channel_configs(
-        self, business_id: uuid.UUID
-    ) -> list[BusinessCommunicationChannel]:
+    async def list_channel_configs(self, business_id: uuid.UUID) -> list[BusinessCommunicationChannel]:
         """List all channel configs for a business."""
         result = await self.session.execute(
             select(BusinessCommunicationChannel).where(
@@ -240,9 +228,7 @@ class CommunicationConfigRepository:
         )
         return list(result.scalars().all())
 
-    async def upsert_channel_config(
-        self, config: BusinessCommunicationChannel
-    ) -> BusinessCommunicationChannel:
+    async def upsert_channel_config(self, config: BusinessCommunicationChannel) -> BusinessCommunicationChannel:
         """Create or update a channel configuration."""
         existing = await self.get_channel_config(config.business_id, config.channel)
         if existing:
@@ -258,9 +244,7 @@ class CommunicationConfigRepository:
         await self.session.flush()
         return config
 
-    async def get_purpose_config(
-        self, business_id: uuid.UUID, purpose: str
-    ) -> BusinessCommunicationPurpose | None:
+    async def get_purpose_config(self, business_id: uuid.UUID, purpose: str) -> BusinessCommunicationPurpose | None:
         """Get purpose configuration for a business."""
         result = await self.session.execute(
             select(BusinessCommunicationPurpose).where(
@@ -271,9 +255,7 @@ class CommunicationConfigRepository:
         )
         return result.scalar_one_or_none()
 
-    async def list_purpose_configs(
-        self, business_id: uuid.UUID
-    ) -> list[BusinessCommunicationPurpose]:
+    async def list_purpose_configs(self, business_id: uuid.UUID) -> list[BusinessCommunicationPurpose]:
         """List all purpose configs for a business."""
         result = await self.session.execute(
             select(BusinessCommunicationPurpose).where(
@@ -283,9 +265,7 @@ class CommunicationConfigRepository:
         )
         return list(result.scalars().all())
 
-    async def upsert_purpose_config(
-        self, config: BusinessCommunicationPurpose
-    ) -> BusinessCommunicationPurpose:
+    async def upsert_purpose_config(self, config: BusinessCommunicationPurpose) -> BusinessCommunicationPurpose:
         """Create or update a purpose configuration."""
         existing = await self.get_purpose_config(config.business_id, config.purpose)
         if existing:
@@ -344,13 +324,9 @@ class ConsentRepository:
         )
         return list(result.scalars().all())
 
-    async def upsert(
-        self, pref: CustomerCommunicationPreference
-    ) -> CustomerCommunicationPreference:
+    async def upsert(self, pref: CustomerCommunicationPreference) -> CustomerCommunicationPreference:
         """Create or update a preference."""
-        existing = await self.get_preference(
-            pref.customer_id, pref.business_id, pref.channel, pref.purpose
-        )
+        existing = await self.get_preference(pref.customer_id, pref.business_id, pref.channel, pref.purpose)
         if existing:
             for attr in (
                 "consent_state",
@@ -383,9 +359,7 @@ class WebhookRepository:
         await self.session.flush()
         return webhook
 
-    async def get_by_provider_event(
-        self, provider: str, external_event_id: str
-    ) -> CommunicationWebhook | None:
+    async def get_by_provider_event(self, provider: str, external_event_id: str) -> CommunicationWebhook | None:
         """Fetch a webhook by provider + external event ID (idempotency)."""
         result = await self.session.execute(
             select(CommunicationWebhook).where(
@@ -413,9 +387,7 @@ class AuditRepository:
         await self.session.flush()
         return event
 
-    async def list_for_communication(
-        self, communication_id: uuid.UUID
-    ) -> list[CommunicationAuditEvent]:
+    async def list_for_communication(self, communication_id: uuid.UUID) -> list[CommunicationAuditEvent]:
         """List audit events for a communication."""
         result = await self.session.execute(
             select(CommunicationAuditEvent)

@@ -158,10 +158,7 @@ class DiscoveryInterpreter:
 
         # Build location intent if any location data was extracted
         location = None
-        if any(
-            ai_data.get(k)
-            for k in ("location_city", "location_state", "location_country", "location_postal_code")
-        ):
+        if any(ai_data.get(k) for k in ("location_city", "location_state", "location_country", "location_postal_code")):
             location = LocationIntent(
                 city=ai_data.get("location_city"),
                 state=ai_data.get("location_state"),
@@ -242,11 +239,7 @@ class DiscoveryInterpreter:
             "please",
         }
         words = raw_query.lower().split()
-        keywords = [
-            w.strip(".,!?;:'\"")
-            for w in words
-            if w.strip(".,!?;:'\"") not in stopwords and len(w) > 2
-        ]
+        keywords = [w.strip(".,!?;:'\"") for w in words if w.strip(".,!?;:'\"") not in stopwords and len(w) > 2]
 
         # Remove duplicates while preserving order
         seen = set()

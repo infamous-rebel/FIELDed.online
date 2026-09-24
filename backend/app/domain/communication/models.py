@@ -141,9 +141,7 @@ class CommunicationRecipient(BaseModel):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    recipient_type: Mapped[str] = mapped_column(
-        String(50), nullable=False
-    )  # RecipientType enum value
+    recipient_type: Mapped[str] = mapped_column(String(50), nullable=False)  # RecipientType enum value
     channel: Mapped[str] = mapped_column(String(50), nullable=False)
     address: Mapped[str] = mapped_column(String(500), nullable=False)  # email/phone/device token
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="PENDING")

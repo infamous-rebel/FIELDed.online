@@ -299,9 +299,7 @@ class StripePaymentProvider(PaymentProvider):
                     data_object.get("currency", "gbp"),
                 )
             currency = data_object.get("currency")
-            status = _STRIPE_TO_PAYMENT_STATUS.get(
-                data_object.get("status", ""), data_object.get("status", "")
-            )
+            status = _STRIPE_TO_PAYMENT_STATUS.get(data_object.get("status", ""), data_object.get("status", ""))
 
         elif event_type.startswith("charge.refund"):
             # Refund events — extract the PaymentIntent from the charge

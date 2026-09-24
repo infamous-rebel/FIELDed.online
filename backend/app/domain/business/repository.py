@@ -74,9 +74,7 @@ class BusinessBrainRepository:
         await self.session.flush()
         return brain
 
-    async def update_active_version(
-        self, brain: BusinessBrain, version_id: uuid.UUID | None
-    ) -> BusinessBrain:
+    async def update_active_version(self, brain: BusinessBrain, version_id: uuid.UUID | None) -> BusinessBrain:
         """Set the active version for a brain."""
         brain.active_version_id = version_id
         await self.session.flush()
@@ -205,9 +203,7 @@ class BrainConversationRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def get_by_id(
-        self, conversation_id: uuid.UUID
-    ) -> BrainConversation | None:
+    async def get_by_id(self, conversation_id: uuid.UUID) -> BrainConversation | None:
         """Fetch a conversation by ID."""
         result = await self.session.execute(
             select(BrainConversation)
@@ -219,9 +215,7 @@ class BrainConversationRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_active_by_brain_id(
-        self, brain_id: uuid.UUID
-    ) -> BrainConversation | None:
+    async def get_active_by_brain_id(self, brain_id: uuid.UUID) -> BrainConversation | None:
         """Find the active conversation for a brain, if any."""
         result = await self.session.execute(
             select(BrainConversation)
@@ -235,9 +229,7 @@ class BrainConversationRepository:
         )
         return result.scalars().first()
 
-    async def list_by_brain_id(
-        self, brain_id: uuid.UUID, limit: int = 20
-    ) -> list[BrainConversation]:
+    async def list_by_brain_id(self, brain_id: uuid.UUID, limit: int = 20) -> list[BrainConversation]:
         """List conversations for a brain, newest first."""
         result = await self.session.execute(
             select(BrainConversation)
@@ -278,9 +270,7 @@ class BrainMessageRepository:
         )
         return result.scalar_one_or_none()
 
-    async def list_by_conversation_id(
-        self, conversation_id: uuid.UUID, limit: int = 100
-    ) -> list[BrainMessage]:
+    async def list_by_conversation_id(self, conversation_id: uuid.UUID, limit: int = 100) -> list[BrainMessage]:
         """List messages for a conversation, oldest first."""
         result = await self.session.execute(
             select(BrainMessage)
@@ -316,9 +306,7 @@ class BrainProposalRepository:
         )
         return result.scalar_one_or_none()
 
-    async def list_by_brain_id(
-        self, brain_id: uuid.UUID, limit: int = 50
-    ) -> list[BrainProposal]:
+    async def list_by_brain_id(self, brain_id: uuid.UUID, limit: int = 50) -> list[BrainProposal]:
         """List proposals for a brain, newest first."""
         result = await self.session.execute(
             select(BrainProposal)
@@ -331,9 +319,7 @@ class BrainProposalRepository:
         )
         return list(result.scalars().all())
 
-    async def list_pending_by_brain_id(
-        self, brain_id: uuid.UUID
-    ) -> list[BrainProposal]:
+    async def list_pending_by_brain_id(self, brain_id: uuid.UUID) -> list[BrainProposal]:
         """List pending proposals for a brain."""
         from app.domain.common.enums import BrainProposalStatus
 

@@ -64,9 +64,7 @@ class BrainVersion(BaseModel):
         nullable=False,
     )
     version_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="draft"
-    )  # BrainVersionStatus enum value
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="draft")  # BrainVersionStatus enum value
 
     # Configuration areas stored as structured JSON
     identity_config: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -83,9 +81,7 @@ class BrainVersion(BaseModel):
         back_populates="versions",
         foreign_keys=[brain_id],
     )
-    rules: Mapped[list[BusinessRule]] = relationship(
-        back_populates="brain_version", cascade="all, delete-orphan"
-    )
+    rules: Mapped[list[BusinessRule]] = relationship(back_populates="brain_version", cascade="all, delete-orphan")
 
 
 class BusinessRule(BaseModel):
@@ -174,9 +170,7 @@ class BrainMessage(BaseModel):
         ForeignKey("brain_conversations.id", ondelete="CASCADE"),
         nullable=False,
     )
-    role: Mapped[str] = mapped_column(
-        String(50), nullable=False
-    )  # BrainMessageRole enum value
+    role: Mapped[str] = mapped_column(String(50), nullable=False)  # BrainMessageRole enum value
     content: Mapped[str] = mapped_column(Text, nullable=False)
     metadata_: Mapped[dict | None] = mapped_column(
         "metadata", JSONB, nullable=True
@@ -216,33 +210,19 @@ class BrainProposal(BaseModel):
         ForeignKey("businesses.id", ondelete="CASCADE"),
         nullable=False,
     )
-    proposal_type: Mapped[str] = mapped_column(
-        String(50), nullable=False
-    )  # BrainProposalType enum value
-    status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="pending"
-    )  # BrainProposalStatus enum value
-    confidence: Mapped[float] = mapped_column(
-        Float, nullable=False, default=0.0
-    )
+    proposal_type: Mapped[str] = mapped_column(String(50), nullable=False)  # BrainProposalType enum value
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending")  # BrainProposalStatus enum value
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     reasoning_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
-    proposed_change: Mapped[dict] = mapped_column(
-        JSONB, nullable=False, default=dict
-    )
-    affected_area: Mapped[str | None] = mapped_column(
-        String(50), nullable=True
-    )  # Which Brain config area this affects
+    proposed_change: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    affected_area: Mapped[str | None] = mapped_column(String(50), nullable=True)  # Which Brain config area this affects
     source_message_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("brain_messages.id", ondelete="SET NULL"),
         nullable=True,
     )
-    resolved_at: Mapped[str | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    is_urgent: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
+    resolved_at: Mapped[str | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_urgent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Relationships
     conversation: Mapped[BrainConversation | None] = relationship(

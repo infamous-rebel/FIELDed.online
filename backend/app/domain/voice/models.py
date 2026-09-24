@@ -166,18 +166,10 @@ class VoiceCall(BaseModel):
     brain_version: Mapped[BrainVersion | None] = relationship(foreign_keys=[brain_version_id])
     communication: Mapped[Communication | None] = relationship(foreign_keys=[communication_id])
     campaign: Mapped[CommunicationCampaign | None] = relationship(foreign_keys=[campaign_id])
-    participants: Mapped[list[VoiceCallParticipant]] = relationship(
-        back_populates="call", cascade="all, delete-orphan"
-    )
-    attempts: Mapped[list[VoiceCallAttempt]] = relationship(
-        back_populates="call", cascade="all, delete-orphan"
-    )
-    sessions: Mapped[list[VoiceCallSession]] = relationship(
-        back_populates="call", cascade="all, delete-orphan"
-    )
-    escalations: Mapped[list[VoiceCallEscalation]] = relationship(
-        back_populates="call", cascade="all, delete-orphan"
-    )
+    participants: Mapped[list[VoiceCallParticipant]] = relationship(back_populates="call", cascade="all, delete-orphan")
+    attempts: Mapped[list[VoiceCallAttempt]] = relationship(back_populates="call", cascade="all, delete-orphan")
+    sessions: Mapped[list[VoiceCallSession]] = relationship(back_populates="call", cascade="all, delete-orphan")
+    escalations: Mapped[list[VoiceCallEscalation]] = relationship(back_populates="call", cascade="all, delete-orphan")
 
 
 class VoiceCallParticipant(BaseModel):
@@ -302,9 +294,7 @@ class VoiceCallSession(BaseModel):
 
     # Human escalation markers (state persisted in VoiceCallEscalation)
     human_escalation_requested: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    human_escalation_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    human_escalation_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Phase 14B.2 — Call Agent runtime state
     # Structured information collected during the conversation
@@ -388,9 +378,7 @@ class CallAgentConfiguration(BaseModel):
 
     # Enablement — transactional and marketing calling are independent
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    transactional_calling_enabled: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
+    transactional_calling_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     marketing_calling_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Phone/provider operational settings
@@ -476,9 +464,7 @@ class CommunicationCampaign(BaseModel):
     # Relationships
     business: Mapped[Business] = relationship(foreign_keys=[business_id])
     brain_version: Mapped[BrainVersion | None] = relationship(foreign_keys=[brain_version_id])
-    recipients: Mapped[list[CampaignRecipient]] = relationship(
-        back_populates="campaign", cascade="all, delete-orphan"
-    )
+    recipients: Mapped[list[CampaignRecipient]] = relationship(back_populates="campaign", cascade="all, delete-orphan")
 
 
 class CampaignRecipient(BaseModel):
