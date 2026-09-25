@@ -6,12 +6,20 @@ import { businesses, enquiries, auth, type UserResponse } from "@/lib/api-client
 import { isAuthenticated, logout } from "@/lib/auth";
 
 const NAV_ITEMS = [
-  { label: "Home", href: "/business/dashboard", icon: HomeIcon },
+  { label: "Dashboard", href: "/business/dashboard", icon: HomeIcon, badge: false },
   { label: "Enquiries", href: "/business/enquiries", icon: InboxIcon, badge: true },
-  { label: "Schedule", href: "/business/schedule", icon: CalendarIcon },
-  { label: "Finance", href: "/business/finance", icon: FinanceIcon },
-  { label: "Call Agent", href: "/business/call-agent", icon: PhoneIcon },
-  { label: "Settings", href: "/business/settings", icon: SettingsIcon },
+  { label: "Bookings", href: "/business/bookings", icon: CalendarIcon, badge: false },
+  { label: "Quotes", href: "/business/quotes", icon: DocumentIcon, badge: false },
+  { label: "Services", href: "/business/services", icon: BriefcaseIcon, badge: false },
+  { label: "Schedule", href: "/business/schedule", icon: CalendarDaysIcon, badge: false },
+  { label: "Finance", href: "/business/finance", icon: FinanceIcon, badge: false },
+  { label: "Payments", href: "/business/payments", icon: CreditCardIcon, badge: false },
+  { label: "Business Brain", href: "/business/brain", icon: BrainIcon, badge: false },
+  { label: "Communications", href: "/business/communications", icon: MessageIcon, badge: false },
+  { label: "Call Agent", href: "/business/call-agent", icon: PhoneIcon, badge: false },
+  { label: "Operations", href: "/business/operations", icon: OperationsIcon, badge: false },
+  { label: "Profile", href: "/business/profile", icon: UserIcon, badge: false },
+  { label: "Settings", href: "/business/settings", icon: SettingsIcon, badge: false },
 ];
 
 export default function BusinessNav({
@@ -64,7 +72,7 @@ export default function BusinessNav({
   return (
     <div className="min-h-screen flex">
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-60 flex-shrink-0 flex-col border-r border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+      <aside className="hidden md:flex w-64 flex-shrink-0 flex-col border-r border-[var(--border-subtle)] bg-[var(--bg-surface)]">
         {/* Logo */}
         <div className="p-5 pb-4">
           <a href="/" className="flex items-center gap-2.5">
@@ -79,7 +87,7 @@ export default function BusinessNav({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 space-y-0.5">
+        <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
           {NAV_ITEMS.map((item) => {
             const isActive =
               pathname === item.href ||
@@ -190,7 +198,7 @@ export default function BusinessNav({
 
         {/* Mobile menu dropdown */}
         {mobileMenuOpen && (
-          <div className="border-t border-[var(--border-subtle)] px-3 py-2">
+          <div className="border-t border-[var(--border-subtle)] px-3 py-2 max-h-[80vh] overflow-y-auto">
             {NAV_ITEMS.map((item) => {
               const isActive =
                 pathname === item.href ||
@@ -250,7 +258,7 @@ export default function BusinessNav({
   );
 }
 
-/* ── Nav Icons ── */
+/* ── Nav Icons ─ */
 
 function HomeIcon({ active }: { active: boolean }) {
   return (
@@ -276,10 +284,85 @@ function CalendarIcon({ active }: { active: boolean }) {
   );
 }
 
+function CalendarDaysIcon({ active }: { active: boolean }) {
+  return (
+    <svg className={`h-[18px] w-[18px] ${active ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 10h18M3 14h18" />
+    </svg>
+  );
+}
+
+function DocumentIcon({ active }: { active: boolean }) {
+  return (
+    <svg className={`h-[18px] w-[18px] ${active ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  );
+}
+
+function BriefcaseIcon({ active }: { active: boolean }) {
+  return (
+    <svg className={`h-[18px] w-[18px] ${active ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
 function FinanceIcon({ active }: { active: boolean }) {
   return (
     <svg className={`h-[18px] w-[18px] ${active ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+function CreditCardIcon({ active }: { active: boolean }) {
+  return (
+    <svg className={`h-[18px] w-[18px] ${active ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+    </svg>
+  );
+}
+
+function BrainIcon({ active }: { active: boolean }) {
+  return (
+    <svg className={`h-[18px] w-[18px] ${active ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 2a8 8 0 0 0-8 8c0 3.4 2.1 6.3 5 7.5V20a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2.5c2.9-1.2 5-4.1 5-7.5a8 8 0 0 0-8-8z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M10 22h4" />
+    </svg>
+  );
+}
+
+function MessageIcon({ active }: { active: boolean }) {
+  return (
+    <svg className={`h-[18px] w-[18px] ${active ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+    </svg>
+  );
+}
+
+function PhoneIcon({ active }: { active: boolean }) {
+  return (
+    <svg className={`h-[18px] w-[18px] ${active ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+    </svg>
+  );
+}
+
+function OperationsIcon({ active }: { active: boolean }) {
+  return (
+    <svg className={`h-[18px] w-[18px] ${active ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  );
+}
+
+function UserIcon({ active }: { active: boolean }) {
+  return (
+    <svg className={`h-[18px] w-[18px] ${active ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
     </svg>
   );
 }
@@ -289,14 +372,6 @@ function SettingsIcon({ active }: { active: boolean }) {
     <svg className={`h-[18px] w-[18px] ${active ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-  );
-}
-
-function PhoneIcon({ active }: { active: boolean }) {
-  return (
-    <svg className={`h-[18px] w-[18px] ${active ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
     </svg>
   );
 }
