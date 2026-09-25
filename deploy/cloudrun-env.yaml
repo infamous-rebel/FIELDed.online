@@ -4,3 +4,4 @@ APP_DEBUG: "false"
 BACKEND_CORS_ORIGINS: "https://fielded.online,https://www.fielded.online,https://fielded-frontend.vercel.app,https://fielded-online.vercel.app,http://localhost:3000"
 AI_PROVIDER: groq
 AI_MODEL: openai/gpt-oss-120b
+PAYMENT_PROVIDER: stripe

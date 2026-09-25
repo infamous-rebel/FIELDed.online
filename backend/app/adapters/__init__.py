@@ -14,7 +14,10 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
+from app.adapters.accounting.base import AccountingProvider
 from app.adapters.ai.base import AIProvider
+from app.adapters.calendar.base import CalendarProvider
+from app.adapters.crm.base import CRMProvider
 from app.adapters.email.base import EmailProvider
 from app.adapters.payment.base import PaymentProvider
 from app.adapters.push.base import PushProvider
@@ -39,6 +42,9 @@ class ProviderFactory:
     whatsapp_provider: WhatsAppProvider
     push_provider: PushProvider
     payment_provider: PaymentProvider
+    calendar_provider: CalendarProvider
+    accounting_provider: AccountingProvider
+    crm_provider: CRMProvider
 
     @classmethod
     def from_settings(cls, settings: object) -> ProviderFactory:
@@ -55,6 +61,9 @@ class ProviderFactory:
             whatsapp_provider=_resolve_whatsapp_provider(settings),
             push_provider=_resolve_push_provider(settings),
             payment_provider=_resolve_payment_provider(settings),
+            calendar_provider=_resolve_calendar_provider(settings),
+            accounting_provider=_resolve_accounting_provider(settings),
+            crm_provider=_resolve_crm_provider(settings),
         )
 
 
@@ -238,6 +247,20 @@ def _resolve_brain_ai_provider(settings: object) -> AIProvider:
 
 def _resolve_whatsapp_provider(settings: object) -> WhatsAppProvider:
     """Resolve the configured WhatsApp provider."""
+    provider_name = getattr(settings, "whatsapp_provider", "mock")
+
+    if provider_name == "whatsapp_cloud":
+        from app.adapters.whatsapp.cloud import WhatsAppCloudProvider
+
+        access_token = getattr(settings, "whatsapp_api_key", "")
+        phone_number_id = getattr(settings, "whatsapp_phone_number_id", "")
+        if not access_token:
+            logger.warning("WhatsApp Cloud provider selected but WHATSAPP_API_KEY is empty.")
+        return WhatsAppCloudProvider(access_token=access_token, phone_number_id=phone_number_id)
+
+    if provider_name not in ("mock", "stub"):
+        logger.warning("WhatsApp provider '%s' not recognised. Using stub.", provider_name)
+
     from app.adapters.whatsapp.stub import StubWhatsAppProvider
 
     return StubWhatsAppProvider()
@@ -245,6 +268,20 @@ def _resolve_whatsapp_provider(settings: object) -> WhatsAppProvider:
 
 def _resolve_push_provider(settings: object) -> PushProvider:
     """Resolve the configured push provider."""
+    provider_name = getattr(settings, "push_provider", "mock")
+
+    if provider_name == "firebase":
+        from app.adapters.push.firebase import FirebasePushProvider
+
+        server_key = getattr(settings, "push_api_key", "")
+        project_id = getattr(settings, "firebase_project_id", "")
+        if not server_key:
+            logger.warning("Firebase push provider selected but PUSH_API_KEY is empty.")
+        return FirebasePushProvider(project_id=project_id, server_key=server_key)
+
+    if provider_name not in ("mock", "stub"):
+        logger.warning("Push provider '%s' not recognised. Using stub.", provider_name)
+
     from app.adapters.push.stub import StubPushProvider
 
     return StubPushProvider()
@@ -282,3 +319,48 @@ def _resolve_payment_provider(settings: object) -> PaymentProvider:
     from app.adapters.payment.stub import StubPaymentProvider
 
     return StubPaymentProvider()
+
+
+def _resolve_calendar_provider(settings: object) -> CalendarProvider:
+    """Resolve the configured calendar provider."""
+    provider_name = getattr(settings, "calendar_provider", "mock")
+
+    if provider_name == "google":
+        from app.adapters.calendar.google_calendar import GoogleCalendarProvider
+
+        api_key = getattr(settings, "calendar_api_key", "")
+        calendar_id = getattr(settings, "google_calendar_id", "primary")
+        if not api_key:
+            logger.warning("Google Calendar provider selected but CALENDAR_API_KEY is empty.")
+        return GoogleCalendarProvider(api_key=api_key, calendar_id=calendar_id)
+
+    if provider_name not in ("mock", "stub"):
+        logger.warning("Calendar provider '%s' not recognised. Using stub.", provider_name)
+
+    from app.adapters.calendar.stub import StubCalendarProvider
+
+    return StubCalendarProvider()
+
+
+def _resolve_accounting_provider(settings: object) -> AccountingProvider:
+    """Resolve the configured accounting provider."""
+    provider_name = getattr(settings, "accounting_provider", "mock")
+
+    if provider_name not in ("mock", "stub"):
+        logger.warning("Accounting provider '%s' not implemented. Using stub.", provider_name)
+
+    from app.adapters.accounting.stub import StubAccountingProvider
+
+    return StubAccountingProvider()
+
+
+def _resolve_crm_provider(settings: object) -> CRMProvider:
+    """Resolve the configured CRM provider."""
+    provider_name = getattr(settings, "crm_provider", "mock")
+
+    if provider_name not in ("mock", "stub"):
+        logger.warning("CRM provider '%s' not implemented. Using stub.", provider_name)
+
+    from app.adapters.crm.stub import StubCRMProvider
+
+    return StubCRMProvider()

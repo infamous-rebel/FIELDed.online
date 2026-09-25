@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  PaymentElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
 import {
   enquiries,
   quotes,
@@ -16,6 +23,7 @@ import {
   type BookingData,
   type ServiceExecutionData,
   type ReviewData,
+  type PaymentData,
   FieldedApiError,
 } from "@/lib/api-client";
 import { Badge, statusBadgeVariant } from "@/components/ui/badge";
@@ -38,6 +46,71 @@ function formatDate(dateStr: string): string {
 
 function formatAmount(amount: string, currency: string): string {
   return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(Number(amount));
+}
+
+/**
+ * Stripe confirmation form — rendered inside <Elements> provider.
+ * Shows the Payment Element and a "Confirm Payment" button.
+ */
+function StripeConfirmButton({
+  paymentId,
+  onSuccess,
+  onError,
+  onConfirmingChange,
+}: {
+  paymentId: string;
+  onSuccess: () => void;
+  onError: (msg: string) => void;
+  onConfirmingChange: (v: boolean) => void;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [confirming, setConfirming] = useState(false);
+
+  async function handleConfirm() {
+    if (!stripe || !elements) return;
+    setConfirming(true);
+    onConfirmingChange(true);
+    try {
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: typeof window !== "undefined" ? `${window.location.origin}/customer/enquiries` : "",
+        },
+        redirect: "if_required",
+      });
+      if (error) {
+        onError(error.message || "Payment confirmation failed");
+      } else if (paymentIntent?.status === "succeeded") {
+        onSuccess();
+      } else if (paymentIntent?.status === "processing") {
+        onSuccess();
+      } else {
+        onError(`Unexpected payment status: ${paymentIntent?.status || "unknown"}`);
+      }
+    } catch (err) {
+      onError("Payment confirmation failed");
+    } finally {
+      setConfirming(false);
+      onConfirmingChange(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <PaymentElement />
+      <Button
+        variant="primary"
+        size="sm"
+        onClick={handleConfirm}
+        loading={confirming}
+        disabled={confirming}
+        className="w-full"
+      >
+        Confirm Payment
+      </Button>
+    </div>
+  );
 }
 
 export default function CustomerEnquiryDetail() {
@@ -67,7 +140,15 @@ export default function CustomerEnquiryDetail() {
   const [reviewBody, setReviewBody] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Stripe publishable key from environment (public key, safe to expose)
+  const stripePromise = useMemo(
+    () => (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) : null),
+    []
+  );
 
   async function loadData() {
     try {
@@ -237,10 +318,17 @@ export default function CustomerEnquiryDetail() {
     setPaying(true);
     setError(null);
     setPaymentResult(null);
+    setPaymentData(null);
     try {
       const payment = await bookings.payMyBooking(booking.id);
-      setPaymentResult(`Payment ${payment.status} — Reference: ${payment.id.slice(0, 8)}`);
-      await loadData();
+      if (payment.confirmation_required && payment.client_secret) {
+        // Stripe two-step flow: show Payment Element for customer confirmation
+        setPaymentData(payment);
+      } else {
+        // Synchronous payment (stub provider or auto-confirmed)
+        setPaymentResult(`Payment ${payment.status} — Reference: ${payment.id.slice(0, 8)}`);
+        await loadData();
+      }
     } catch (err) {
       if (err instanceof FieldedApiError) {
         setError(err.error.message);
@@ -306,7 +394,7 @@ export default function CustomerEnquiryDetail() {
   const showQuote = quote && ["quoted", "customer_accepted", "booking_proposed", "booked", "in_progress", "completed"].includes(enquiry.status);
   const showBookingForm = quote?.status === "accepted" && !booking;
   const showBooking = booking;
-  const showPayment = booking && booking.status === "completed";
+  const showPayment = booking && booking.status === "completed" && !paymentResult && !paymentData;
 
   return (
     <div className="space-y-6">
@@ -602,6 +690,47 @@ export default function CustomerEnquiryDetail() {
               {booking.status === "completed" && !showPayment && paymentResult && (
                 <div className="mt-3 rounded-md bg-green-500/10 p-2 text-xs text-green-400">
                   Payment completed
+                </div>
+              )}
+
+              {/* Stripe Payment Element — shown when payment requires customer confirmation */}
+              {paymentData?.confirmation_required && paymentData.client_secret && stripePromise && (
+                <div className="mt-4 border-t border-[var(--border-subtle)] pt-3">
+                  <p className="text-sm text-[var(--text-secondary)] mb-2">
+                    Complete your payment of{" "}
+                    <span className="font-bold text-[var(--text-primary)]">
+                      {formatAmount(paymentData.amount, paymentData.currency)}
+                    </span>
+                  </p>
+                  <Elements
+                    stripe={stripePromise}
+                    options={{
+                      clientSecret: paymentData.client_secret,
+                      appearance: {
+                        theme: "night",
+                        variables: { colorPrimary: "#3b82f6", colorBackground: "#1a1a2e" },
+                      },
+                    }}
+                    key={paymentData.client_secret}
+                  >
+                    <StripeConfirmButton
+                      paymentId={paymentData.id}
+                      onSuccess={async () => {
+                        setPaymentResult("Payment succeeded");
+                        setPaymentData(null);
+                        await loadData();
+                      }}
+                      onError={(msg) => setError(msg)}
+                      onConfirmingChange={setConfirmingPayment}
+                    />
+                  </Elements>
+                </div>
+              )}
+
+              {/* Fallback: payment processing awaiting webhook */}
+              {paymentData && paymentData.status === "processing" && !paymentData.confirmation_required && (
+                <div className="mt-3 rounded-md bg-amber-500/10 p-2 text-xs text-amber-400">
+                  Payment processing — waiting for confirmation.
                 </div>
               )}
             </Card>

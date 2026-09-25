@@ -4,18 +4,23 @@ Provides booking creation (customer from accepted quote), listing,
 retrieval, lifecycle transitions, and availability checks.
 
 All ownership is verified server-side.
+
+Bulk operations (RG-007): batch transition and CSV export for bookings.
 """
 
 from __future__ import annotations
 
+import csv
+import io
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.adapters.payment.stub import StubPaymentProvider
+from app.adapters import ProviderFactory
 from app.database import get_db_session
 from app.domain.booking.schemas import (
     AvailabilityCheckRequest,
@@ -134,6 +139,96 @@ async def check_availability(
     )
 
 
+# --- Bulk operations (RG-007) ---
+
+
+class BulkBookingTransitionRequest(BaseModel):
+    """Request body for bulk transitioning multiple bookings."""
+
+    booking_ids: list[uuid.UUID] = Field(..., min_length=1, max_length=100)
+    target_status: str
+
+
+class BulkBookingTransitionResult(BaseModel):
+    """Result of a bulk booking transition operation."""
+
+    succeeded: list[uuid.UUID] = []
+    failed: list[dict] = []
+    total: int = 0
+
+
+@router.post(
+    "/{business_id}/bookings/bulk-transition",
+    response_model=BulkBookingTransitionResult,
+)
+async def bulk_transition_bookings(
+    business_id: uuid.UUID,
+    body: BulkBookingTransitionRequest,
+    user: Annotated[User, Depends(require_business_member)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> BulkBookingTransitionResult:
+    """Bulk transition multiple bookings to a target status.
+
+    Each booking is transitioned independently — failures do not
+    roll back successes. Returns lists of succeeded/failed IDs.
+    """
+    service = BookingService(db)
+    target_status = BookingStatus(body.target_status)
+
+    result = BulkBookingTransitionResult(total=len(body.booking_ids))
+
+    for booking_id in body.booking_ids:
+        try:
+            booking = await service.get_business_booking(booking_id, business_id)
+            booking = await service.transition_booking(booking, target_status, actor="business")
+            await db.refresh(booking)
+            result.succeeded.append(booking_id)
+        except Exception as exc:
+            result.failed.append({"id": str(booking_id), "reason": str(exc)})
+
+    return result
+
+
+@router.get(
+    "/{business_id}/bookings/export/csv",
+)
+async def export_bookings_csv(
+    business_id: uuid.UUID,
+    user: Annotated[User, Depends(require_business_member)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    status: str | None = Query(None),
+) -> Response:
+    """Export business bookings as CSV.
+
+    Returns a CSV file with booking ID, customer ID, status,
+    requested_at, created_at.
+    """
+    service = BookingService(db)
+    bookings = await service.list_business_bookings(business_id, status=status, limit=10000, offset=0)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["booking_id", "customer_id", "status", "requested_at", "created_at"])
+
+    for b in bookings:
+        writer.writerow(
+            [
+                str(b.id),
+                str(b.customer_id),
+                b.status,
+                b.requested_at.isoformat() if b.requested_at else "",
+                b.created_at.isoformat() if b.created_at else "",
+            ]
+        )
+
+    csv_content = output.getvalue()
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=bookings-{business_id}.csv"},
+    )
+
+
 # --- Customer endpoints ---
 
 
@@ -203,6 +298,7 @@ async def transition_my_booking(
 @router.post("/my-bookings/{booking_id}/pay", response_model=PaymentRead, status_code=201)
 async def pay_my_booking(
     booking_id: uuid.UUID,
+    request: Request,
     body: CustomerPayRequest,
     user: Annotated[User, Depends(require_customer)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
@@ -211,6 +307,8 @@ async def pay_my_booking(
 
     Lifecycle: booking -> service execution -> completion -> invoice -> payment.
     The service must be completed before payment is possible.
+    The payment provider is resolved from application configuration
+    via ProviderFactory — never hardcoded.
     """
     # 1. Verify customer owns the booking
     booking_service = BookingService(db)
@@ -228,8 +326,9 @@ async def pay_my_booking(
     if invoice is None:
         raise ValidationError("Payment not yet available — service must be completed first")
 
-    # 4. Create payment via existing PaymentService
-    provider = StubPaymentProvider()
+    # 4. Resolve the configured payment provider (never hardcoded)
+    factory = ProviderFactory.from_settings(request.app.state.settings)
+    provider = factory.payment_provider
     payment_service = PaymentService(db, payment_provider=provider)
 
     payment = await payment_service.create_payment(
@@ -240,10 +339,11 @@ async def pay_my_booking(
         currency=invoice.currency,
         payment_method=body.payment_method,
         idempotency_key=body.idempotency_key,
+        provider_name=provider.provider_name,
         actor_id=user.id,
     )
 
-    # 5. Auto-process via existing flow
+    # 5. Process via the configured provider
     payment = await payment_service.process_payment(payment)
 
     # Reload with attempts eager-loaded (PaymentRead requires it;

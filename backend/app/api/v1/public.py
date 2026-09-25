@@ -385,14 +385,23 @@ async def list_public_businesses(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     city: str | None = Query(default=None, max_length=100),
+    state: str | None = Query(default=None, max_length=100),
     country: str | None = Query(default=None, max_length=100),
     category: str | None = Query(default=None, max_length=255),
+    search: str | None = Query(default=None, max_length=200, description="Text search across name and description"),
+    min_rating: float | None = Query(default=None, ge=0, le=5, description="Minimum average rating"),
+    verified_only: bool = Query(default=False, description="Only verified businesses"),
+    delivery_mode: str | None = Query(default=None, max_length=50, description="Filter by service delivery mode"),
+    pricing_model: str | None = Query(default=None, max_length=50, description="Filter by pricing model"),
+    sort: str = Query(default="name", description="Sort order: name, rating, newest, review_count"),
     db: AsyncSession = Depends(get_db_session),
 ) -> PublicBusinessDirectoryResponse:
     """Browse active public businesses — the FIELDed network directory.
 
     Returns paginated businesses with active public profiles.
-    Optionally filter by city, country, or service category slug.
+    Supports advanced filtering: location, category, text search,
+    rating, verification status, delivery mode, pricing model.
+    Supports sorting by name, rating, newest, or review count.
     """
     # Base query: active businesses with active public profiles
     base_query = (
@@ -409,13 +418,44 @@ async def list_public_businesses(
     # Apply location filters
     if city:
         base_query = base_query.where(func.lower(BusinessProfile.city) == func.lower(city))
+    if state:
+        base_query = base_query.where(func.lower(BusinessProfile.state) == func.lower(state))
     if country:
         base_query = base_query.where(func.lower(BusinessProfile.country) == func.lower(country))
+
+    # Text search across name and description
+    if search:
+        search_pattern = f"%{search.lower()}%"
+        base_query = base_query.where(
+            (func.lower(Business.name).ilike(search_pattern))
+            | (func.lower(BusinessProfile.description).ilike(search_pattern))
+        )
+
+    # Verified only
+    if verified_only:
+        base_query = base_query.where(BusinessProfile.is_verified.is_(True))
+
+    # Minimum rating filter
+    if min_rating is not None:
+        base_query = base_query.where(
+            BusinessProfile.average_rating.isnot(None),
+            BusinessProfile.average_rating >= min_rating,
+        )
 
     # Count total before pagination
     count_query = select(func.count()).select_from(base_query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
+
+    # Sort order
+    if sort == "rating":
+        order_clause = BusinessProfile.average_rating.desc().nullslast()
+    elif sort == "newest":
+        order_clause = Business.created_at.desc()
+    elif sort == "review_count":
+        order_clause = BusinessProfile.review_count.desc().nullslast()
+    else:
+        order_clause = Business.name.asc()
 
     # Paginate
     result = await db.execute(
@@ -423,7 +463,7 @@ async def list_public_businesses(
             selectinload(Business.profile),
             selectinload(Business.service_offers).selectinload(ServiceOffer.category),
         )
-        .order_by(Business.name)
+        .order_by(order_clause)
         .offset(offset)
         .limit(limit)
     )
@@ -448,6 +488,18 @@ async def list_public_businesses(
         if category:
             matching = [o for o in active_offers if o.category and o.category.slug == category]
             if not matching:
+                continue
+
+        # If filtering by delivery_mode, only include businesses with matching offers
+        if delivery_mode:
+            matching_dm = [o for o in active_offers if o.delivery_mode == delivery_mode]
+            if not matching_dm:
+                continue
+
+        # If filtering by pricing_model, only include businesses with matching offers
+        if pricing_model:
+            matching_pm = [o for o in active_offers if o.pricing_model == pricing_model]
+            if not matching_pm:
                 continue
 
         items.append(

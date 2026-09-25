@@ -280,6 +280,42 @@ class PaymentService:
         now = datetime.now(UTC)
         attempt.completed_at = now
 
+        # Extract the provider-level status from the raw response.
+        # For synchronous providers (stub) this is "succeeded".
+        # For async providers (Stripe) this may be "requires_payment_method"
+        # or another non-terminal state indicating further action needed.
+        provider_status = result.raw_response.get("status", "") if result.raw_response else ""
+
+        # Statuses indicating the payment requires further confirmation
+        # (e.g. Stripe PaymentIntent awaiting customer card confirmation).
+        pending_confirmation = {
+            "requires_payment_method",
+            "requires_confirmation",
+            "requires_action",
+            "processing",
+            "pending",
+        }
+
+        if result.success and provider_status in pending_confirmation:
+            # Payment created but awaiting customer confirmation (e.g. Stripe
+            # PaymentIntent).  Keep payment in PROCESSING — the webhook will
+            # transition to SUCCEEDED/FAILED after the customer confirms.
+            attempt.status = "processing"
+            attempt.provider_reference = result.provider_reference
+            attempt.provider_response = result.raw_response
+            await self.payment_repo.update_attempt(attempt)
+
+            payment.provider_reference = result.provider_reference
+            await self.payment_repo.update(payment)
+
+            logger.info(
+                "payment_awaiting_confirmation",
+                payment_id=str(payment.id),
+                provider_reference=result.provider_reference,
+                provider_status=provider_status,
+            )
+            return payment
+
         if result.success:
             attempt.status = "succeeded"
             attempt.provider_reference = result.provider_reference

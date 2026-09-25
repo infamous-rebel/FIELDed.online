@@ -90,9 +90,11 @@ class Settings(BaseSettings):
     # Phase 14A — Communication providers
     whatsapp_provider: str = "mock"
     whatsapp_api_key: str = ""
+    whatsapp_phone_number_id: str = ""
 
     push_provider: str = "mock"
     push_api_key: str = ""
+    firebase_project_id: str = ""
 
     voice_provider: str = "mock"
 
@@ -108,6 +110,20 @@ class Settings(BaseSettings):
     payment_provider: str = "mock"
     payment_api_key: str = ""
     payment_webhook_secret: str = ""
+
+    # Phase 19 — Calendar provider (google_calendar_id added below)
+    google_calendar_id: str = "primary"
+
+    # Phase 19 — Accounting provider
+    accounting_provider: str = "mock"
+    accounting_api_key: str = ""
+
+    # Phase 19 — CRM provider
+    crm_provider: str = "mock"
+    crm_api_key: str = ""
+
+    # Phase 19 — Distributed rate limiting
+    rate_limit_backend: str = "memory"  # "memory" or "redis"
 
     # Phase 14A — Outbox worker
     outbox_poll_interval_seconds: int = 5

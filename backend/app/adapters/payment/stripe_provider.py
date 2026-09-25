@@ -138,8 +138,8 @@ class StripePaymentProvider(PaymentProvider):
                 # Create or retrieve customer for receipt emails
                 params["receipt_email"] = request.customer_email
 
-            if request.return_url:
-                params["automatic_payment_methods"] = {"enabled": True}
+            # Always enable automatic payment methods for Payment Element
+            params["automatic_payment_methods"] = {"enabled": True}
 
             pi = self._client.v1.payment_intents.create(params, options)
 

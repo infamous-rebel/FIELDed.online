@@ -98,13 +98,14 @@ class BusinessBase(BaseModel):
 class BusinessCreate(BusinessBase):
     """Schema for creating a business."""
 
-    pass
+    currency: str = Field(default="GBP", min_length=3, max_length=3, description="ISO 4217 currency code")
 
 
 class BusinessRead(BusinessBase):
     """Schema for business response."""
 
     id: uuid.UUID
+    currency: str = "GBP"
     created_at: datetime
     updated_at: datetime
 

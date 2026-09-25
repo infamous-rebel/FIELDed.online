@@ -1871,6 +1871,8 @@ export interface PaymentData {
   failure_code: string | null;
   failure_message: string | null;
   attempts: PaymentAttemptData[];
+  client_secret: string | null;
+  confirmation_required: boolean;
   created_at: string;
   updated_at: string;
 }

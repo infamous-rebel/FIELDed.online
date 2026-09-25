@@ -21,7 +21,7 @@ from app.database import dispose_engine, get_session_factory, init_db
 from app.exceptions import FieldedError
 from app.logging import get_logger, setup_logging
 from app.middleware.correlation_id import CorrelationIdMiddleware
-from app.middleware.rate_limit import RateLimitMiddleware
+from app.middleware.distributed_rate_limit import DistributedRateLimitMiddleware
 from app.middleware.request_id import RequestIdMiddleware
 from app.middleware.tenant import TenantMiddleware
 
@@ -141,7 +141,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(DistributedRateLimitMiddleware)
     app.add_middleware(CorrelationIdMiddleware)
     app.add_middleware(TenantMiddleware)
     app.add_middleware(RequestIdMiddleware)

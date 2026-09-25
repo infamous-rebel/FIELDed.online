@@ -18,14 +18,22 @@ export default function NetworkPage() {
   const [total, setTotal] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
+  const [searchFilter, setSearchFilter] = useState("");
+  const [minRating, setMinRating] = useState("");
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [sortBy, setSortBy] = useState("name");
 
   const loadBusinesses = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
-      const params: Record<string, string | number> = { limit: 40 };
+      const params: Record<string, string | number | boolean> = { limit: 40 };
       if (selectedCategory) params.category = selectedCategory;
       if (locationFilter) params.city = locationFilter;
+      if (searchFilter) params.search = searchFilter;
+      if (minRating) params.min_rating = parseFloat(minRating);
+      if (verifiedOnly) params.verified_only = true;
+      params.sort = sortBy;
       const response = await publicApi.listBusinesses(params);
       setBusinesses(response.businesses);
       setTotal(response.total);
@@ -34,7 +42,7 @@ export default function NetworkPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, locationFilter]);
+  }, [selectedCategory, locationFilter, searchFilter, minRating, verifiedOnly, sortBy]);
 
   useEffect(() => {
     categories.list().then(setAllCategories).catch(() => {});
@@ -57,6 +65,19 @@ export default function NetworkPage() {
       {/* Filters */}
       <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-end">
         <div className="flex-1">
+          <label htmlFor="search" className="block text-sm font-medium text-[var(--text-secondary)]">
+            Search
+          </label>
+          <input
+            id="search"
+            type="text"
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            placeholder="Business name or description..."
+            className="mt-1 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+          />
+        </div>
+        <div className="flex-1">
           <label htmlFor="location" className="block text-sm font-medium text-[var(--text-secondary)]">
             Location
           </label>
@@ -69,8 +90,52 @@ export default function NetworkPage() {
             className="mt-1 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
           />
         </div>
+        <div>
+          <label htmlFor="minRating" className="block text-sm font-medium text-[var(--text-secondary)]">
+            Min Rating
+          </label>
+          <select
+            id="minRating"
+            value={minRating}
+            onChange={(e) => setMinRating(e.target.value)}
+            className="mt-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+          >
+            <option value="">Any</option>
+            <option value="3">3+</option>
+            <option value="3.5">3.5+</option>
+            <option value="4">4+</option>
+            <option value="4.5">4.5+</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="sortBy" className="block text-sm font-medium text-[var(--text-secondary)]">
+            Sort
+          </label>
+          <select
+            id="sortBy"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="mt-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+          >
+            <option value="name">Name</option>
+            <option value="rating">Rating</option>
+            <option value="review_count">Reviews</option>
+            <option value="newest">Newest</option>
+          </select>
+        </div>
+      </div>
+      <div className="mt-3 flex items-center gap-4">
+        <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+          <input
+            type="checkbox"
+            checked={verifiedOnly}
+            onChange={(e) => setVerifiedOnly(e.target.checked)}
+            className="rounded border-[var(--border-default)]"
+          />
+          Verified only
+        </label>
         <button
-          onClick={() => { setLocationFilter(""); setSelectedCategory(""); }}
+          onClick={() => { setLocationFilter(""); setSelectedCategory(""); setSearchFilter(""); setMinRating(""); setVerifiedOnly(false); setSortBy("name"); }}
           className="rounded-lg border border-[var(--border-default)] px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]"
         >
           Clear filters

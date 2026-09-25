@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, BeforeValidator, Field
+from pydantic import BaseModel, BeforeValidator, Field, computed_field
 
 # Allow Decimal or str to be serialized as str
 StrOrDecimal = Annotated[str, BeforeValidator(lambda v: str(v))]
@@ -30,6 +30,7 @@ class PaymentAttemptRead(BaseModel):
     completed_at: datetime | None = None
     error_code: str | None = None
     error_message: str | None = None
+    provider_response: dict | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -62,6 +63,35 @@ class PaymentRead(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @computed_field(return_type=str | None)
+    @property
+    def client_secret(self) -> str | None:
+        """Extract the Stripe client_secret for frontend confirmation.
+
+        Sourced from the latest attempt's provider_response when the
+        payment is not yet confirmed.  Returns None when no client
+        secret is available (e.g. stub provider or already confirmed).
+        """
+        attempts_data = self.attempts if hasattr(self, "attempts") else []
+        for attempt in reversed(attempts_data):
+            pr = attempt.provider_response if hasattr(attempt, "provider_response") else None
+            if isinstance(pr, dict):
+                cs = pr.get("client_secret")
+                if cs:
+                    return cs
+        return None
+
+    @computed_field(return_type=bool)
+    @property
+    def confirmation_required(self) -> bool:
+        """Whether the payment requires frontend Stripe confirmation.
+
+        True when the payment is in 'processing' state AND a client
+        secret is available.  False for synchronous providers (stub)
+        or already-confirmed payments.
+        """
+        return self.status == "processing" and self.client_secret is not None
 
 
 class PaymentCreateRequest(BaseModel):

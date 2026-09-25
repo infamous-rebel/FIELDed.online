@@ -160,6 +160,11 @@ class PaymentRepository:
         await self.session.flush()
         return attempt
 
+    async def update_attempt(self, attempt: PaymentAttempt) -> PaymentAttempt:
+        """Update an existing payment attempt."""
+        await self.session.flush()
+        return attempt
+
     async def count_by_business(self, business_id: uuid.UUID) -> int:
         """Count payments for a business."""
         result = await self.session.execute(

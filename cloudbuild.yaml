@@ -2,7 +2,8 @@
 # Usage: gcloud builds submit --config=cloudbuild.yaml
 #
 # Non-secret runtime configuration lives in deploy/cloudrun-env.yaml.
-# Secrets (APP_SECRET_KEY, JWT_SECRET_KEY, DATABASE_URL) are referenced
+# Secrets (APP_SECRET_KEY, JWT_SECRET_KEY, DATABASE_URL, PAYMENT_API_KEY,
+# PAYMENT_WEBHOOK_SECRET, plus per-workload AI keys) are referenced
 # from Google Secret Manager and must exist before deploying.
 
 steps:
@@ -54,7 +55,7 @@ steps:
       - "--env-vars-file"
       - "deploy/cloudrun-env.yaml"
       - "--set-secrets"
-      - "APP_SECRET_KEY=APP_SECRET_KEY:latest,JWT_SECRET_KEY=JWT_SECRET_KEY:latest,DATABASE_URL=DATABASE_URL:latest,BRAIN_AI_API_KEY=BRAIN_AI_API_KEY:latest,DISCOVERY_AI_API_KEY=DISCOVERY_AI_API_KEY:latest,CALL_AGENT_AI_API_KEY=CALL_AGENT_AI_API_KEY:latest"
+      - "APP_SECRET_KEY=APP_SECRET_KEY:latest,JWT_SECRET_KEY=JWT_SECRET_KEY:latest,DATABASE_URL=DATABASE_URL:latest,BRAIN_AI_API_KEY=BRAIN_AI_API_KEY:latest,DISCOVERY_AI_API_KEY=DISCOVERY_AI_API_KEY:latest,CALL_AGENT_AI_API_KEY=CALL_AGENT_AI_API_KEY:latest,PAYMENT_API_KEY=PAYMENT_API_KEY:latest,PAYMENT_WEBHOOK_SECRET=PAYMENT_WEBHOOK_SECRET:latest"
 
 substitutions:
   _SERVICE: fielded-api

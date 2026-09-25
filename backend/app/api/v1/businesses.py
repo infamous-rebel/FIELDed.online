@@ -57,6 +57,7 @@ accept_router = APIRouter()
 class BusinessCreateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     slug: str = Field(min_length=1, max_length=255, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+    currency: str = Field(default="GBP", min_length=3, max_length=3, description="ISO 4217 currency code")
 
 
 class SocialLinksUpdate(BaseModel):
@@ -323,7 +324,7 @@ async def create_business(
     if result.scalar_one_or_none() is not None:
         raise ConflictError("A business with this slug already exists")
 
-    business = Business(name=body.name, slug=body.slug, status="pending")
+    business = Business(name=body.name, slug=body.slug, status="pending", currency=body.currency)
     db.add(business)
     await db.flush()
 
@@ -344,6 +345,7 @@ async def create_business(
         name=business.name,
         slug=business.slug,
         status=business.status,
+        currency=business.currency,
         created_at=business.created_at.isoformat(),
         updated_at=business.updated_at.isoformat(),
     )

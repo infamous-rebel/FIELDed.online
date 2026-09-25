@@ -4,14 +4,20 @@ Provides enquiry listing, conversation access, messaging, and
 lifecycle transitions for authorized business members.
 All access is verified server-side using the existing tenant-isolation
 and role-hierarchy patterns.
+
+Bulk operations: batch transition multiple enquiries at once.
 """
 
 from __future__ import annotations
 
+import csv
+import io
 import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import Response
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db_session
@@ -256,3 +262,99 @@ async def transition_business_enquiry(
     # Refresh to reload attributes expired by the flush
     await db.refresh(enquiry)
     return _enquiry_to_read(enquiry)
+
+
+# --- Bulk operations (RG-007) ---
+
+
+class BulkTransitionRequest(BaseModel):
+    """Request body for bulk transitioning multiple enquiries."""
+
+    enquiry_ids: list[uuid.UUID] = Field(..., min_length=1, max_length=100)
+    target_status: str
+
+
+class BulkTransitionResult(BaseModel):
+    """Result of a bulk transition operation."""
+
+    succeeded: list[uuid.UUID] = []
+    failed: list[dict] = []
+    total: int = 0
+
+
+@router.post(
+    "/{business_id}/enquiries/bulk-transition",
+    response_model=BulkTransitionResult,
+)
+async def bulk_transition_enquiries(
+    business_id: uuid.UUID,
+    body: BulkTransitionRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> BulkTransitionResult:
+    """Bulk transition multiple enquiries to a target status.
+
+    Requires STAFF role or higher. Each enquiry is transitioned
+    independently — failures do not roll back successes.
+    Returns lists of succeeded IDs and failed IDs with reasons.
+    """
+    _, membership = await _get_user_business(business_id, user, db)
+    _check_minimum_role(membership, BusinessMemberRole.STAFF)
+
+    service = EnquiryService(db)
+    target_status = EnquiryStatus(body.target_status)
+
+    result = BulkTransitionResult(total=len(body.enquiry_ids))
+
+    for enquiry_id in body.enquiry_ids:
+        try:
+            enquiry = await service.get_business_enquiry(enquiry_id, business_id)
+            enquiry = await service.transition_enquiry(enquiry, target_status, actor="business")
+            await db.refresh(enquiry)
+            result.succeeded.append(enquiry_id)
+        except Exception as exc:
+            result.failed.append({"id": str(enquiry_id), "reason": str(exc)})
+
+    return result
+
+
+@router.get(
+    "/{business_id}/enquiries/export/csv",
+)
+async def export_enquiries_csv(
+    business_id: uuid.UUID,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    status: str | None = Query(None),
+) -> Response:
+    """Export business enquiries as CSV.
+
+    Requires business membership. Returns a CSV file with
+    enquiry ID, customer name, subject, status, created_at.
+    """
+    await _get_user_business(business_id, user, db)
+
+    service = EnquiryService(db)
+    enquiries = await service.list_business_enquiries(business_id, status=status, limit=10000, offset=0)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["enquiry_id", "customer_id", "subject", "status", "created_at"])
+
+    for e in enquiries:
+        writer.writerow(
+            [
+                str(e.id),
+                str(e.customer_id),
+                e.subject or "",
+                e.status,
+                e.created_at.isoformat() if e.created_at else "",
+            ]
+        )
+
+    csv_content = output.getvalue()
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=enquiries-{business_id}.csv"},
+    )
