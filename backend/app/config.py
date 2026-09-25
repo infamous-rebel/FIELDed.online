@@ -117,6 +117,7 @@ class Settings(BaseSettings):
     # Phase 19 — Accounting provider
     accounting_provider: str = "mock"
     accounting_api_key: str = ""
+    xero_tenant_id: str = ""
 
     # Phase 19 — CRM provider
     crm_provider: str = "mock"

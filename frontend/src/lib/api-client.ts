@@ -1785,6 +1785,27 @@ export interface EscalationData {
   created_at: string;
 }
 
+export interface AgentTurnResponse {
+  reply: string;
+  action: string;
+  outcome: string | null;
+  turn_count: number;
+  call_status: string;
+}
+
+export interface CampaignData {
+  id: string;
+  business_id: string;
+  name: string;
+  channel: string;
+  purpose: string;
+  description: string | null;
+  status: string;
+  start_at: string | null;
+  end_at: string | null;
+  created_at: string;
+}
+
 export const voice = {
   getAgentConfig(businessId: string): Promise<CallAgentConfigData> {
     return request(`/${businessId}/voice/agent-config`);
@@ -1818,11 +1839,54 @@ export const voice = {
     return request(`/${businessId}/voice/calls/${callId}`);
   },
 
+  createCall(businessId: string, body: {
+    to_number: string;
+    purpose: string;
+    call_type?: string;
+    customer_id?: string;
+    booking_id?: string;
+    initiate?: boolean;
+  }): Promise<VoiceCallData> {
+    return request(`/${businessId}/voice/calls`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
   cancelCall(businessId: string, callId: string, reason?: string): Promise<VoiceCallData> {
     return request(`/${businessId}/voice/calls/${callId}/cancel`, {
       method: "POST",
       body: JSON.stringify(reason ? { reason } : {}),
     });
+  },
+
+  agentTurn(businessId: string, callId: string, utterance: string): Promise<AgentTurnResponse> {
+    return request(`/${businessId}/voice/calls/${callId}/turns`, {
+      method: "POST",
+      body: JSON.stringify({ utterance }),
+    });
+  },
+
+  recordOutcome(businessId: string, callId: string, outcome: string, summary?: string): Promise<{
+    outcome: string;
+    outcome_summary: string | null;
+    call_status: string;
+  }> {
+    return request(`/${businessId}/voice/calls/${callId}/outcome`, {
+      method: "POST",
+      body: JSON.stringify({ outcome, summary }),
+    });
+  },
+
+  listCampaigns(businessId: string, params?: {
+    status?: string;
+    limit?: number;
+  }): Promise<CampaignData[]> {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.limit) qs.set("limit", String(params.limit));
+    const query = qs.toString() ? `?${qs.toString()}` : "";
+    return request(`/${businessId}/voice/campaigns${query}`);
   },
 
   listEscalations(businessId: string, callId: string): Promise<EscalationData[]> {

@@ -221,6 +221,12 @@ export default function BusinessDashboardPage() {
             Payments
           </a>
           <a
+            href="/business/call-agent"
+            className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
+          >
+            Call Agent
+          </a>
+          <a
             href="/business/profile"
             className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
           >

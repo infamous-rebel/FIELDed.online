@@ -346,6 +346,15 @@ def _resolve_accounting_provider(settings: object) -> AccountingProvider:
     """Resolve the configured accounting provider."""
     provider_name = getattr(settings, "accounting_provider", "mock")
 
+    if provider_name == "xero":
+        from app.adapters.accounting.xero import XeroAccountingProvider
+
+        api_key = getattr(settings, "accounting_api_key", "")
+        tenant_id = getattr(settings, "xero_tenant_id", "")
+        if not api_key:
+            logger.warning("Xero accounting provider selected but ACCOUNTING_API_KEY is empty.")
+        return XeroAccountingProvider(access_token=api_key, tenant_id=tenant_id)
+
     if provider_name not in ("mock", "stub"):
         logger.warning("Accounting provider '%s' not implemented. Using stub.", provider_name)
 
@@ -357,6 +366,14 @@ def _resolve_accounting_provider(settings: object) -> AccountingProvider:
 def _resolve_crm_provider(settings: object) -> CRMProvider:
     """Resolve the configured CRM provider."""
     provider_name = getattr(settings, "crm_provider", "mock")
+
+    if provider_name == "hubspot":
+        from app.adapters.crm.hubspot import HubSpotCRMProvider
+
+        api_key = getattr(settings, "crm_api_key", "")
+        if not api_key:
+            logger.warning("HubSpot CRM provider selected but CRM_API_KEY is empty.")
+        return HubSpotCRMProvider(access_token=api_key)
 
     if provider_name not in ("mock", "stub"):
         logger.warning("CRM provider '%s' not implemented. Using stub.", provider_name)
