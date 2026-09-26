@@ -219,37 +219,45 @@ export default function TransactionHistoryPage() {
   if (!user) return null;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-          Transaction History
-        </h1>
+    <div className="mx-auto max-w-6xl">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">
+            Transaction History
+          </h1>
+          <p className="mt-1 text-xs text-[var(--text-secondary)]">
+            Complete record of your enquiries, bookings, payments, and reviews.
+          </p>
+        </div>
         <Link
           href="/customer/dashboard"
-          className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          className="inline-flex items-center gap-1 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
         >
-          &larr; Back to Dashboard
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Dashboard
         </Link>
       </div>
 
       {sortedRows.length === 0 ? (
-        <div className="mt-12 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-12 text-center">
+        <div className="glass rounded-lg p-12 text-center">
           <p className="text-[var(--text-muted)]">No transactions yet.</p>
           <Link
             href="/network"
-            className="mt-4 inline-block rounded-lg bg-[var(--accent)] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
+            className="mt-3 inline-block rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)] transition-colors"
           >
             Browse Network
           </Link>
         </div>
       ) : (
-        <div className="mt-6 space-y-4">
+        <div className="space-y-2">
           {sortedRows.map((row) => {
             const rev = reviewStatus(row);
             return (
               <div
                 key={row.enquiry.id}
-                className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5"
+                className="glass rounded-lg p-4 hover:border-[var(--accent)]/10 transition-all"
               >
                 {/* Top row: enquiry reference + service offer */}
                 <div className="flex flex-wrap items-center gap-3">
@@ -367,14 +375,14 @@ export default function TransactionHistoryPage() {
 
                 {/* Review submission form (inline, when eligible) */}
                 {reviewFormFor === row.execution?.id && row.execution && (
-                  <div className="mt-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4">
+                  <div className="mt-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-[var(--text-primary)]">Rating:</span>
+                      <span className="text-xs font-medium text-[var(--text-primary)]">Rating:</span>
                       {[1, 2, 3, 4, 5].map((n) => (
                         <button
                           key={n}
                           onClick={() => setReviewRating(n)}
-                          className={`text-xl leading-none ${n <= reviewRating ? "text-amber-400" : "text-[var(--text-muted)]"}`}
+                          className={`text-lg leading-none ${n <= reviewRating ? "text-amber-400" : "text-[var(--text-muted)]"}`}
                           aria-label={`${n} star${n > 1 ? "s" : ""}`}
                         >
                           {n <= reviewRating ? "\u2605" : "\u2606"}
@@ -387,29 +395,29 @@ export default function TransactionHistoryPage() {
                       onChange={(e) => setReviewTitle(e.target.value)}
                       placeholder="Title (optional)"
                       maxLength={200}
-                      className="mt-3 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                      className="mt-2 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
                     />
                     <textarea
                       value={reviewBody}
                       onChange={(e) => setReviewBody(e.target.value)}
                       placeholder="Share your experience (optional)"
-                      rows={3}
-                      className="mt-2 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                      rows={2}
+                      className="mt-2 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none"
                     />
                     {reviewError && (
-                      <p className="mt-2 text-xs text-[var(--danger)]">{reviewError}</p>
+                      <p className="mt-1.5 text-[11px] text-[var(--danger)]">{reviewError}</p>
                     )}
-                    <div className="mt-3 flex gap-2">
+                    <div className="mt-2 flex gap-2">
                       <button
                         onClick={() => handleReviewSubmit(row.execution!)}
                         disabled={reviewSubmitting}
-                        className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] disabled:opacity-50"
+                        className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)] disabled:opacity-50"
                       >
                         {reviewSubmitting ? "Submitting…" : "Submit Review"}
                       </button>
                       <button
                         onClick={() => setReviewFormFor(null)}
-                        className="rounded-lg border border-[var(--border-default)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]"
+                        className="rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]"
                       >
                         Cancel
                       </button>

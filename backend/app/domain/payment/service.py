@@ -32,6 +32,7 @@ from app.domain.common.enums import (
     InvoicePaymentStatus,
     PaymentStatus,
 )
+from app.domain.identity.models import Business
 from app.domain.invoice.repository import InvoiceRepository
 from app.domain.ledger.repository import LedgerRepository
 from app.domain.outbox.models import OutboxEvent
@@ -202,6 +203,9 @@ class PaymentService:
             raise ValidationError(f"Payment amount {amount} exceeds outstanding balance {outstanding}")
 
         # Create payment
+        # Inherit fee_evidence from the invoice (authoritative transaction
+        # evidence — preserves the Commercial Policy fee through the
+        # payment chain).
         payment = Payment(
             idempotency_key=idempotency_key,
             business_id=business_id,
@@ -212,6 +216,7 @@ class PaymentService:
             payment_method=payment_method,
             status=PaymentStatus.PENDING,
             provider=provider_name,
+            fee_evidence=invoice.fee_evidence,
             notes=notes,
         )
         payment = await self.payment_repo.create(payment)
@@ -268,12 +273,22 @@ class PaymentService:
         attempt = await self.payment_repo.create_attempt(attempt)
 
         # Call provider
+        # Resolve Stripe Connect details for Direct Charges.
+        stripe_account, application_fee = await self._resolve_stripe_connect(
+            business_id=payment.business_id,
+            amount=Decimal(payment.amount),
+            currency=payment.currency,
+            payment=payment,
+        )
+
         request = PaymentRequest(
             amount=Decimal(payment.amount),
             currency=payment.currency,
             description="FIELDed payment for invoice",
             idempotency_key=payment.idempotency_key,
             metadata={"payment_id": str(payment.id)},
+            stripe_account=stripe_account,
+            application_fee_amount=application_fee,
         )
         result = await self.payment_provider.initiate_payment(request)
 
@@ -517,11 +532,15 @@ class PaymentService:
             refund_amount = max_refundable
 
         # Process refund with provider
+        # Resolve the business's Stripe account for Direct Charge refunds.
+        stripe_account = await self._resolve_business_stripe_account(payment.business_id)
+
         refund_request = RefundRequest(
             provider_payment_reference=payment.provider_reference or "",
             amount=refund_amount,
             reason=reason,
             idempotency_key=f"refund-{payment.id}-{uuid.uuid4().hex[:8]}",
+            stripe_account=stripe_account,
         )
         result = await self.payment_provider.refund(refund_request)
 
@@ -619,6 +638,118 @@ class PaymentService:
         return payment
 
     # --- Internal helpers ---
+
+    async def _resolve_stripe_connect(
+        self,
+        *,
+        business_id: uuid.UUID,
+        amount: Decimal,
+        currency: str,
+        payment: Payment | None = None,
+    ) -> tuple[str | None, int | None]:
+        """Resolve Stripe Connect details for a Direct Charge.
+
+        Returns (stripe_account_id, application_fee_amount) for the
+        PaymentRequest.  When the configured provider is not Stripe or
+        the business has no connected account, returns (None, None) so
+        the provider falls back to its default behaviour (e.g. stub).
+
+        The application_fee is derived from the authoritative Commercial
+        Policy fee_evidence when available.  Falls back to
+        Business.platform_fee_percent only when no fee_evidence exists.
+        """
+        if self.payment_provider is None:
+            return None, None
+
+        # Only relevant for the Stripe provider.
+        if self.payment_provider.provider_name != "stripe":
+            return None, None
+
+        # Fetch the business to check Stripe Connect status.
+        result = await self.session.execute(
+            select(Business).where(
+                Business.id == business_id,
+                Business.deleted_at.is_(None),
+            )
+        )
+        business = result.scalar_one_or_none()
+        if business is None:
+            return None, None
+
+        stripe_account_id = business.stripe_account_id
+        if not stripe_account_id:
+            # No connected account — the provider will use the platform
+            # account.  This is acceptable for stub/dev but should not
+            # happen in production with real Stripe.
+            return None, None
+
+        # Validate the account can accept charges.
+        from app.domain.common.enums import StripeConnectAccountStatus
+
+        status = StripeConnectAccountStatus(business.stripe_connect_status)
+        if status in (
+            StripeConnectAccountStatus.NONE,
+            StripeConnectAccountStatus.PENDING,
+            StripeConnectAccountStatus.RESTRICTED,
+            StripeConnectAccountStatus.CHARGES_DISABLED,
+        ):
+            raise ValidationError(
+                f"Business {business_id} Stripe account cannot accept charges "
+                f"(status={status.value})."
+            )
+
+        if not business.stripe_charges_enabled:
+            raise ValidationError(
+                f"Business {business_id} Stripe charges are not enabled."
+            )
+
+        # Compute application fee.
+        # Prefer the authoritative Commercial Policy fee_evidence
+        # (stored on the payment or its invoice).  Fall back to
+        # Business.platform_fee_percent only when no evidence exists.
+        from decimal import Decimal as _Decimal
+
+        application_fee: int | None = None
+        fee_evidence = getattr(payment, "fee_evidence", None) if payment else None
+
+        if fee_evidence and fee_evidence.get("platform_fee"):
+            # Use the Commercial Policy platform fee
+            platform_fee = _Decimal(fee_evidence["platform_fee"])
+            if platform_fee > 0:
+                zero_decimal_currencies = {"jpy", "krw", "vnd", "clp", "huf"}
+                if currency.lower() in zero_decimal_currencies:
+                    application_fee = int(platform_fee)
+                else:
+                    application_fee = int(platform_fee * 100)
+        else:
+            # Fallback: legacy platform_fee_percent
+            fee_percent = _Decimal(str(business.platform_fee_percent))
+            if fee_percent > 0:
+                zero_decimal_currencies = {"jpy", "krw", "vnd", "clp", "huf"}
+                if currency.lower() in zero_decimal_currencies:
+                    amount_minor = int(amount)
+                else:
+                    amount_minor = int(amount * 100)
+                application_fee = int(amount_minor * fee_percent / _Decimal("100"))
+                application_fee = max(0, application_fee)
+
+        return stripe_account_id, application_fee
+
+    async def _resolve_business_stripe_account(
+        self, business_id: uuid.UUID
+    ) -> str | None:
+        """Return the business's stripe_account_id if the provider is Stripe."""
+        if self.payment_provider is None:
+            return None
+        if self.payment_provider.provider_name != "stripe":
+            return None
+        result = await self.session.execute(
+            select(Business.stripe_account_id).where(
+                Business.id == business_id,
+                Business.deleted_at.is_(None),
+            )
+        )
+        return result.scalar_one_or_none()
 
     async def _emit_outbox_event(
         self,

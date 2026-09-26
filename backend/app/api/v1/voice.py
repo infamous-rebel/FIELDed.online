@@ -1041,3 +1041,329 @@ async def twilio_status_callback(
         },
     )
     return result
+
+
+# ── Vonage Voice webhooks ──
+
+
+def _vonage_ncco_url(request: Request, call_id: uuid.UUID) -> str:
+    """Build the public NCCO webhook URL for a Vonage call."""
+    base = request.app.state.settings.public_base_url.rstrip("/")
+    return f"{base}/api/v1/webhooks/voice/vonage/ncco/{call_id}"
+
+
+def _vonage_input_url(request: Request, call_id: uuid.UUID) -> str:
+    """Build the public speech-input callback URL for a Vonage call."""
+    base = request.app.state.settings.public_base_url.rstrip("/")
+    return f"{base}/api/v1/webhooks/voice/vonage/input/{call_id}"
+
+
+def _vonage_event_url(request: Request, call_id: uuid.UUID) -> str:
+    """Build the public event callback URL for a Vonage call."""
+    base = request.app.state.settings.public_base_url.rstrip("/")
+    return f"{base}/api/v1/webhooks/voice/vonage/event/{call_id}"
+
+
+def _ncco_response(ncco: list[dict]) -> FastAPIResponse:
+    """Return a JSON NCCO response for Vonage Voice."""
+    import json
+
+    return FastAPIResponse(
+        content=json.dumps(ncco),
+        media_type="application/json",
+    )
+
+
+# Call statuses where the NCCO transport may proceed with conversation.
+_NCCO_ACTIVE_STATUSES: frozenset[str] = frozenset(
+    {
+        CallStatus.INITIATING.value,
+        CallStatus.RINGING.value,
+        CallStatus.CONNECTED.value,
+        CallStatus.IN_PROGRESS.value,
+    }
+)
+
+
+async def _resolve_call_for_ncco(
+    db: AsyncSession,
+    call_id: uuid.UUID,
+    call_uuid: str | None,
+) -> VoiceCall | None:
+    """Resolve a VoiceCall for a Vonage NCCO callback.
+
+    Uses the persisted provider_reference (Vonage call UUID) as the
+    authoritative identifier.
+    """
+    from app.domain.voice.models import VoiceCall
+
+    if call_uuid:
+        result = await db.execute(
+            select(VoiceCall).where(
+                VoiceCall.provider_reference == call_uuid,
+                VoiceCall.deleted_at.is_(None),
+            )
+        )
+        call = result.scalars().first()
+        if call is not None:
+            if call.id != call_id:
+                logger.warning(
+                    "vonage_call_id_mismatch",
+                    extra={
+                        "url_call_id": str(call_id),
+                        "resolved_call_id": str(call.id),
+                    },
+                )
+                return None
+            return call
+
+    result = await db.execute(
+        select(VoiceCall).where(
+            VoiceCall.id == call_id,
+            VoiceCall.deleted_at.is_(None),
+        )
+    )
+    return result.scalars().first()
+
+
+@router.post("/webhooks/voice/vonage/ncco/{call_id}")
+async def vonage_ncco_webhook(
+    call_id: uuid.UUID,
+    request: Request,
+    db: DbSession,
+) -> FastAPIResponse:
+    """NCCO webhook — called by Vonage when the call connects.
+
+    Returns a JSON NCCO with a greeting and speech input action.
+    The speech input callback is at ``/input/{call_id}``.
+    """
+    settings = request.app.state.settings
+
+    # Parse the Vonage event payload (Vonage POSTs JSON to NCCO URL)
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    call_uuid = payload.get("uuid") or payload.get("call_uuid")
+    call = await _resolve_call_for_ncco(db, call_id, str(call_uuid) if call_uuid else None)
+    if call is None:
+        logger.warning("vonage_ncco_call_not_found", extra={"call_id": str(call_id)})
+        return _ncco_response([{"action": "talk", "text": "Sorry, this call cannot be connected. Goodbye."}])
+
+    # Terminal state — cannot converse
+    if call.status in _TWIML_TERMINAL_STATUSES:
+        logger.info(
+            "vonage_ncco_terminal_call",
+            extra={"call_id": str(call_id), "status": call.status},
+        )
+        return _ncco_response([{"action": "talk", "text": "Goodbye."}])
+
+    # Drive the call to CONNECTED if the event callback hasn't arrived yet
+    lifecycle = VoiceCallLifecycleService(db)
+    current_status = CallStatus(call.status)
+    if current_status in (CallStatus.INITIATING, CallStatus.RINGING):
+        if current_status is CallStatus.INITIATING:
+            call = await lifecycle.mark_ringing(call, reason="vonage ncco webhook")
+        call = await lifecycle.mark_connected(call, reason="vonage ncco webhook")
+
+    # Start the agent session if not already active
+    from app.domain.voice.repository import VoiceCallSessionRepository
+
+    session_repo = VoiceCallSessionRepository(db)
+    active_session = await session_repo.get_active_for_call(call.id)
+
+    if active_session is None:
+        from app.adapters import _resolve_call_agent_ai_provider
+
+        ai_provider = _resolve_call_agent_ai_provider(settings)
+        agent = VoiceCallAgent(db, ai_provider)
+        try:
+            active_session = await agent.begin(call)
+        except Exception as exc:
+            logger.error(
+                "vonage_ncco_agent_begin_failed",
+                extra={"call_id": str(call_id), "error": str(exc)},
+            )
+            return _ncco_response([{"action": "talk", "text": "Sorry, the call agent is unavailable. Goodbye."}])
+
+    # Deterministic greeting
+    from app.domain.identity.models import Business
+
+    business = await db.get(Business, call.business_id)
+    business_name = business.name if business else "the business"
+    greeting = f"Hello, this is {business_name}. Please tell me how I can help you today."
+
+    input_url = _vonage_input_url(request, call.id)
+    ncco = [
+        {"action": "talk", "text": greeting, "language": "en-US"},
+        {
+            "action": "input",
+            "type": ["speech"],
+            "speech": {
+                "language": "en-US",
+                "endOnSilence": 2,
+                "context": ["FIELDed service call"],
+            },
+            "eventUrl": [input_url],
+            "eventMethod": "POST",
+        },
+    ]
+    return _ncco_response(ncco)
+
+
+@router.post("/webhooks/voice/vonage/input/{call_id}")
+async def vonage_input_webhook(
+    call_id: uuid.UUID,
+    request: Request,
+    db: DbSession,
+) -> FastAPIResponse:
+    """Speech input callback — receives Vonage speech recognition results.
+
+    Extracts the transcript, passes it to the existing VoiceCallAgent,
+    and returns NCCO with the agent's reply followed by another input action.
+    """
+    settings = request.app.state.settings
+
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    call_uuid = payload.get("uuid") or payload.get("call_uuid")
+    speech_result = (payload.get("speech", {}).get("transcription") or "").strip()
+
+    call = await _resolve_call_for_ncco(db, call_id, str(call_uuid) if call_uuid else None)
+    if call is None:
+        logger.warning("vonage_input_call_not_found", extra={"call_id": str(call_id)})
+        return _ncco_response([{"action": "talk", "text": "Sorry, the call could not be found. Goodbye."}])
+
+    # Terminal state
+    if call.status in _TWIML_TERMINAL_STATUSES:
+        return _ncco_response([{"action": "talk", "text": "Goodbye."}])
+
+    input_url = _vonage_input_url(request, call.id)
+
+    # Empty / failed speech input — deterministic retry
+    if not speech_result:
+        return _ncco_response([
+            {"action": "talk", "text": "Sorry, I didn't catch that. Please try again."},
+            {
+                "action": "input",
+                "type": ["speech"],
+                "speech": {"language": "en-US", "endOnSilence": 2},
+                "eventUrl": [input_url],
+                "eventMethod": "POST",
+            },
+        ])
+
+    # Pass transcript to the existing governed Call Agent
+    from app.adapters import _resolve_call_agent_ai_provider
+
+    ai_provider = _resolve_call_agent_ai_provider(settings)
+    agent = VoiceCallAgent(db, ai_provider)
+
+    try:
+        result = await agent.handle_turn(call, speech_result)
+    except Exception as exc:
+        logger.error(
+            "vonage_input_agent_turn_failed",
+            extra={"call_id": str(call_id), "error": str(exc)},
+        )
+        return _ncco_response([{"action": "talk", "text": "Sorry, I encountered an error. Please try again."}])
+
+    reply = result["reply"]
+    action = result["action"]
+    call_after = result["call"]
+
+    # If the agent ended the call or requested escalation, say and hang up
+    if action in ("END_CALL", "REQUEST_HUMAN"):
+        return _ncco_response([{"action": "talk", "text": reply}, {"action": "hangup"}])
+
+    # If the call is now terminal, say and hang up
+    if call_after.status in _TWIML_TERMINAL_STATUSES:
+        return _ncco_response([{"action": "talk", "text": reply}, {"action": "hangup"}])
+
+    # Normal continuation: talk + input
+    return _ncco_response([
+        {"action": "talk", "text": reply, "language": "en-US"},
+        {
+            "action": "input",
+            "type": ["speech"],
+            "speech": {"language": "en-US", "endOnSilence": 2},
+            "eventUrl": [input_url],
+            "eventMethod": "POST",
+        },
+    ])
+
+
+@router.post("/webhooks/voice/vonage/event/{call_id}")
+async def vonage_event_webhook(
+    call_id: uuid.UUID,
+    request: Request,
+    db: DbSession,
+) -> dict:
+    """Vonage call event webhook — receives call status updates.
+
+    Processes events through the existing VoiceWebhookService pipeline.
+    Vonage events carry: uuid, conversation_uuid, status, direction, etc.
+    """
+    try:
+        payload = await request.json()
+    except (ValueError, UnicodeDecodeError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload") from exc
+
+    call_uuid = payload.get("uuid", str(uuid.uuid4()))
+    status = payload.get("status", "unknown")
+
+    # Map Vonage call statuses to the provider status vocabulary
+    vonage_status_map = {
+        "started": "initiated",
+        "ringing": "ringing",
+        "answered": "in-progress",
+        "machine": "in-progress",
+        "completed": "completed",
+        "busy": "busy",
+        "cancelled": "canceled",
+        "failed": "failed",
+        "rejected": "failed",
+        "timeout": "no-answer",
+        "unanswered": "no-answer",
+    }
+    mapped_status = vonage_status_map.get(status, status)
+
+    external_event_id = compose_voice_event_id(str(call_uuid), mapped_status)
+
+    voice_provider = _voice_provider(request)
+    orchestration = VoiceProviderOrchestrationService(db, voice_provider)
+    service = VoiceWebhookService(db, orchestration=orchestration)
+    call = await service.resolve_call(str(call_uuid))
+
+    # Fallback: resolve by call_id
+    if call is None:
+        result = await db.execute(
+            select(VoiceCall).where(
+                VoiceCall.id == call_id,
+                VoiceCall.deleted_at.is_(None),
+            )
+        )
+        call = result.scalars().first()
+
+    result = await service.process_event(
+        provider="vonage",
+        external_event_id=external_event_id,
+        event_type=mapped_status,
+        payload=payload,
+        call=call,
+    )
+    logger.info(
+        "vonage_event_callback_received",
+        extra={
+            "call_id": str(call_id),
+            "call_uuid": str(call_uuid),
+            "vonage_status": status,
+            "mapped_status": mapped_status,
+            "outcome": result.get("status"),
+        },
+    )
+    return result

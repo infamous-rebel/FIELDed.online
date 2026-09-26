@@ -57,8 +57,18 @@ logs/
 # Design mockups (not referenced in code)
 frontend/src/components/ui/*.png
 .env.cloudrun
-.vercel
 
 # Verification/audit screenshots (not application assets)
 *.png
 .env*
+
+# Deployment tool artifacts
+.vercel/
+.wrangler/
+frontend/.vercel/
+frontend/.wrangler/
+
+# Historical report files (not product documentation)
+IMPLEMENTATION_REPORT.md
+INTEGRATED_E2E_REPORT.md
+STAGE2_REPORT.md

@@ -23,6 +23,7 @@ class CalendarEvent:
     location: str | None = None
     attendees: list[str] | None = None
     metadata: dict[str, Any] | None = None
+    ical_uid: str | None = None  # Deterministic ID for idempotent creation
 
 
 @dataclass

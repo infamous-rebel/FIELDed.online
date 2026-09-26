@@ -13,6 +13,7 @@ the session is rolled back, keeping the database clean.
 
 from __future__ import annotations
 
+import asyncio
 import os
 import uuid
 from collections.abc import AsyncGenerator
@@ -34,6 +35,9 @@ from app.database import get_db_session
 from app.domain.booking.models import Booking  # noqa: F401
 from app.domain.business.models import BrainVersion, BusinessBrain, BusinessRule  # noqa: F401
 from app.domain.common.base_model import Base
+
+# Commercial Policy
+from app.domain.commercial_policy.models import CommercialPolicy  # noqa: F401
 
 # Phase 14A — Communication, Notification, Outbox
 from app.domain.communication.models import (  # noqa: F401
@@ -70,6 +74,7 @@ from app.domain.outbox.models import OutboxEvent  # noqa: F401
 
 # Phase 15 — Payments & Financial Operations
 from app.domain.payment.models import Payment, PaymentAttempt  # noqa: F401
+from app.domain.payment.stripe_event_model import StripeEvent  # noqa: F401
 from app.domain.quote.models import Quote  # noqa: F401
 
 # Phase 17 — Reviews & Trust
@@ -109,32 +114,80 @@ def get_test_settings() -> Settings:
     return settings
 
 
+# Track whether the schema has been created for the current test module.
+# The schema is recreated for each test file (module) to ensure isolation
+# between test files.  Within a file, tests share the schema and rely on
+# db_session rollback for isolation (tests use flush, not commit).
+_schema_ready = False
+_current_module = None
+
+
+@pytest_asyncio.fixture(autouse=True)
+def _reset_schema_per_module(request):
+    """Reset the schema flag when a new test module starts.
+
+    This ensures each test file gets a fresh schema (DROP + CREATE + create_all)
+    while tests within the same file share the schema for speed.
+    """
+    global _schema_ready, _current_module
+    module = request.node.fspath
+    if module != _current_module:
+        _schema_ready = False
+        _current_module = module
+    yield
+
+
 @pytest_asyncio.fixture
 async def test_engine() -> AsyncGenerator[AsyncEngine, None]:
-    """Create a test database engine (per-test, shares event loop with test)."""
-    engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
+    """Create a test database engine (per-test, fresh connection).
 
-    # Clean slate: reset schema in separate transaction, then create tables
-    try:
+    The schema is created once (on the first test that runs).  Subsequent
+    tests skip DDL entirely and rely on the db_session rollback for
+    per-test isolation.  This avoids the ~10s per-test cost of DROP SCHEMA
+    CASCADE + create_all while still providing a clean database for each test.
+    """
+    global _schema_ready
+
+    engine = create_async_engine(
+        TEST_DATABASE_URL,
+        poolclass=NullPool,
+        pool_pre_ping=True,
+        connect_args={"command_timeout": 10},
+    )
+
+    if not _schema_ready:
+        # First test: full schema setup
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text("SET lock_timeout = '5s'"))
+                await conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
+                await conn.execute(text("CREATE SCHEMA public"))
+        except Exception:
+            # Terminate blockers and retry
+            try:
+                async with engine.begin() as conn:
+                    await conn.execute(
+                        text(
+                            "SELECT pg_terminate_backend(pid) "
+                            "FROM pg_stat_activity "
+                            "WHERE datname = current_database() "
+                            "AND pid != pg_backend_pid() "
+                            "AND state != 'idle'"
+                        )
+                    )
+                await asyncio.sleep(0.5)
+                async with engine.begin() as conn:
+                    await conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
+                    await conn.execute(text("CREATE SCHEMA public"))
+            except Exception:
+                pass
+
         async with engine.begin() as conn:
-            await conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
-            await conn.execute(text("CREATE SCHEMA public"))
-    except Exception:
-        pass  # Best-effort; first run may not need this
+            await conn.run_sync(Base.metadata.create_all)
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        _schema_ready = True
 
     yield engine
-
-    # Clean up: best-effort schema reset
-    try:
-        async with engine.begin() as conn:
-            await conn.execute(text("DROP SCHEMA public CASCADE"))
-            await conn.execute(text("CREATE SCHEMA public"))
-    except Exception:
-        pass
-
     await engine.dispose()
 
 

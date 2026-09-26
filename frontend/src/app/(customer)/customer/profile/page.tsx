@@ -92,7 +92,7 @@ export default function CustomerProfilePage() {
   if (loading) {
     return (
       <div className="mx-auto max-w-2xl">
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">My Profile</h1>
+        <h1 className="text-lg font-semibold text-[var(--text-primary)]">My Profile</h1>
         <div className="mt-8">
           <LoadingSkeleton variant="card" />
         </div>
@@ -102,10 +102,12 @@ export default function CustomerProfilePage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-2xl font-bold text-[var(--text-primary)]">My Profile</h1>
-      <p className="mt-1 text-sm text-[var(--text-secondary)]">
-        Status: <span className="font-medium capitalize">{profile?.status}</span>
-      </p>
+      <div className="mb-6">
+        <h1 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">My Profile</h1>
+        <p className="mt-1 text-xs text-[var(--text-secondary)]">
+          Status: <span className="font-medium capitalize">{profile?.status}</span>
+        </p>
+      </div>
 
       {error && (
         <div className="mt-4 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger)]/10 p-3 text-sm text-[var(--danger)]">
@@ -118,71 +120,78 @@ export default function CustomerProfilePage() {
         </div>
       )}
 
-      <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-        <div className="grid grid-cols-2 gap-4">
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        <div className="glass rounded-lg p-4 space-y-3">
+          <h2 className="text-sm font-semibold text-[var(--text-primary)]">Personal Information</h2>
+          <div className="grid grid-cols-2 gap-3">
           <div>
-            <label htmlFor="firstName" className="block text-sm font-medium text-[var(--text-primary)]">First Name</label>
+            <label htmlFor="firstName" className="block text-[11px] font-medium text-[var(--text-secondary)]">First Name</label>
             <input id="firstName" type="text" required value={firstName} onChange={(e) => setFirstName(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-[var(--border-default)] p-3 text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none" />
+              className="mt-1 w-full rounded-lg border border-[var(--border-default)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none" />
           </div>
           <div>
-            <label htmlFor="lastName" className="block text-sm font-medium text-[var(--text-primary)]">Last Name</label>
+            <label htmlFor="lastName" className="block text-[11px] font-medium text-[var(--text-secondary)]">Last Name</label>
             <input id="lastName" type="text" required value={lastName} onChange={(e) => setLastName(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-[var(--border-default)] p-3 text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none" />
+              className="mt-1 w-full rounded-lg border border-[var(--border-default)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none" />
           </div>
         </div>
 
         <div>
-          <label htmlFor="phone" className="block text-sm font-medium text-[var(--text-primary)]">Phone</label>
+          <label htmlFor="phone" className="block text-[11px] font-medium text-[var(--text-secondary)]">Phone</label>
           <input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-[var(--border-default)] p-3 text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none" />
+            className="mt-1 w-full rounded-lg border border-[var(--border-default)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none" />
         </div>
+      </div>
+      
+      <div className="glass rounded-lg p-4 space-y-3">
+        <h2 className="text-sm font-semibold text-[var(--text-primary)]">Address</h2>
 
         <div>
-          <label htmlFor="address1" className="block text-sm font-medium text-[var(--text-primary)]">Address Line 1</label>
+          <label htmlFor="address1" className="block text-[11px] font-medium text-[var(--text-secondary)]">Address Line 1</label>
           <input id="address1" type="text" value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-[var(--border-default)] p-3 text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none" />
+            className="mt-1 w-full rounded-lg border border-[var(--border-default)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none" />
         </div>
 
         <div>
-          <label htmlFor="address2" className="block text-sm font-medium text-[var(--text-primary)]">Address Line 2</label>
+          <label htmlFor="address2" className="block text-[11px] font-medium text-[var(--text-secondary)]">Address Line 2</label>
           <input id="address2" type="text" value={addressLine2} onChange={(e) => setAddressLine2(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-[var(--border-default)] p-3 text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none" />
+            className="mt-1 w-full rounded-lg border border-[var(--border-default)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none" />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label htmlFor="city" className="block text-sm font-medium text-[var(--text-primary)]">City</label>
+            <label htmlFor="city" className="block text-[11px] font-medium text-[var(--text-secondary)]">City</label>
             <input id="city" type="text" value={city} onChange={(e) => setCity(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-[var(--border-default)] p-3 text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none" />
+              className="mt-1 w-full rounded-lg border border-[var(--border-default)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none" />
           </div>
           <div>
-            <label htmlFor="state" className="block text-sm font-medium text-[var(--text-primary)]">State</label>
+            <label htmlFor="state" className="block text-[11px] font-medium text-[var(--text-secondary)]">State</label>
             <input id="state" type="text" value={state} onChange={(e) => setState(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-[var(--border-default)] p-3 text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none" />
+              className="mt-1 w-full rounded-lg border border-[var(--border-default)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none" />
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label htmlFor="postalCode" className="block text-sm font-medium text-[var(--text-primary)]">Postal Code</label>
+            <label htmlFor="postalCode" className="block text-[11px] font-medium text-[var(--text-secondary)]">Postal Code</label>
             <input id="postalCode" type="text" value={postalCode} onChange={(e) => setPostalCode(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-[var(--border-default)] p-3 text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none" />
+              className="mt-1 w-full rounded-lg border border-[var(--border-default)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none" />
           </div>
           <div>
-            <label htmlFor="country" className="block text-sm font-medium text-[var(--text-primary)]">Country</label>
+            <label htmlFor="country" className="block text-[11px] font-medium text-[var(--text-secondary)]">Country</label>
             <input id="country" type="text" value={country} onChange={(e) => setCountry(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-[var(--border-default)] p-3 text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none" />
+              className="mt-1 w-full rounded-lg border border-[var(--border-default)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] outline-none" />
           </div>
         </div>
 
         <button
           type="submit"
           disabled={saving}
-          className="w-full rounded-lg bg-[var(--accent)] px-4 py-3 text-white font-medium hover:bg-[var(--accent-hover)] disabled:opacity-50"
+          className="w-full rounded-lg bg-[var(--accent)] px-3 py-2 text-xs font-medium text-white hover:bg-[var(--accent-hover)] disabled:opacity-50 transition-colors"
         >
           {saving ? "Saving..." : "Save Changes"}
         </button>
+        </div>
       </form>
     </div>
   );

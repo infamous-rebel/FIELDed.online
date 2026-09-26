@@ -264,9 +264,11 @@ async def payment_webhook(
 ) -> JSONResponse:
     """Handle payment provider webhooks.
 
-    Verifies webhook signature, parses event, and updates
-    payment state idempotently.  Duplicate webhook deliveries
-    are safely ignored.
+    Verifies webhook signature, parses event, and delegates to the
+    StripeWebhookReconciliationService for deterministic reconciliation.
+
+    Idempotent: duplicate webhook deliveries are detected via the
+    stripe_events table and acknowledged without re-processing.
     """
     body = await request.body()
     try:
@@ -277,48 +279,58 @@ async def payment_webhook(
             content={"error": "Invalid JSON payload"},
         )
 
-    # Get the payment provider to verify signature
-    payment_prov = _payment_provider(request)
     settings = request.app.state.settings
     webhook_secret = getattr(settings, "payment_webhook_secret", "")
 
-    # Read the signature from the provider-specific header.
-    # Stripe uses "Stripe-Signature"; we also accept a generic header.
-    signature = request.headers.get("Stripe-Signature", "") or request.headers.get("X-Payment-Signature", "")
+    # Read the Stripe signature header
+    signature = request.headers.get("Stripe-Signature", "")
 
-    # Verify signature if secret is configured
-    if webhook_secret and signature:
-        is_valid = await payment_prov.verify_webhook_signature(body, signature, webhook_secret)
+    # ── Signature verification ─────────────────────────────────
+    # When a webhook secret is configured, signature verification
+    # is MANDATORY.  Missing or invalid signatures are rejected.
+    if webhook_secret:
+        if not signature:
+            return JSONResponse(
+                status_code=401,
+                content={"error": "Missing webhook signature"},
+            )
+
+        payment_prov = _payment_provider(request)
+        is_valid = await payment_prov.verify_webhook_signature(
+            body, signature, webhook_secret
+        )
         if not is_valid:
             return JSONResponse(
                 status_code=401,
                 content={"error": "Invalid webhook signature"},
             )
-    elif webhook_secret and not signature:
-        # Secret is configured but no signature was provided — reject
+
+    # ── Parse the event ────────────────────────────────────────
+    payment_prov = _payment_provider(request)
+    try:
+        event = await payment_prov.parse_webhook_event(payload)
+    except Exception as exc:
         return JSONResponse(
-            status_code=401,
-            content={"error": "Missing webhook signature"},
+            status_code=400,
+            content={"error": f"Failed to parse webhook event: {exc}"},
         )
 
-    # Parse the event
-    event = await payment_prov.parse_webhook_event(payload)
-
-    # Process the event
-    service = PaymentService(db, payment_provider=payment_prov)
-    payment = await service.handle_webhook(
-        provider_event_id=event.provider_event_id,
-        provider_payment_reference=event.provider_payment_reference,
-        event_type=event.event_type,
-        status=event.status,
-        amount=str(event.amount) if event.amount else None,
+    # ── Reconcile via the deterministic service ────────────────
+    from app.domain.payment.stripe_reconciliation import (
+        StripeWebhookReconciliationService,
     )
+
+    reconciliation = StripeWebhookReconciliationService(db)
+    stripe_event = await reconciliation.reconcile(event)
 
     return JSONResponse(
         status_code=200,
         content={
             "received": True,
-            "payment_id": str(payment.id) if payment else None,
+            "event_id": stripe_event.stripe_event_id,
+            "event_type": stripe_event.event_type,
+            "status": stripe_event.status,
+            "payment_id": str(stripe_event.payment_id) if stripe_event.payment_id else None,
         },
     )
 

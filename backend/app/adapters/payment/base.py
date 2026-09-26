@@ -40,6 +40,12 @@ class PaymentRequest:
     return_url: str | None = None
     # Optional: specific payment method type
     payment_method: str | None = None
+    # Stripe Connect: connected account to charge (e.g. acct_xxx).
+    # When set, the provider creates a Direct Charge on this account.
+    stripe_account: str | None = None
+    # Stripe Connect: platform application fee in smallest currency unit.
+    # Only used with Direct Charges (stripe_account must be set).
+    application_fee_amount: int | None = None
 
 
 @dataclass
@@ -51,6 +57,8 @@ class RefundRequest:
     reason: str | None = None
     idempotency_key: str | None = None
     metadata: dict = field(default_factory=dict)
+    # Stripe Connect: connected account that owns the charge.
+    stripe_account: str | None = None
 
 
 @dataclass

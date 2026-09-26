@@ -143,10 +143,10 @@ export default function BusinessBookingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">
+        <h1 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">
           Bookings
         </h1>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
+        <p className="mt-1 text-xs text-[var(--text-muted)]">
           Manage customer bookings and service scheduling.
         </p>
       </div>
@@ -166,7 +166,7 @@ export default function BusinessBookingsPage() {
           <button
             key={tab.value}
             onClick={() => setActiveFilter(tab.value)}
-            className={`whitespace-nowrap rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${
+            className={`whitespace-nowrap rounded-t-lg px-3 py-1.5 text-[13px] font-medium transition-colors ${
               activeFilter === tab.value
                 ? "border-b-2 border-[var(--accent)] text-[var(--accent)]"
                 : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"

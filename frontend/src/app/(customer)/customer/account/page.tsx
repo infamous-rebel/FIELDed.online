@@ -97,10 +97,10 @@ export default function CustomerAccountPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Account</h1>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
+    <div className="space-y-5">
+      <div className="mb-4">
+        <h1 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">Account</h1>
+        <p className="mt-1 text-xs text-[var(--text-secondary)]">
           Manage your profile and account settings.
         </p>
       </div>
@@ -119,11 +119,11 @@ export default function CustomerAccountPage() {
 
       {/* Profile section */}
       <Card>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Profile</h2>
-        <form onSubmit={handleSave} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+        <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Profile</h2>
+        <form onSubmit={handleSave} className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label htmlFor="first-name" className="block text-sm font-medium text-[var(--text-secondary)]">
+              <label htmlFor="first-name" className="block text-[11px] font-medium text-[var(--text-secondary)]">
                 First name
               </label>
               <input
@@ -131,12 +131,12 @@ export default function CustomerAccountPage() {
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                className="mt-1 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
                 required
               />
             </div>
             <div>
-              <label htmlFor="last-name" className="block text-sm font-medium text-[var(--text-secondary)]">
+              <label htmlFor="last-name" className="block text-[11px] font-medium text-[var(--text-secondary)]">
                 Last name
               </label>
               <input
@@ -144,14 +144,14 @@ export default function CustomerAccountPage() {
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                className="mt-1 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-[var(--text-secondary)]">
+            <label htmlFor="email" className="block text-[11px] font-medium text-[var(--text-secondary)]">
               Email
             </label>
             <input
@@ -159,13 +159,13 @@ export default function CustomerAccountPage() {
               type="email"
               value={user?.email || ""}
               disabled
-              className="mt-1 w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-muted)] cursor-not-allowed"
+              className="mt-1 w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-2.5 py-1.5 text-xs text-[var(--text-muted)] cursor-not-allowed"
             />
-            <p className="mt-1 text-xs text-[var(--text-muted)]">Email cannot be changed.</p>
+            <p className="mt-0.5 text-[10px] text-[var(--text-muted)]">Email cannot be changed.</p>
           </div>
 
           <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-[var(--text-secondary)]">
+            <label htmlFor="phone" className="block text-[11px] font-medium text-[var(--text-secondary)]">
               Phone
             </label>
             <input
@@ -174,13 +174,13 @@ export default function CustomerAccountPage() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="Your phone number"
-              className="mt-1 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+              className="mt-1 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-3">
             <div>
-              <label htmlFor="city" className="block text-sm font-medium text-[var(--text-secondary)]">
+              <label htmlFor="city" className="block text-[11px] font-medium text-[var(--text-secondary)]">
                 City
               </label>
               <input
@@ -189,11 +189,11 @@ export default function CustomerAccountPage() {
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 placeholder="Your city"
-                className="mt-1 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                className="mt-1 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
               />
             </div>
             <div>
-              <label htmlFor="state" className="block text-sm font-medium text-[var(--text-secondary)]">
+              <label htmlFor="state" className="block text-[11px] font-medium text-[var(--text-secondary)]">
                 State / Region
               </label>
               <input
@@ -202,11 +202,11 @@ export default function CustomerAccountPage() {
                 value={state}
                 onChange={(e) => setState(e.target.value)}
                 placeholder="Your state or region"
-                className="mt-1 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                className="mt-1 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
               />
             </div>
             <div>
-              <label htmlFor="country" className="block text-sm font-medium text-[var(--text-secondary)]">
+              <label htmlFor="country" className="block text-[11px] font-medium text-[var(--text-secondary)]">
                 Country
               </label>
               <input
@@ -215,12 +215,12 @@ export default function CustomerAccountPage() {
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
                 placeholder="Your country"
-                className="mt-1 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                className="mt-1 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
               />
             </div>
           </div>
 
-          <div className="pt-2">
+          <div className="pt-1">
             <Button type="submit" loading={saving}>
               Save Changes
             </Button>
@@ -230,17 +230,17 @@ export default function CustomerAccountPage() {
 
       {/* Account info */}
       <Card>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Account Info</h2>
-        <div className="space-y-3 text-sm">
-          <div className="flex justify-between">
+        <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Account Info</h2>
+        <div className="space-y-2 text-xs">
+          <div className="flex justify-between py-1.5 border-b border-white/[0.04]">
             <span className="text-[var(--text-muted)]">Account ID</span>
             <span className="font-mono text-xs text-[var(--text-secondary)]">{user?.id?.slice(0, 12)}...</span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between py-1.5 border-b border-white/[0.04]">
             <span className="text-[var(--text-muted)]">Status</span>
             <span className="text-[var(--text-secondary)]">{user?.is_active ? "Active" : "Inactive"}</span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between py-1.5">
             <span className="text-[var(--text-muted)]">Verified</span>
             <span className="text-[var(--text-secondary)]">{user?.is_verified ? "Yes" : "No"}</span>
           </div>

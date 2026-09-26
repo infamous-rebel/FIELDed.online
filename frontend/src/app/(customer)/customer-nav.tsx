@@ -56,15 +56,15 @@ export default function CustomerNav({
   return (
     <div className="min-h-screen flex">
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-60 flex-shrink-0 flex-col border-r border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+      <aside className="hidden md:flex w-60 flex-shrink-0 flex-col border-r border-white/[0.06] glass-subtle">
         {/* Logo */}
         <div className="p-5 pb-4">
           <a href="/" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent)] text-sm font-bold text-white">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--accent)] text-[10px] font-bold text-white">
               F
             </div>
             <div>
-              <span className="text-base font-semibold text-[var(--text-primary)]">FIELDed</span>
+              <span className="text-sm font-semibold text-[var(--text-primary)]">FIELDed</span>
               <span className="block text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">Customer</span>
             </div>
           </a>
@@ -79,10 +79,10 @@ export default function CustomerNav({
               <a
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200 ${
                   isActive
-                    ? "bg-[var(--accent)]/10 text-[var(--accent)]"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+                    ? "bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/15"
+                    : "text-[var(--text-secondary)] hover:bg-white/[0.04] hover:text-[var(--text-primary)] border border-transparent"
                 }`}
               >
                 <Icon active={isActive} />
@@ -93,26 +93,26 @@ export default function CustomerNav({
         </nav>
 
         {/* User section */}
-        <div className="p-3 border-t border-[var(--border-subtle)]">
+        <div className="p-3 border-t border-white/[0.06]">
           <div className="relative">
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-[var(--bg-elevated)]"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-white/[0.04]"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent)]/15 text-xs font-semibold text-[var(--accent)]">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent)]/15 text-xs font-semibold text-[var(--accent)] ring-1 ring-[var(--accent)]/20">
                 {initials || "?"}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--text-primary)] truncate">{displayName}</p>
-                <p className="text-[10px] text-[var(--text-muted)]">Customer</p>
+                <p className="text-[13px] font-medium text-[var(--text-primary)] truncate">{displayName}</p>
+                <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Customer</p>
               </div>
-              <svg className="h-4 w-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-3.5 w-3.5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
               </svg>
             </button>
 
             {userMenuOpen && (
-              <div className="absolute bottom-full left-0 right-0 mb-1 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] py-1 shadow-lg z-50">
+              <div className="absolute bottom-full left-0 right-0 mb-1 rounded-lg border border-white/[0.08] glass py-1.5 shadow-xl z-50">
                 {bizList.length > 0 && (
                   <>
                     <a
@@ -155,7 +155,7 @@ export default function CustomerNav({
       </aside>
 
       {/* Mobile header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 border-b border-white/[0.06] glass-subtle">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--accent)] text-xs font-bold text-white">
@@ -226,7 +226,7 @@ export default function CustomerNav({
       </div>
 
       {/* Main content */}
-      <main className="flex-1 p-6 md:p-8 mt-[52px] md:mt-0 overflow-auto min-h-screen">
+      <main className="flex-1 p-6 md:p-8 mt-[52px] md:mt-0 overflow-auto min-h-screen bg-[var(--bg-primary)]">
         {children}
       </main>
     </div>

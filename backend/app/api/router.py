@@ -8,12 +8,15 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.api.v1 import (
+    agent_capabilities,
     auth,
     bookings,
     brain,
     brain_conversation,
     business_enquiries,
     businesses,
+    calendar,
+    commercial_policies,
     communications,
     customer,
     discovery,
@@ -28,6 +31,7 @@ from app.api.v1 import (
     service_categories,
     service_executions,
     service_offers,
+    stripe_connect,
     voice,
 )
 
@@ -68,8 +72,20 @@ api_router.include_router(ledger.router, prefix="/businesses", tags=["ledger"])
 # Phase 15 — Payments & Financial Operations
 api_router.include_router(payments.router, prefix="", tags=["payments"])
 
+# Stripe Connect — Business onboarding & Direct Charges
+api_router.include_router(stripe_connect.router, prefix="", tags=["stripe-connect"])
+
 # Phase 17 — Reviews & Trust
 api_router.include_router(reviews.router, prefix="", tags=["reviews"])
 
 # Phase 17 — Member invitation acceptance (public path outside /businesses)
 api_router.include_router(businesses.accept_router, prefix="", tags=["businesses"])
+
+# Commercial Policy — FIELDed platform fee engine
+api_router.include_router(commercial_policies.router, prefix="", tags=["commercial-policies"])
+
+# Agent Capability & Delegation — governed agent authorization
+api_router.include_router(agent_capabilities.router, prefix="", tags=["agent-capabilities"])
+
+# Google Calendar integration — per-business booking sync
+api_router.include_router(calendar.router, prefix="", tags=["calendar"])

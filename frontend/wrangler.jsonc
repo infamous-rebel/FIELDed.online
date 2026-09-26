@@ -1,0 +1,43 @@
+{
+  // FIELDed Frontend — Cloudflare Workers deployment
+  // Production: https://fielded.online
+  //
+  // Deploy: npx @vinext/cloudflare deploy
+  // Preview: npx @vinext/cloudflare deploy --preview
+  //
+  // Custom domain setup (after first deploy):
+  //   wrangler custom-domain add fielded.online fielded-frontend
+  //   wrangler custom-domain add www.fielded.online fielded-frontend
+  //
+  // ── Frontend Environment Variables ──
+  // Only NEXT_PUBLIC_* vars are safe to expose to the browser.
+  // ALL API keys and secrets must stay server-side (Cloud Run).
+  //
+  // Non-secret vars go here (wrangler.jsonc → vars).
+  // Secret vars must be set via: wrangler secret put <NAME>
+  //
+  // Required frontend vars:
+  //   NEXT_PUBLIC_API_URL          — Backend API base URL (non-secret)
+  //   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY — Stripe publishable key (public, safe for browser)
+  //
+  // No other secrets should ever be added here.
+  "name": "fielded-frontend",
+  "compatibility_date": "2026-02-12",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Production environment variables (non-secret)
+  "vars": {
+    "NEXT_PUBLIC_API_URL": "https://fielded-api-meftvuaodq-uc.a.run.app",
+    "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": ""
+  },
+
+  // Preview environment
+  "env": {
+    "preview": {
+      "vars": {
+        "NEXT_PUBLIC_API_URL": "https://fielded-api-meftvuaodq-uc.a.run.app",
+        "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": ""
+      }
+    }
+  }
+}

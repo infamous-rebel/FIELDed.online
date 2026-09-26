@@ -17,18 +17,18 @@ export function Input({
   const inputId = id || label?.toLowerCase().replace(/\s+/g, "-");
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1">
       {label && (
         <label
           htmlFor={inputId}
-          className="block text-sm font-medium text-[var(--text-primary)]"
+          className="block text-xs font-medium text-[var(--text-secondary)]"
         >
           {label}
         </label>
       )}
       <input
         id={inputId}
-        className={`w-full rounded-lg border bg-[var(--bg-surface)] px-3 py-2 text-sm
+        className={`w-full rounded-lg border bg-[var(--bg-primary)] px-2.5 py-1.5 text-xs
           text-[var(--text-primary)] placeholder-[var(--text-muted)]
           border-[var(--border-default)]
           focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]
@@ -44,7 +44,7 @@ export function Input({
       {error && (
         <p
           id={`${inputId}-error`}
-          className="text-sm text-[var(--danger)]"
+          className="text-xs text-[var(--danger)]"
           role="alert"
         >
           {error}
@@ -53,7 +53,7 @@ export function Input({
       {helperText && !error && (
         <p
           id={`${inputId}-helper`}
-          className="text-sm text-[var(--text-muted)]"
+          className="text-xs text-[var(--text-muted)]"
         >
           {helperText}
         </p>

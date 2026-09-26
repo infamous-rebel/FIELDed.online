@@ -95,8 +95,19 @@ class Payment(BaseModel):
     refunded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Dispute tracking (Stripe chargeback / dispute)
+    dispute_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    dispute_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    dispute_evidence: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    dispute_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    dispute_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
     # Evidence / metadata
     provider_evidence: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    # FIELDed commercial-policy fee evidence at payment time.
+    fee_evidence: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     failure_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
     failure_message: Mapped[str | None] = mapped_column(Text, nullable=True)

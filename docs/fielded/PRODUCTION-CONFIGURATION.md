@@ -62,7 +62,7 @@ These must be configured before FIELDed can operate at all.
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | `wrangler.jsonc` → `vars` | Stripe Dashboard → API keys | `pk_test_...` or `pk_live_...` (public, browser-safe) |
 
 **Webhook configuration** (Stripe Dashboard → Webhooks → Add endpoint):
-- URL: `https://fielded-api-meftvuaodq-uc.a.run.app/api/v1/webhooks/payments/stripe`
+- URL: `https://fielded-api-meftvuaodq-uc.a.run.app/api/v1/webhooks/payment/stripe`
 - Events: `payment_intent.succeeded`, `payment_intent.payment_failed`, `charge.refunded`
 
 **Before operational**: Create Stripe account → Generate API keys → Register webhook endpoint → Copy signing secret.
@@ -216,7 +216,7 @@ All webhook endpoints use the `PUBLIC_BASE_URL` prefix:
 
 | Provider | URL | Purpose |
 |----------|-----|---------|
-| Stripe | `{PUBLIC_BASE_URL}/api/v1/webhooks/payments/stripe` | Payment events |
+| Stripe | `{PUBLIC_BASE_URL}/api/v1/webhooks/payment/stripe` | Payment events |
 | Resend | `{PUBLIC_BASE_URL}/api/v1/webhooks/communications/resend` | Email delivery |
 | Vonage SMS | `{PUBLIC_BASE_URL}/api/v1/webhooks/communications/vonage_sms` | SMS status |
 | Vonage WhatsApp | `{PUBLIC_BASE_URL}/api/v1/webhooks/communications/vonage_whatsapp` | WhatsApp status |

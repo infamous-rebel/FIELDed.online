@@ -2,10 +2,15 @@
   "name": "fielded-frontend",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "vinext dev",
+    "dev:next": "next dev",
+    "build": "vinext build",
+    "build:next": "next build",
+    "start": "vinext start",
+    "deploy": "npx @vinext/cloudflare deploy",
+    "deploy:preview": "npx @vinext/cloudflare deploy --preview",
     "lint": "next lint",
     "test": "vitest"
   },
@@ -14,15 +19,24 @@
     "@stripe/stripe-js": "^9.17.0",
     "next": "^15.1.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-server-dom-webpack": "^19.3.0",
+    "vinext": "^1.0.0-beta.12"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.60.2",
     "@tailwindcss/postcss": "^4.0.0",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vinext/cloudflare": "^1.0.0-beta.10",
+    "@vitejs/plugin-react": "^6.1.1",
+    "@vitejs/plugin-rsc": "^0.5.35",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.0",
-    "vitest": "^2.1.0"
+    "vite": "^8.0.0",
+    "vitest": "^2.1.0",
+    "wrangler": "^4.141.0"
   }
 }

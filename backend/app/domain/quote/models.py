@@ -86,6 +86,11 @@ class Quote(BaseModel):
     # Pricing evidence: base amount, applied rules, surcharges, discounts, etc.
     pricing_evidence: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
+    # FIELDed commercial-policy fee evidence at quote time.
+    # Stores: policy_id, policy_version, scope, fee_type, platform_fee,
+    # business_proceeds, effective_from, effective_until, disclosure.
+    fee_evidence: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
     # Optional notes from the business
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 

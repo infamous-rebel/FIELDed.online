@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { businesses, enquiries, auth, type UserResponse } from "@/lib/api-client";
 import { isAuthenticated, logout } from "@/lib/auth";
+import FloatingCoBrain from "@/components/business/floating-cobrainer";
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/business/dashboard", icon: HomeIcon, badge: false },
@@ -30,6 +31,7 @@ export default function BusinessNav({
   const pathname = usePathname();
   const [enquiryCount, setEnquiryCount] = useState(0);
   const [user, setUser] = useState<UserResponse | null>(null);
+  const [businessId, setBusinessId] = useState<string | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -44,6 +46,7 @@ export default function BusinessNav({
         ]);
         setUser(userData);
         if (bizList.length > 0) {
+          setBusinessId(bizList[0].id);
           const enqList = await enquiries.listForBusiness(bizList[0].id);
           const activeCount = enqList.filter(
             (e) => !["cancelled", "expired", "declined", "completed"].includes(e.status)
@@ -254,6 +257,16 @@ export default function BusinessNav({
       <main className="flex-1 p-6 md:p-8 mt-[52px] md:mt-0 overflow-auto min-h-screen">
         {children}
       </main>
+
+      {/* Floating Co-Brain */}
+      {businessId && (
+        <FloatingCoBrain
+          businessId={businessId}
+          context={{
+            page: pathname.replace("/business/", "").replace("/", " ") || "dashboard",
+          }}
+        />
+      )}
     </div>
   );
 }

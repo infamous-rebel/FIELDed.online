@@ -48,7 +48,7 @@ export default function CustomerEnquiries() {
   if (loading) {
     return (
       <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">My Enquiries</h1>
+        <h1 className="text-lg font-semibold text-[var(--text-primary)]">My Enquiries</h1>
         <div className="mt-6">
           <LoadingSkeleton variant="list" lines={3} />
         </div>
@@ -58,10 +58,12 @@ export default function CustomerEnquiries() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-[var(--text-primary)]">My Enquiries</h1>
-      <p className="mt-1 text-sm text-[var(--text-secondary)]">
-        Track your service enquiries and conversations.
-      </p>
+      <div className="mb-6">
+        <h1 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">My Enquiries</h1>
+        <p className="mt-1 text-xs text-[var(--text-secondary)]">
+          Track your service enquiries and conversations.
+        </p>
+      </div>
 
       {error && (
         <div className="mt-4 rounded-md bg-[var(--danger)]/10 p-3 text-sm text-[var(--danger)]">
@@ -76,29 +78,29 @@ export default function CustomerEnquiries() {
           action={
             <Link
               href="/search"
-              className="inline-block rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--accent-hover)]"
+              className="inline-block rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)]"
             >
               Find a Service
             </Link>
           }
         />
       ) : (
-        <div className="mt-6 space-y-4">
+        <div className="mt-6 space-y-2">
           {enquiryList.map((enquiry) => (
             <Link
               key={enquiry.id}
               href={`/customer/enquiries/${enquiry.id}`}
-              className="block rounded-lg border border-[var(--border-subtle)] p-4 transition hover:border-[var(--border-default)] hover:shadow-sm"
+              className="block glass rounded-lg p-4 transition-all hover:border-[var(--accent)]/15 hover:border-white/[0.08]"
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-xs font-mono text-[var(--text-muted)]">
+                  <p className="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">
                     {enquiry.reference}
                   </p>
-                  <h3 className="mt-1 font-medium text-[var(--text-primary)]">
+                  <h3 className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
                     {enquiry.subject}
                   </h3>
-                  <p className="mt-1 text-sm text-[var(--text-secondary)] line-clamp-2">
+                  <p className="mt-1.5 text-sm text-[var(--text-secondary)] line-clamp-2 leading-relaxed">
                     {enquiry.message}
                   </p>
                 </div>
@@ -106,9 +108,12 @@ export default function CustomerEnquiries() {
                   {formatStatus(enquiry.status)}
                 </Badge>
               </div>
-              <p className="mt-2 text-xs text-[var(--text-muted)]">
-                {formatDate(enquiry.created_at)}
-              </p>
+              <div className="mt-3 flex items-center gap-2">
+                <span className="h-1 w-1 rounded-full bg-[var(--text-muted)]" />
+                <p className="text-[11px] text-[var(--text-muted)]">
+                  {formatDate(enquiry.created_at)}
+                </p>
+              </div>
             </Link>
           ))}
         </div>

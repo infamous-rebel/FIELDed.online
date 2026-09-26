@@ -87,16 +87,16 @@ export default function CustomerQuotes() {
   if (loading) {
     return (
       <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Quotes</h1>
-        <p className="mt-2 text-[var(--text-secondary)]">Loading quotes...</p>
+        <h1 className="text-lg font-semibold text-[var(--text-primary)]">Quotes</h1>
+        <p className="mt-2 text-xs text-[var(--text-secondary)]">Loading quotes...</p>
       </div>
     );
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-[var(--text-primary)]">Quotes</h1>
-      <p className="mt-2 text-[var(--text-secondary)]">
+      <h1 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">Quotes</h1>
+      <p className="mt-1 text-xs text-[var(--text-secondary)]">
         Review and respond to quotes from businesses.
       </p>
 
@@ -107,18 +107,18 @@ export default function CustomerQuotes() {
       )}
 
       {quotesList.length === 0 ? (
-        <div className="mt-8 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-12 text-center">
-          <p className="text-[var(--text-muted)]">No quotes yet.</p>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">
+        <div className="mt-6 glass rounded-lg p-8 text-center">
+          <p className="text-sm text-[var(--text-muted)]">No quotes yet.</p>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">
             Quotes will appear here when businesses respond to your enquiries.
           </p>
         </div>
       ) : (
-        <div className="mt-6 space-y-4">
+        <div className="mt-4 space-y-2">
           {quotesList.map((quote) => (
             <div
               key={quote.id}
-              className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5"
+              className="glass rounded-lg p-3.5 hover:border-[var(--accent)]/10 transition-all"
             >
               <div className="flex items-start justify-between">
                 <div>
@@ -134,32 +134,32 @@ export default function CustomerQuotes() {
                       {quote.status}
                     </span>
                   </div>
-                  <p className="mt-2 text-2xl font-bold text-[var(--text-primary)]">
+                  <p className="mt-1.5 text-xl font-bold text-[var(--text-primary)]">
                     {quote.currency} {parseFloat(quote.amount).toFixed(2)}
                   </p>
                   {quote.notes && (
-                    <p className="mt-2 text-sm text-[var(--text-secondary)]">
+                    <p className="mt-1.5 text-xs text-[var(--text-secondary)]">
                       {quote.notes}
                     </p>
                   )}
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  <p className="mt-1 text-[11px] text-[var(--text-muted)]">
                     Created {new Date(quote.created_at).toLocaleDateString()}
                   </p>
                 </div>
 
                 {quote.status === "issued" && (
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5">
                     <button
                       onClick={() => handleAccept(quote.id)}
                       disabled={actionLoading === quote.id}
-                      className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                      className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
                     >
                       Accept
                     </button>
                     <button
                       onClick={() => handleDecline(quote.id)}
                       disabled={actionLoading === quote.id}
-                      className="rounded-lg border border-red-500/30 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-500/10 disabled:opacity-50"
+                      className="rounded-lg border border-red-500/30 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/10 disabled:opacity-50"
                     >
                       Decline
                     </button>
@@ -172,7 +172,7 @@ export default function CustomerQuotes() {
                       setBookingAt("");
                       setBookingNotes("");
                     }}
-                    className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--accent-hover)]"
+                    className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)]"
                   >
                     Request Booking
                   </button>
@@ -191,35 +191,37 @@ export default function CustomerQuotes() {
               )}
 
               {bookingQuoteId === quote.id && (
-                <div className="mt-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] p-4">
-                  <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                <div className="mt-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+                  <h3 className="text-xs font-semibold text-[var(--text-primary)]">
                     Request a booking
                   </h3>
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  <p className="mt-1 text-[11px] text-[var(--text-muted)]">
                     Pick when you need the service. The business will confirm based on
                     availability.
                   </p>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
                     <div>
                       <label
                         htmlFor={`booking-at-${quote.id}`}
-                        className="block text-xs font-medium text-[var(--text-secondary)]"
+                        className="block text-[11px] font-medium text-[var(--text-secondary)]"
                       >
                         Date &amp; time
                       </label>
                       <input
                         id={`booking-at-${quote.id}`}
+                        name={`booking-at-${quote.id}`}
                         type="datetime-local"
                         value={bookingAt}
+                        min={new Date().toISOString().slice(0, 16)}
                         onChange={(e) => setBookingAt(e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                        className="mt-1 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
                         required
                       />
                     </div>
                     <div>
                       <label
                         htmlFor={`booking-notes-${quote.id}`}
-                        className="block text-xs font-medium text-[var(--text-secondary)]"
+                        className="block text-[11px] font-medium text-[var(--text-secondary)]"
                       >
                         Notes (optional)
                       </label>
@@ -229,22 +231,22 @@ export default function CustomerQuotes() {
                         value={bookingNotes}
                         onChange={(e) => setBookingNotes(e.target.value)}
                         placeholder="e.g. Access via rear door"
-                        className="mt-1 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                        className="mt-1 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
                       />
                     </div>
                   </div>
-                  <div className="mt-3 flex gap-2">
+                  <div className="mt-2.5 flex gap-2">
                     <button
                       onClick={() => handleRequestBooking(quote.id)}
                       disabled={!bookingAt || bookingLoading}
-                      className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--accent-hover)] disabled:opacity-50"
+                      className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--accent-hover)] disabled:opacity-50"
                     >
                       {bookingLoading ? "Requesting..." : "Confirm Booking Request"}
                     </button>
                     <button
                       onClick={() => setBookingQuoteId(null)}
                       disabled={bookingLoading}
-                      className="rounded-lg px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50"
+                      className="rounded-lg px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50"
                     >
                       Cancel
                     </button>

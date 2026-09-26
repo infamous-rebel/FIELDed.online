@@ -36,17 +36,23 @@ async def _outbox_worker_loop() -> None:
 
     Polls every 15 seconds for pending outbox events and processes them
     through the orchestration pipeline (notifications, communications).
+    Also runs booking automation (calendar sync, service execution)
+    and retries failed automation operations.
     Runs inside the FastAPI process — no separate worker needed for
     development / single-instance deployments.
     """
     from app.adapters import ProviderFactory
     from app.config import get_settings
+    from app.domain.booking_automation.service import BookingAutomationService
     from app.domain.communication.orchestration import OrchestrationService
+    from app.domain.notification.email_service import EmailNotificationService
     from app.domain.voice.outbox_integration import VoiceEventOrchestrator
-    from app.workers import process_outbox_events
+    from app.workers import process_outbox_events, retry_failed_booking_automation
 
     settings = get_settings()
     factory = ProviderFactory.from_settings(settings)
+    email_from = getattr(settings, "email_from", "noreply@fielded.online")
+    app_secret = settings.app_secret_key
 
     logger.info("outbox_worker_started", interval_seconds=15)
 
@@ -56,6 +62,11 @@ async def _outbox_worker_loop() -> None:
 
             session_factory = get_session_factory()
             async with session_factory() as session:
+                email_svc = EmailNotificationService(
+                    session,
+                    email_provider=factory.email_provider,
+                    from_address=email_from,
+                )
                 orchestrator = OrchestrationService(
                     session,
                     email_provider=factory.email_provider,
@@ -63,8 +74,14 @@ async def _outbox_worker_loop() -> None:
                     voice_provider=factory.voice_provider,
                     whatsapp_provider=factory.whatsapp_provider,
                     push_provider=factory.push_provider,
+                    email_notification_service=email_svc,
+                    email_from_address=email_from,
                 )
                 voice_orchestrator = VoiceEventOrchestrator(session)
+                booking_automation = BookingAutomationService(
+                    session,
+                    app_secret=app_secret,
+                )
 
                 processed = await process_outbox_events(
                     session,
@@ -73,9 +90,19 @@ async def _outbox_worker_loop() -> None:
                     lease_seconds=settings.outbox_lease_seconds,
                     max_attempts=settings.outbox_max_attempts,
                     voice_orchestrator=voice_orchestrator,
+                    booking_automation_service=booking_automation,
                 )
                 if processed > 0:
                     logger.info("outbox_worker_processed", count=processed)
+
+            # Retry failed booking automation operations (separate session)
+            async with session_factory() as retry_session:
+                retried = await retry_failed_booking_automation(
+                    retry_session,
+                    app_secret=app_secret,
+                )
+                if retried > 0:
+                    logger.info("booking_automation_retried", count=retried)
 
         except asyncio.CancelledError:
             break

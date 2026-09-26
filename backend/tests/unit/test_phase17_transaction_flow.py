@@ -206,7 +206,7 @@ class TestCompletionCascade:
 
         service = ServiceExecutionService(db_session)
         execution = await service.create_from_booking(booking_id=booking.id, business_id=biz.id)
-        execution = await service.start_service(execution, actor_id=owner.id)
+        # Execution starts IN_PROGRESS, complete directly
         execution = await service.complete_service(execution, actor_id=owner.id)
 
         assert execution.status == "completed"

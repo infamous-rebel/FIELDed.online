@@ -175,7 +175,8 @@ class TestServiceExecutionLifecycle:
             business_id=biz.id,
         )
 
-        assert execution.status == ServiceExecutionStatus.SCHEDULED
+        assert execution.status == ServiceExecutionStatus.IN_PROGRESS
+        assert execution.started_at is not None
         assert execution.booking_id == confirmed_booking.id
         assert execution.business_id == biz.id
         assert execution.customer_id == confirmed_booking.customer_id
@@ -279,8 +280,7 @@ class TestServiceExecutionLifecycle:
             business_id=biz.id,
         )
 
-        # SCHEDULED -> IN_PROGRESS
-        execution = await service.start_service(execution, actor_id=business_owner.id)
+        # Execution starts IN_PROGRESS (Start Work already clicked)
         assert execution.status == ServiceExecutionStatus.IN_PROGRESS
         assert execution.started_at is not None
 
@@ -302,14 +302,14 @@ class TestServiceExecutionLifecycle:
             business_id=biz.id,
         )
 
-        # Cannot go from SCHEDULED directly to COMPLETED
+        # Cannot go from IN_PROGRESS to SCHEDULED (invalid reverse transition)
         with pytest.raises(StateTransitionError):
-            await service.complete_service(execution, actor_id=business_owner.id)
+            await service.transition(execution, ServiceExecutionStatus.SCHEDULED, actor_id=business_owner.id)
 
-    async def test_cancel_from_scheduled(
+    async def test_cancel_from_in_progress(
         self, db_session: AsyncSession, business_owner: User, confirmed_booking: Booking
     ):
-        """Can cancel from SCHEDULED."""
+        """Can cancel from IN_PROGRESS."""
         biz = business_owner._business
         service = ServiceExecutionService(db_session)
 
@@ -324,14 +324,23 @@ class TestServiceExecutionLifecycle:
     async def test_no_show_from_scheduled(
         self, db_session: AsyncSession, business_owner: User, confirmed_booking: Booking
     ):
-        """Can mark no-show from SCHEDULED."""
+        """Can mark no-show from SCHEDULED (legacy executions)."""
+        from app.domain.service_execution.models import ServiceExecution
+
         biz = business_owner._business
         service = ServiceExecutionService(db_session)
 
-        execution = await service.create_from_booking(
-            booking_id=confirmed_booking.id,
+        # Create a scheduled execution directly (legacy path)
+        execution = ServiceExecution(
             business_id=biz.id,
+            customer_id=confirmed_booking.customer_id,
+            booking_id=confirmed_booking.id,
+            service_offer_id=confirmed_booking.service_offer_id,
+            quote_id=confirmed_booking.quote_id,
+            status=ServiceExecutionStatus.SCHEDULED,
+            scheduled_at=confirmed_booking.requested_at,
         )
+        execution = await service.execution_repo.create(execution)
 
         execution = await service.mark_no_show(execution, actor_id=business_owner.id)
         assert execution.status == ServiceExecutionStatus.NO_SHOW
@@ -352,8 +361,7 @@ class TestCompletionIdempotency:
             business_id=biz.id,
         )
 
-        # Start and complete
-        execution = await service.start_service(execution, actor_id=business_owner.id)
+        # Execution starts IN_PROGRESS, complete directly
         execution = await service.complete_service(execution, actor_id=business_owner.id)
 
         assert execution.status == ServiceExecutionStatus.COMPLETED
@@ -405,7 +413,7 @@ class TestCompletionIntegrity:
             business_id=biz.id,
         )
 
-        execution = await service.start_service(execution, actor_id=business_owner.id)
+        # Execution starts IN_PROGRESS, complete directly
         execution = await service.complete_service(execution, actor_id=business_owner.id)
 
         # Verify invoice was created
@@ -500,7 +508,7 @@ class TestInvoiceService:
             booking_id=confirmed_booking.id,
             business_id=biz.id,
         )
-        execution = await exec_service.start_service(execution, actor_id=business_owner.id)
+        # Execution starts IN_PROGRESS, complete directly
         execution = await exec_service.complete_service(execution, actor_id=business_owner.id)
 
         # Get the invoice
@@ -529,7 +537,7 @@ class TestInvoiceService:
             booking_id=confirmed_booking.id,
             business_id=biz.id,
         )
-        execution = await exec_service.start_service(execution, actor_id=business_owner.id)
+        # Execution starts IN_PROGRESS, complete directly
         execution = await exec_service.complete_service(execution, actor_id=business_owner.id)
 
         from sqlalchemy import select
@@ -558,7 +566,7 @@ class TestLedgerService:
             booking_id=confirmed_booking.id,
             business_id=biz.id,
         )
-        execution = await exec_service.start_service(execution, actor_id=business_owner.id)
+        # Execution starts IN_PROGRESS, complete directly
         execution = await exec_service.complete_service(execution, actor_id=business_owner.id)
 
         summary = await ledger_service.get_summary(biz.id)
@@ -577,7 +585,7 @@ class TestLedgerService:
             booking_id=confirmed_booking.id,
             business_id=biz.id,
         )
-        execution = await exec_service.start_service(execution, actor_id=business_owner.id)
+        # Execution starts IN_PROGRESS, complete directly
         execution = await exec_service.complete_service(execution, actor_id=business_owner.id)
 
         csv_content = await ledger_service.export_csv(biz.id)
@@ -595,7 +603,7 @@ class TestLedgerService:
             booking_id=confirmed_booking.id,
             business_id=biz.id,
         )
-        execution = await exec_service.start_service(execution, actor_id=business_owner.id)
+        # Execution starts IN_PROGRESS, complete directly
         execution = await exec_service.complete_service(execution, actor_id=business_owner.id)
 
         pdf_bytes = await ledger_service.export_pdf(biz.id)
@@ -618,7 +626,7 @@ class TestInvoicePDF:
             booking_id=confirmed_booking.id,
             business_id=biz.id,
         )
-        execution = await exec_service.start_service(execution, actor_id=business_owner.id)
+        # Execution starts IN_PROGRESS, complete directly
         execution = await exec_service.complete_service(execution, actor_id=business_owner.id)
 
         from sqlalchemy import select

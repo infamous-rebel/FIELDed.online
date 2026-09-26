@@ -14,6 +14,7 @@ import {
   enquiries,
   quotes,
   bookings,
+  invoices,
   serviceExecutions,
   reviews,
   type EnquiryData,
@@ -142,6 +143,7 @@ export default function CustomerEnquiryDetail() {
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
   const [confirmingPayment, setConfirmingPayment] = useState(false);
+  const [invoicePaid, setInvoicePaid] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Stripe publishable key from environment (public key, safe to expose)
@@ -180,6 +182,11 @@ export default function CustomerEnquiryDetail() {
             const myReviews = await reviews.listMine().catch(() => []);
             const execReview = myReviews.find((r: ReviewData) => r.service_execution_id === bookingExec.id);
             setExistingReview(execReview || null);
+
+            // Check if invoice is already paid
+            const myInvoices = await invoices.listMy().catch(() => []);
+            const bookingInvoice = myInvoices.find((inv: { booking_id: string }) => inv.booking_id === enqBooking.id);
+            setInvoicePaid(bookingInvoice?.payment_status === "paid");
           }
         }
       }
@@ -394,13 +401,54 @@ export default function CustomerEnquiryDetail() {
   const showQuote = quote && ["quoted", "customer_accepted", "booking_proposed", "booked", "in_progress", "completed"].includes(enquiry.status);
   const showBookingForm = quote?.status === "accepted" && !booking;
   const showBooking = booking;
-  const showPayment = booking && booking.status === "completed" && !paymentResult && !paymentData;
+  const showPayment = booking && booking.status === "completed" && !paymentResult && !paymentData && !invoicePaid;
+
+  // Journey stage calculation
+  const journeyStages = [
+    { label: "Enquiry", active: true, color: "var(--accent)" },
+    { label: "Quote", active: !!quote, color: "var(--info)" },
+    { label: "Booking", active: !!booking, color: "var(--warning)" },
+    { label: "Service", active: !!execution, color: "var(--accent)" },
+    { label: "Review", active: !!existingReview, color: "var(--accent)" },
+  ];
 
   return (
-    <div className="space-y-6">
-      <Link href="/customer/enquiries" className="text-sm text-[var(--accent)] hover:underline">
-        &larr; Back to enquiries
+    <div className="space-y-5">
+      <Link href="/customer/enquiries" className="inline-flex items-center gap-1 text-sm text-[var(--accent)] hover:underline transition-colors">
+        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+        Back to enquiries
       </Link>
+
+      {/* Journey progress strip */}
+      <div className="glass rounded-lg p-4">
+        <div className="flex items-center gap-2">
+          {journeyStages.map((stage, i) => (
+            <div key={stage.label} className="flex items-center gap-2 flex-1">
+              <div className="flex items-center gap-1.5 flex-1">
+                <span
+                  className="h-2 w-2 rounded-full flex-shrink-0"
+                  style={{
+                    backgroundColor: stage.active ? stage.color : "var(--border-default)",
+                    opacity: stage.active ? 1 : 0.4,
+                  }}
+                />
+                <span className={`text-[10px] font-medium uppercase tracking-wider ${
+                  stage.active ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"
+                }`}>
+                  {stage.label}
+                </span>
+              </div>
+              {i < journeyStages.length - 1 && (
+                <svg className="h-3 w-3 text-[var(--border-default)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
 
       {error && (
         <div className="rounded-lg border border-[var(--danger)]/30 bg-[var(--danger)]/10 p-3 text-sm text-[var(--danger)]" role="alert">
@@ -414,23 +462,28 @@ export default function CustomerEnquiryDetail() {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-5 lg:grid-cols-3">
         {/* Conversation — main area */}
         <div className="lg:col-span-2">
           <Card padding="sm">
-            <div className="border-b border-[var(--border-subtle)] p-4">
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">Conversation</h2>
+            <div className="border-b border-white/[0.06] p-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-semibold text-[var(--text-primary)]">Conversation</h2>
+                <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">
+                  {conversation?.messages?.length || 0} messages
+                </span>
+              </div>
             </div>
 
             {/* Messages */}
             <div className="max-h-[500px] overflow-y-auto" aria-live="polite">
               {conversation && conversation.messages.length > 0 ? (
-                <div className="divide-y divide-[var(--border-subtle)]">
+                <div className="divide-y divide-white/[0.04]">
                   {conversation.messages.map((msg: MessageData) => (
                     <div
                       key={msg.id}
-                      className={`p-4 ${
-                        msg.sender_type === "customer" ? "bg-[var(--accent)]/5" : ""
+                      className={`p-4 transition-colors ${
+                        msg.sender_type === "customer" ? "bg-[var(--accent)]/[0.03]" : ""
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -459,36 +512,40 @@ export default function CustomerEnquiryDetail() {
             </div>
 
             {/* Message input */}
-            <div className="border-t border-[var(--border-subtle)] p-3">
-              <div className="flex gap-2">
-                <textarea
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type your message..."
-                  rows={2}
-                  className="flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend();
-                    }
-                  }}
-                />
-                <Button
+            <div className="border-t border-white/[0.06] px-3 py-2.5">
+              <textarea
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Type your message..."
+                rows={2}
+                className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+              />
+              <div className="mt-1.5 flex items-center justify-end">
+                <button
                   onClick={handleSend}
                   disabled={!newMessage.trim() || sending}
-                  loading={sending}
-                  className="self-end"
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-[var(--accent)] hover:bg-[var(--accent)]/10 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
                 >
-                  Send
-                </Button>
+                  {sending ? (
+                    <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                  ) : (
+                    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
+                  )}
+                  {sending ? "Sending…" : "Send"}
+                </button>
               </div>
             </div>
           </Card>
         </div>
 
         {/* Sidebar — enquiry info, quote, booking, payment */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Enquiry header */}
           <Card>
             <p className="text-xs font-mono text-[var(--text-muted)]">{enquiry.reference}</p>
@@ -572,15 +629,20 @@ export default function CustomerEnquiryDetail() {
               </p>
               <div className="mt-3 space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                  <label htmlFor="booking-datetime" className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                     Preferred date &amp; time
                   </label>
-                  <input
-                    type="datetime-local"
-                    value={bookingDate}
-                    onChange={(e) => setBookingDate(e.target.value)}
-                    className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
-                  />
+                  <div className="relative z-10">
+                    <input
+                      id="booking-datetime"
+                      name="booking-datetime"
+                      type="datetime-local"
+                      value={bookingDate}
+                      min={new Date().toISOString().slice(0, 16)}
+                      onChange={(e) => setBookingDate(e.target.value)}
+                      className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
@@ -591,7 +653,7 @@ export default function CustomerEnquiryDetail() {
                     onChange={(e) => setBookingNotes(e.target.value)}
                     placeholder="Any specific requirements..."
                     rows={2}
-                    className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none"
+                    className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none"
                   />
                 </div>
                 <Button
@@ -785,7 +847,7 @@ export default function CustomerEnquiryDetail() {
                       value={reviewTitle}
                       onChange={(e) => setReviewTitle(e.target.value)}
                       placeholder="Summarize your experience"
-                      className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                      className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
                     />
                   </div>
                   <div>
@@ -795,7 +857,7 @@ export default function CustomerEnquiryDetail() {
                       onChange={(e) => setReviewBody(e.target.value)}
                       placeholder="Tell us more about your experience..."
                       rows={3}
-                      className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none"
+                      className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none"
                     />
                   </div>
                   <Button
@@ -814,9 +876,9 @@ export default function CustomerEnquiryDetail() {
           )}
 
           {/* Status guide */}
-          <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
-            <h4 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide">What happens next?</h4>
-            <ul className="mt-2 space-y-1.5 text-xs text-[var(--text-secondary)]">
+          <div className="glass rounded-lg p-4">
+            <h4 className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">What happens next?</h4>
+            <ul className="space-y-1.5 text-xs text-[var(--text-secondary)]">
               {enquiry.status === "submitted" && <li>The business will review your enquiry.</li>}
               {enquiry.status === "received" && <li>The business is reviewing your enquiry.</li>}
               {enquiry.status === "in_review" && <li>The business is preparing a response.</li>}

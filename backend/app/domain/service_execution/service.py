@@ -26,6 +26,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.booking.repository import BookingRepository
+from app.domain.commercial_policy.service import CommercialPolicyService
 from app.domain.common.enums import (
     SERVICE_EXECUTION_TRANSITIONS,
     BookingStatus,
@@ -108,8 +109,9 @@ class ServiceExecutionService:
             booking_id=booking.id,
             service_offer_id=booking.service_offer_id,
             quote_id=booking.quote_id,
-            status=ServiceExecutionStatus.SCHEDULED,
+            status=ServiceExecutionStatus.IN_PROGRESS,
             scheduled_at=booking.requested_at,
+            started_at=datetime.now(UTC),
         )
         execution = await self.execution_repo.create(execution)
 
@@ -375,6 +377,26 @@ class ServiceExecutionService:
         now = datetime.now(UTC)
 
         # Create invoice
+        # Resolve fee_evidence: prefer the Quote's authoritative evidence,
+        # falling back to a fresh Commercial Policy calculation.
+        fee_evidence = getattr(quote, "fee_evidence", None) if quote else None
+        if fee_evidence is None:
+            try:
+                policy_svc = CommercialPolicyService(self.session)
+                fee_result = await policy_svc.calculate_fee(
+                    business_id=execution.business_id,
+                    amount=total,
+                    currency=currency,
+                )
+                fee_evidence = fee_result.to_evidence_dict()
+            except Exception:
+                logger.warning(
+                    "invoice_fee_calculation_failed",
+                    execution_id=str(execution.id),
+                    business_id=str(execution.business_id),
+                    amount=str(total),
+                )
+
         invoice = Invoice(
             business_id=execution.business_id,
             customer_id=execution.customer_id,
@@ -390,6 +412,7 @@ class ServiceExecutionService:
             total=str(total),
             payment_status=InvoicePaymentStatus.UNPAID,
             status=InvoiceStatus.ISSUED,
+            fee_evidence=fee_evidence,
         )
         invoice = await self.invoice_repo.create(invoice)
 
@@ -413,6 +436,7 @@ class ServiceExecutionService:
         tx_ref = f"TXN-{uuid.uuid4().hex[:12].upper()}"
 
         # Create primary ledger entry
+        # Ledger inherits the same fee_evidence as the invoice
         net_amount = total - discount
         ledger_entry = ServiceLedgerEntry(
             business_id=execution.business_id,
@@ -431,6 +455,7 @@ class ServiceExecutionService:
             payment_status=InvoicePaymentStatus.UNPAID,
             is_primary=True,
             transaction_reference=tx_ref,
+            fee_evidence=fee_evidence,
         )
         ledger_entry = await self.ledger_repo.create(ledger_entry)
 

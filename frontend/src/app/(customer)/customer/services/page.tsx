@@ -92,12 +92,12 @@ export default function CustomerServices() {
     .reduce((sum, inv) => sum + parseFloat(inv.total), 0);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">
+    <div className="space-y-5">
+      <div className="mb-6">
+        <h1 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">
           My Services
         </h1>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
+        <p className="mt-1 text-xs text-[var(--text-secondary)]">
           View your completed services, invoices, and payment status.
         </p>
       </div>
@@ -112,43 +112,43 @@ export default function CustomerServices() {
       )}
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 mb-6">
         <Card padding="sm">
-          <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide">
+          <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wider">
             Completed Services
           </p>
-          <p className="mt-1 text-2xl font-bold text-[var(--text-primary)]">
+          <p className="mt-2 text-2xl font-bold text-[var(--text-primary)]">
             {completedCount}
           </p>
         </Card>
         <Card padding="sm">
-          <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide">
+          <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wider">
             Total Invoiced
           </p>
-          <p className="mt-1 text-2xl font-bold text-[var(--text-primary)]">
+          <p className="mt-2 text-2xl font-bold text-[var(--text-primary)]">
             {formatCurrency(totalInvoiced.toFixed(2))}
           </p>
         </Card>
         <Card padding="sm">
-          <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide">
+          <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wider">
             Total Paid
           </p>
-          <p className="mt-1 text-2xl font-bold text-emerald-400">
+          <p className="mt-2 text-2xl font-bold text-emerald-400">
             {formatCurrency(totalPaid.toFixed(2))}
           </p>
         </Card>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-[var(--border-subtle)] pb-px">
+      <div className="flex gap-1 mb-4">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${
+            className={`rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all ${
               activeTab === tab.key
-                ? "border-b-2 border-[var(--accent)] text-[var(--accent)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                ? "bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20"
+                : "text-[var(--text-muted)] hover:text-[var(--text-secondary)] border border-transparent hover:bg-white/[0.03]"
             }`}
           >
             {tab.label}

@@ -55,6 +55,14 @@ def _booking_to_read(booking) -> BookingRead:
     return BookingRead.model_validate(booking)
 
 
+# NOTE: Calendar synchronization is now driven by outbox events
+# via BookingAutomationService (see workers/__init__.py).
+# When a booking transitions to CONFIRMED/CANCELLED, the BookingService
+# emits a BOOKING_CONFIRMED/BOOKING_CANCELLED outbox event.
+# The outbox worker triggers calendar sync, service execution creation,
+# and payment prep tracking — each independently retryable.
+
+
 # --- Business endpoints ---
 
 
@@ -103,12 +111,18 @@ async def transition_business_booking(
     user: Annotated[User, Depends(require_business_member)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> BookingRead:
-    """Transition a booking (business actions)."""
+    """Transition a booking (business actions).
+
+    Downstream operations (calendar sync, service execution, notifications)
+    are triggered asynchronously via the outbox event emitted by
+    BookingService.transition_booking().
+    """
     service = BookingService(db)
     booking = await service.get_business_booking(booking_id, business_id)
     target_status = BookingStatus(body.target_status)
     booking = await service.transition_booking(booking, target_status, actor="business")
     await db.refresh(booking)
+
     return _booking_to_read(booking)
 
 
@@ -286,12 +300,18 @@ async def transition_my_booking(
     user: Annotated[User, Depends(require_customer)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> BookingRead:
-    """Transition a booking (customer: cancel only)."""
+    """Transition a booking (customer: cancel only).
+
+    Downstream operations (calendar sync, notifications) are triggered
+    asynchronously via the outbox event emitted by
+    BookingService.transition_booking().
+    """
     service = BookingService(db)
     booking = await service.get_customer_booking(booking_id, user.id)
     target_status = BookingStatus(body.target_status)
     booking = await service.transition_booking(booking, target_status, actor="customer")
     await db.refresh(booking)
+
     return _booking_to_read(booking)
 
 

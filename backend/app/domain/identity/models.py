@@ -12,7 +12,7 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, Numeric, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -92,6 +92,29 @@ class Business(BaseModel):
     # Operational currency — the business's default currency for transactions.
     # ISO 4217 code (e.g. "GBP", "USD", "EUR").  Must be explicit; no silent defaults.
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GBP")
+
+    # ── Stripe Connect (payment processing) ──────────────────────────
+    # The connected Stripe account ID (e.g. acct_xxx).  Null until the
+    # business completes Stripe onboarding.
+    stripe_account_id: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True)
+
+    # Onboarding / capability status (mirrors Stripe account capabilities).
+    stripe_connect_status: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="none"
+    )  # StripeConnectAccountStatus enum value
+
+    # Granular capability flags from Stripe account capabilities.
+    stripe_charges_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    stripe_payouts_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    # Detailed Stripe account snapshot for audit/debugging.
+    stripe_details: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    # Platform application fee percentage (0–100).  Applied as
+    # application_fee_amount on Direct Charges.
+    platform_fee_percent: Mapped[str] = mapped_column(
+        Numeric(precision=5, scale=2), nullable=False, default="0.00"
+    )
 
     # Relationships
     members: Mapped[list[BusinessMember]] = relationship(back_populates="business", cascade="all, delete-orphan")

@@ -75,7 +75,9 @@ class Settings(BaseSettings):
 
     email_provider: str = "mock"
     email_api_key: str = ""
-    email_from: str = "noreply@fielded.local"
+    email_from: str = "noreply@fielded.online"
+    email_reply_to: str = ""
+    resend_webhook_secret: str = ""  # Resend webhook signing secret for delivery verification
 
     storage_provider: str = "local"
     storage_bucket: str = "fielded-uploads"
@@ -103,16 +105,36 @@ class Settings(BaseSettings):
     twilio_auth_token: str = ""
     twilio_phone_number: str = ""
 
-    # Phase 14C — Public base URL for Twilio webhooks
+    # Phase 14C — Public base URL for webhooks (Twilio, Vonage, etc.)
     public_base_url: str = ""
+
+    # Vonage (SMS, WhatsApp, Voice)
+    vonage_api_key: str = ""
+    vonage_api_secret: str = ""
+    vonage_application_id: str = ""
+    vonage_application_private_key: str = ""  # PEM-encoded RSA private key
+    vonage_number: str = ""
+    vonage_whatsapp_number: str = ""  # WhatsApp-specific number (if different)
+    vonage_webhook_secret: str = ""  # Inbound webhook signing secret
 
     # Phase 15 — Payment provider
     payment_provider: str = "mock"
     payment_api_key: str = ""
     payment_webhook_secret: str = ""
 
-    # Phase 19 — Calendar provider (google_calendar_id added below)
+    # Stripe Connect (business onboarding + Direct Charges)
+    stripe_connect_client_id: str = ""
+    stripe_connect_webhook_secret: str = ""  # Separate webhook secret for Connect events
+    platform_fee_percent: str = "5.00"  # Default platform fee percentage (0–100)
+
+    # Phase 19 — Calendar provider
     google_calendar_id: str = "primary"
+
+    # Google Calendar OAuth (per-business connection)
+    google_oauth_client_id: str = ""
+    google_oauth_client_secret: str = ""
+    google_oauth_redirect_uri: str = ""
+    google_calendar_token_encryption_key: str = ""  # Fernet key; derived from app_secret_key if empty
 
     # Phase 19 — Accounting provider
     accounting_provider: str = "mock"

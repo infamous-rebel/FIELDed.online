@@ -112,6 +112,11 @@ class StripePaymentProvider(PaymentProvider):
     async def initiate_payment(self, request: PaymentRequest) -> ProviderResult:
         """Create a Stripe PaymentIntent.
 
+        When ``request.stripe_account`` is set, the PaymentIntent is
+        created as a **Direct Charge** on the connected account.
+        The platform application fee is forwarded from
+        ``request.application_fee_amount``.
+
         Returns the PaymentIntent ID as provider_reference.
         The client_secret is included in raw_response for the frontend
         to confirm the payment client-side.
@@ -134,6 +139,15 @@ class StripePaymentProvider(PaymentProvider):
                 "idempotency_key": request.idempotency_key,
             }
 
+            # ── Stripe Connect Direct Charge ────────────────────────
+            if request.stripe_account:
+                # Tell Stripe to create the charge on the connected account.
+                options["stripe_account"] = request.stripe_account
+
+                # Platform application fee (Direct Charge model).
+                if request.application_fee_amount is not None and request.application_fee_amount > 0:
+                    params["application_fee_amount"] = request.application_fee_amount
+
             if request.customer_email:
                 # Create or retrieve customer for receipt emails
                 params["receipt_email"] = request.customer_email
@@ -151,6 +165,8 @@ class StripePaymentProvider(PaymentProvider):
                     "amount": str(_amount_from_stripe(pi.amount, pi.currency)),
                     "currency": pi.currency,
                     "id": pi.id,
+                    "stripe_account": request.stripe_account or "",
+                    "application_fee_amount": request.application_fee_amount or 0,
                 },
             )
 
@@ -202,22 +218,32 @@ class StripePaymentProvider(PaymentProvider):
         """Create a Stripe Refund against a PaymentIntent.
 
         If amount is None, Stripe processes a full refund automatically.
+        When ``request.stripe_account`` is set, the refund is created
+        on the connected account (Direct Charge refund).
         """
         try:
             params: dict[str, Any] = {
                 "payment_intent": request.provider_payment_reference,
             }
 
+            options: dict[str, Any] = {}
+
+            # Direct Charge refund: pass the connected account header.
+            if request.stripe_account:
+                options["stripe_account"] = request.stripe_account
+
             if request.amount is not None:
                 # Determine currency from the original PaymentIntent
-                pi = self._client.v1.payment_intents.retrieve(request.provider_payment_reference)
+                pi = self._client.v1.payment_intents.retrieve(
+                    request.provider_payment_reference,
+                    options if options else {},
+                )
                 params["amount"] = _amount_to_stripe(request.amount, pi.currency)
 
             if request.reason:
                 params["reason"] = "requested_by_customer"
                 params["metadata"] = {"reason": request.reason}
 
-            options: dict[str, Any] = {}
             if request.idempotency_key:
                 options["idempotency_key"] = request.idempotency_key
 
@@ -280,10 +306,20 @@ class StripePaymentProvider(PaymentProvider):
 
         The payload should already be signature-verified.
         Maps Stripe event types to FIELDed webhook semantics.
+
+        Handles:
+        - payment_intent.* (lifecycle)
+        - charge.refund.* (refund lifecycle)
+        - charge.dispute.* (dispute/chargeback lifecycle)
+        - account.application.* (connected account changes)
         """
         event_type = payload.get("type", "")
         event_id = payload.get("id", "")
         data_object = payload.get("data", {}).get("object", {})
+
+        # Extract connected account from the event if present.
+        # Direct Charge events carry account in the object.
+        # (Stored in raw_payload for the reconciliation service.)
 
         # Extract PaymentIntent reference from the event data
         provider_payment_ref = ""
@@ -299,19 +335,59 @@ class StripePaymentProvider(PaymentProvider):
                     data_object.get("currency", "gbp"),
                 )
             currency = data_object.get("currency")
-            status = _STRIPE_TO_PAYMENT_STATUS.get(data_object.get("status", ""), data_object.get("status", ""))
+            status = _STRIPE_TO_PAYMENT_STATUS.get(
+                data_object.get("status", ""),
+                data_object.get("status", ""),
+            )
+            # Extract account from PaymentIntent
+            # (stored in raw_payload for reconciliation service)
 
         elif event_type.startswith("charge.refund"):
             # Refund events — extract the PaymentIntent from the charge
-            charge_ref = data_object.get("payment_intent", "")
-            provider_payment_ref = charge_ref
-            if "amount" in data_object:
+            charge_obj = data_object
+            pi_ref = charge_obj.get("payment_intent", "")
+            provider_payment_ref = pi_ref
+            if "amount" in charge_obj:
                 amount = _amount_from_stripe(
-                    data_object["amount"],
-                    data_object.get("currency", "gbp"),
+                    charge_obj["amount"],
+                    charge_obj.get("currency", "gbp"),
                 )
-            currency = data_object.get("currency")
+            currency = charge_obj.get("currency")
             status = "refunded"
+
+        elif event_type.startswith("charge.dispute."):
+            # Dispute events — the data object is the dispute itself.
+            # The charge field contains the original charge.
+            dispute_obj = data_object
+            charge_obj = dispute_obj.get("charge", {}) if isinstance(dispute_obj.get("charge"), dict) else {}
+            pi_ref = charge_obj.get("payment_intent", "")
+            provider_payment_ref = pi_ref
+            if "amount" in dispute_obj:
+                amount = _amount_from_stripe(
+                    dispute_obj["amount"],
+                    dispute_obj.get("currency", "gbp"),
+                )
+            currency = dispute_obj.get("currency")
+            status = "disputed"
+            # Include the dispute ID and reason in the payload for
+            # the reconciliation service.
+            # raw_payload already carries the full event.
+
+        elif event_type.startswith("charge."):
+            # Generic charge events (charge.succeeded, charge.updated)
+            charge_obj = data_object
+            pi_ref = charge_obj.get("payment_intent", "")
+            provider_payment_ref = pi_ref
+            if "amount" in charge_obj:
+                amount = _amount_from_stripe(
+                    charge_obj["amount"],
+                    charge_obj.get("currency", "gbp"),
+                )
+            currency = charge_obj.get("currency")
+
+        elif event_type.startswith("account.application."):
+            # Connected account application events — no payment ref
+            provider_payment_ref = ""
 
         return WebhookEvent(
             event_type=event_type,

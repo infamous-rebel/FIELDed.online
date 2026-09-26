@@ -59,6 +59,10 @@ class OrchestrationService:
 
     Receives outbox event payloads and produces governed
     communications through provider adapters.
+
+    When an ``email_notification_service`` is provided, transactional
+    emails are sent automatically for lifecycle events even when no
+    explicit ``communication_targets`` are present in the payload.
     """
 
     def __init__(
@@ -70,6 +74,8 @@ class OrchestrationService:
         voice_provider: VoiceProvider,
         whatsapp_provider: WhatsAppProvider,
         push_provider: PushProvider,
+        email_notification_service: object | None = None,
+        email_from_address: str = "noreply@fielded.online",
     ) -> None:
         self.session = session
         self.email_provider = email_provider
@@ -77,6 +83,8 @@ class OrchestrationService:
         self.voice_provider = voice_provider
         self.whatsapp_provider = whatsapp_provider
         self.push_provider = push_provider
+        self.email_notification_service = email_notification_service
+        self.email_from_address = email_from_address
 
         self.comm_repo = CommunicationRepository(session)
         self.template_repo = CommunicationTemplateRepository(session)
@@ -124,7 +132,17 @@ class OrchestrationService:
                     customer_id=customer_id,
                     notification_type=event_type,
                 )
-            return []
+
+            # Send transactional emails via the email notification service
+            email_comms = await self._send_transactional_emails(
+                business_id=business_id,
+                event_type=event_type,
+                aggregate_type=aggregate_type,
+                aggregate_id=aggregate_id,
+                payload=payload,
+                outbox_event_id=outbox_event_id,
+            )
+            return email_comms
 
         communications: list[Communication] = []
 
@@ -458,6 +476,43 @@ class OrchestrationService:
             decision_evidence=decision.to_evidence_dict(),
         )
         await self.audit_repo.create(audit)
+
+    async def _send_transactional_emails(
+        self,
+        *,
+        business_id: uuid.UUID,
+        event_type: str,
+        aggregate_type: str,
+        aggregate_id: uuid.UUID,
+        payload: dict,
+        outbox_event_id: uuid.UUID,
+    ) -> list[Communication]:
+        """Send transactional emails via the email notification service.
+
+        Delegates to the EmailNotificationService if available.
+        Returns an empty list if the service is not configured or
+        if sending fails (failure-safe).
+        """
+        if self.email_notification_service is None:
+            return []
+
+        try:
+            return await self.email_notification_service.process_event(
+                business_id=business_id,
+                event_type=event_type,
+                aggregate_type=aggregate_type,
+                aggregate_id=aggregate_id,
+                payload=payload,
+                outbox_event_id=outbox_event_id,
+            )
+        except Exception:
+            logger.exception(
+                "transactional_email_failed: %s:%s:%s",
+                event_type,
+                aggregate_type,
+                aggregate_id,
+            )
+            return []
 
 
 def _render_template(template: str, variables: dict) -> str:

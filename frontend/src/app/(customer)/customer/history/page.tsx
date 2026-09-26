@@ -95,10 +95,10 @@ export default function CustomerHistoryPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">History</h1>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
+    <div className="space-y-5">
+      <div className="mb-6">
+        <h1 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">History</h1>
+        <p className="mt-1 text-xs text-[var(--text-secondary)]">
           Your completed services, invoices, payments, and reviews.
         </p>
       </div>
@@ -110,15 +110,15 @@ export default function CustomerHistoryPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-[var(--border-subtle)]">
+      <div className="flex gap-1 mb-4">
         {TABS.map((tab) => (
           <button
             key={tab.value}
             onClick={() => setActiveTab(tab.value)}
-            className={`relative px-4 py-2.5 text-sm font-medium transition-colors ${
+            className={`relative rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all ${
               activeTab === tab.value
-                ? "text-[var(--accent)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                ? "bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20"
+                : "text-[var(--text-muted)] hover:text-[var(--text-secondary)] border border-transparent hover:bg-white/[0.03]"
             }`}
           >
             {tab.label}
@@ -126,13 +126,10 @@ export default function CustomerHistoryPage() {
               <span className={`ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
                 activeTab === tab.value
                   ? "bg-[var(--accent)]/15 text-[var(--accent)]"
-                  : "bg-[var(--bg-elevated)] text-[var(--text-muted)]"
+                  : "bg-white/[0.05] text-[var(--text-muted)]"
               }`}>
                 {tabCounts[tab.value]}
               </span>
-            )}
-            {activeTab === tab.value && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--accent)] rounded-full" />
             )}
           </button>
         ))}

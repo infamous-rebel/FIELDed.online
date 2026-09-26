@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.common.base_model import BaseModel
@@ -112,6 +112,9 @@ class ServiceLedgerEntry(BaseModel):
 
     # Immutable transaction reference
     transaction_reference: Mapped[str | None] = mapped_column(String(100), nullable=True, unique=True)
+
+    # FIELDed commercial-policy fee evidence at ledger entry time.
+    fee_evidence: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     # Notes
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -100,12 +100,12 @@ export default function CustomerBookings() {
       : bookingList.filter((b) => b.status === activeFilter);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">
+    <div className="space-y-5">
+      <div className="mb-6">
+        <h1 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">
           Bookings
         </h1>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
+        <p className="mt-1 text-xs text-[var(--text-secondary)]">
           Your service bookings and their status.
         </p>
       </div>
@@ -120,15 +120,15 @@ export default function CustomerBookings() {
       )}
 
       {/* Filter tabs */}
-      <div className="flex gap-1 overflow-x-auto border-b border-[var(--border-subtle)] pb-px">
+      <div className="flex gap-1 overflow-x-auto pb-px mb-4">
         {FILTER_TABS.map((tab) => (
           <button
             key={tab.value}
             onClick={() => setActiveFilter(tab.value)}
-            className={`whitespace-nowrap rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${
+            className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all ${
               activeFilter === tab.value
-                ? "border-b-2 border-[var(--accent)] text-[var(--accent)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                ? "bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20"
+                : "text-[var(--text-muted)] hover:text-[var(--text-secondary)] border border-transparent hover:bg-white/[0.03]"
             }`}
           >
             {tab.label}
@@ -149,7 +149,7 @@ export default function CustomerBookings() {
           description="Bookings will appear here after you accept a quote and request a booking."
         />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {filteredList.map((booking) => (
             <Card key={booking.id} padding="sm" hover>
               <div className="flex items-start justify-between gap-4">

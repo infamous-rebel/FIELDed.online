@@ -108,54 +108,60 @@ export default function CustomerDashboardPage() {
     .slice(0, 3);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="mx-auto max-w-6xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-            Welcome, {user.customer_profile?.first_name || "Customer"}
-          </h1>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">{user.email}</p>
+      <div className="mb-8">
+        <div className="flex items-center gap-2 mb-2">
+          <span
+            className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]"
+            style={{ animation: "status-blink 2.5s ease-in-out infinite" }}
+          />
+          <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wider">
+            Customer Workspace
+          </span>
         </div>
-        <button
-          onClick={handleLogout}
-          className="rounded-lg border border-[var(--border-default)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]"
-        >
-          Sign Out
-        </button>
+        <h1 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
+          Welcome, {user.customer_profile?.first_name || "Customer"}
+        </h1>
+        <p className="mt-1 text-sm text-[var(--text-secondary)]">{user.email}</p>
       </div>
 
       {/* Summary cards */}
-      <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5">
-          <p className="text-sm text-[var(--text-muted)]">Active Enquiries</p>
-          <p className="mt-1 text-3xl font-bold text-[var(--text-primary)]">{activeEnquiries.length}</p>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-8">
+        <div className="glass rounded-lg p-4 hover:border-[var(--accent)]/20 transition-colors">
+          <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wider">Active Enquiries</p>
+          <p className="mt-2 text-3xl font-bold text-[var(--text-primary)]">{activeEnquiries.length}</p>
         </div>
-        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5">
-          <p className="text-sm text-[var(--text-muted)]">Upcoming Bookings</p>
-          <p className="mt-1 text-3xl font-bold text-[var(--text-primary)]">{upcomingBookings.length}</p>
+        <div className="glass rounded-lg p-4 hover:border-[var(--info)]/20 transition-colors">
+          <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wider">Upcoming Bookings</p>
+          <p className="mt-2 text-3xl font-bold text-[var(--text-primary)]">{upcomingBookings.length}</p>
         </div>
-        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5">
-          <p className="text-sm text-[var(--text-muted)]">Completed</p>
-          <p className="mt-1 text-3xl font-bold text-[var(--text-primary)]">{completedServices.length}</p>
+        <div className="glass rounded-lg p-4 hover:border-[var(--accent)]/20 transition-colors">
+          <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wider">Completed</p>
+          <p className="mt-2 text-3xl font-bold text-[var(--text-primary)]">{completedServices.length}</p>
         </div>
-        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5">
-          <p className="text-sm text-[var(--text-muted)]">Reviews</p>
-          <p className="mt-1 text-3xl font-bold text-[var(--text-primary)]">{data.reviews.length}</p>
+        <div className="glass rounded-lg p-4 hover:border-[var(--warning)]/20 transition-colors">
+          <p className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wider">Reviews</p>
+          <p className="mt-2 text-3xl font-bold text-[var(--text-primary)]">{data.reviews.length}</p>
         </div>
       </div>
 
       {/* Recent activity + Quick actions */}
-      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Recent activity */}
-        <div className="lg:col-span-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Recent Activity</h2>
+        <div className="lg:col-span-2 glass rounded-lg p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">Recent Activity</h2>
+            <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">
+              Latest 3
+            </span>
+          </div>
           {recentItems.length === 0 ? (
-            <p className="mt-4 text-sm text-[var(--text-muted)]">No activity yet. Browse the network to get started.</p>
+            <p className="text-sm text-[var(--text-muted)]">No activity yet. Browse the network to get started.</p>
           ) : (
-            <ul className="mt-4 space-y-3">
+            <ul className="space-y-2">
               {recentItems.map((item) => (
-                <li key={`${item.type}-${item.id}`} className="flex items-center justify-between">
+                <li key={`${item.type}-${item.id}`} className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/[0.03] hover:border-white/[0.06] transition-colors">
                   <div>
                     <p className="text-sm font-medium text-[var(--text-primary)]">{item.label}</p>
                     <p className="text-xs text-[var(--text-muted)]">
@@ -172,24 +178,24 @@ export default function CustomerDashboardPage() {
         </div>
 
         {/* Quick actions */}
-        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Quick Actions</h2>
-          <div className="mt-4 space-y-3">
+        <div className="glass rounded-lg p-5">
+          <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Quick Actions</h2>
+          <div className="space-y-2">
             <Link
               href="/search"
-              className="block rounded-lg bg-[var(--accent)] px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
+              className="block rounded-lg bg-[var(--accent)] px-3 py-2 text-center text-xs font-medium text-white hover:bg-[var(--accent-hover)] transition-colors"
             >
               Find a Service
             </Link>
             <Link
               href="/customer/enquiries"
-              className="block rounded-lg border border-[var(--border-default)] px-4 py-2.5 text-center text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]"
+              className="block rounded-lg border border-[var(--border-default)] px-3 py-2 text-center text-xs font-medium text-[var(--text-primary)] hover:bg-white/[0.03] transition-colors"
             >
               My Enquiries
             </Link>
             <Link
               href="/customer/transactions"
-              className="block rounded-lg border border-[var(--border-default)] px-4 py-2.5 text-center text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]"
+              className="block rounded-lg border border-[var(--border-default)] px-3 py-2 text-center text-xs font-medium text-[var(--text-primary)] hover:bg-white/[0.03] transition-colors"
             >
               Transaction History
             </Link>

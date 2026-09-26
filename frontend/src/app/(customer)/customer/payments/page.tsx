@@ -75,26 +75,26 @@ export default function CustomerPaymentsPage() {
   if (error) return <div className="text-red-400 p-4">{error}</div>;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">
+    <div className="space-y-5">
+      <div className="mb-6">
+        <h1 className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">
           Payments
         </h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">
+        <p className="text-xs text-[var(--text-muted)] mt-1">
           Your payment history and transaction status
         </p>
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-2 overflow-x-auto">
+      <div className="flex gap-1.5 overflow-x-auto mb-4">
         {FILTER_TABS.map((tab) => (
           <button
             key={tab.value}
             onClick={() => handleFilterChange(tab.value)}
-            className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all ${
               activeFilter === tab.value
-                ? "bg-[var(--accent)] text-white"
-                : "bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                ? "bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20"
+                : "text-[var(--text-muted)] hover:text-[var(--text-secondary)] border border-transparent hover:bg-white/[0.03]"
             }`}
           >
             {tab.label}
@@ -109,11 +109,11 @@ export default function CustomerPaymentsPage() {
           description="Payments will appear here once you book and pay for services."
         />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {paymentsList.map((payment) => (
             <div
               key={payment.id}
-              className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 cursor-pointer hover:border-[var(--border-default)] transition-colors"
+              className="glass rounded-lg p-4 cursor-pointer hover:border-[var(--accent)]/15 hover:border-white/[0.08] transition-all"
               onClick={() => setSelectedPayment(payment)}
             >
               <div className="flex items-start justify-between">
@@ -159,7 +159,7 @@ export default function CustomerPaymentsPage() {
           onClick={() => setSelectedPayment(null)}
         >
           <div
-            className="w-full max-w-lg rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 space-y-4 max-h-[80vh] overflow-y-auto"
+            className="w-full max-w-lg rounded-lg border border-white/[0.08] glass p-6 space-y-4 max-h-[80vh] overflow-y-auto"
             onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">

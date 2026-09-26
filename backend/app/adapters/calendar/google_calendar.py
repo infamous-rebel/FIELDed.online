@@ -62,6 +62,8 @@ class GoogleCalendarProvider(CalendarProvider):
             body["attendees"] = [{"email": a} for a in event.attendees]
         if event.metadata:
             body["extendedProperties"] = {"private": {k: str(v) for k, v in event.metadata.items()}}
+        if event.ical_uid:
+            body["iCalUID"] = event.ical_uid
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:

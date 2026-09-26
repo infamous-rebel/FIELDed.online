@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.business.evaluator import DecisionContext
 from app.domain.business.models import BrainVersion
 from app.domain.business.repository import BrainVersionRepository, BusinessBrainRepository
+from app.domain.commercial_policy.service import CommercialPolicyService
 from app.domain.common.enums import (
     QUOTE_TRANSITIONS,
     EnquiryStatus,
@@ -136,7 +137,29 @@ class QuoteService:
                 "This service requires a manual quote. Please set a custom amount in the pricing configuration."
             )
 
-        # 9. Create the quote
+        # 9. Calculate the FIELDed platform fee from the authoritative
+        #    Commercial Policy.  This produces deterministic fee_evidence
+        #    that is stored on the Quote for downstream propagation.
+        fee_evidence = None
+        try:
+            policy_svc = CommercialPolicyService(self.session)
+            fee_result = await policy_svc.calculate_fee(
+                business_id=business_id,
+                amount=pricing_result.amount,
+                currency=pricing_result.currency,
+            )
+            fee_evidence = fee_result.to_evidence_dict()
+        except Exception:
+            # Fee calculation failure is non-fatal at quote time —
+            # the invoice/payment path will retry.  Log and continue.
+            logger.warning(
+                "quote_fee_calculation_deferred",
+                business_id=str(business_id),
+                amount=str(pricing_result.amount),
+                currency=pricing_result.currency,
+            )
+
+        # 10. Create the quote
         quote = Quote(
             reference=_generate_reference(),
             customer_id=enquiry.customer_id,
@@ -148,6 +171,7 @@ class QuoteService:
             status=QuoteStatus.DRAFT,
             brain_version_id=brain_version.id if brain_version else None,
             pricing_evidence=pricing_result.to_evidence_dict(),
+            fee_evidence=fee_evidence,
             notes=notes,
         )
         quote = await self.quote_repo.create(quote)

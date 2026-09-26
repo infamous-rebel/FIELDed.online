@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { businesses, type BusinessSummary } from "@/lib/api-client";
 import { isAuthenticated } from "@/lib/auth";
@@ -11,6 +11,16 @@ export default function BusinessOnboarding() {
   const [slug, setSlug] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [authed, setAuthed] = useState(false);
+
+  // Auth guard: redirect unauthenticated users (client-side only)
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      router.push("/login?redirect=/business/onboarding");
+    } else {
+      setAuthed(true);
+    }
+  }, [router]);
 
   // Auto-generate slug from name
   function handleNameChange(value: string) {
@@ -48,8 +58,7 @@ export default function BusinessOnboarding() {
     }
   }
 
-  if (!isAuthenticated()) {
-    router.push("/login?redirect=/business/onboarding");
+  if (!authed) {
     return null;
   }
 

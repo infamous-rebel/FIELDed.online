@@ -17,7 +17,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.common.base_model import BaseModel
@@ -97,6 +97,9 @@ class Invoice(BaseModel):
 
     # Invoice lifecycle
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="draft")  # InvoiceStatus enum value
+
+    # FIELDed commercial-policy fee evidence at invoice time.
+    fee_evidence: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     # Notes
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

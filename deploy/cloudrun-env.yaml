@@ -1,7 +1,31 @@
 APP_ENV: production
 APP_NAME: FIELDed
 APP_DEBUG: "false"
-BACKEND_CORS_ORIGINS: "https://fielded.online,https://www.fielded.online,https://fielded-frontend.vercel.app,https://fielded-online.vercel.app,http://localhost:3000"
+BACKEND_CORS_ORIGINS: "https://fielded.online,https://www.fielded.online,http://localhost:3000"
+
+# AI Provider
 AI_PROVIDER: groq
 AI_MODEL: openai/gpt-oss-120b
+
+# Payment Provider
 PAYMENT_PROVIDER: stripe
+
+# Communication Providers
+EMAIL_PROVIDER: resend
+SMS_PROVIDER: vonage
+VOICE_PROVIDER: vonage
+WHATSAPP_PROVIDER: vonage_whatsapp
+CALENDAR_PROVIDER: google
+
+# Google Calendar OAuth
+GOOGLE_OAUTH_CLIENT_ID: "902134082290-el8v8gus1abg603gqbcefv05c9l2ud8m.apps.googleusercontent.com"
+GOOGLE_OAUTH_REDIRECT_URI: "https://fielded-api-meftvuaodq-uc.a.run.app/api/v1/calendar/oauth/callback"
+
+# Public base URL for provider webhooks
+PUBLIC_BASE_URL: "https://fielded-api-meftvuaodq-uc.a.run.app"
+
+# Outbox worker
+OUTBOX_POLL_INTERVAL_SECONDS: "5"
+OUTBOX_BATCH_SIZE: "10"
+OUTBOX_MAX_ATTEMPTS: "5"
+OUTBOX_LEASE_SECONDS: "300"

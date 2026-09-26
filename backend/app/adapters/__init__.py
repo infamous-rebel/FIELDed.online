@@ -109,6 +109,20 @@ def _resolve_sms_provider(settings: object) -> SMSProvider:
             from_number=from_number,
         )
 
+    if provider_name == "vonage":
+        from app.adapters.sms.vonage import VonageSmsProvider
+
+        application_id = getattr(settings, "vonage_application_id", "")
+        private_key = getattr(settings, "vonage_application_private_key", "")
+        from_number = getattr(settings, "vonage_number", "")
+        if not application_id or not private_key:
+            logger.warning("Vonage SMS provider selected but Vonage credentials are empty.")
+        return VonageSmsProvider(
+            application_id=application_id,
+            private_key_pem=private_key,
+            from_number=from_number,
+        )
+
     logger.info("SMS provider '%s' — using Twilio with empty config.", provider_name)
     from app.adapters.sms.twilio import TwilioSmsProvider
 
@@ -128,6 +142,20 @@ def _resolve_voice_provider(settings: object) -> VoiceProvider:
         return TwilioVoiceProvider(
             account_sid=account_sid,
             auth_token=auth_token,
+            from_number=from_number,
+        )
+
+    if provider_name == "vonage":
+        from app.adapters.voice.vonage import VonageVoiceProvider
+
+        application_id = getattr(settings, "vonage_application_id", "")
+        private_key = getattr(settings, "vonage_application_private_key", "")
+        from_number = getattr(settings, "vonage_number", "")
+        if not application_id or not private_key:
+            logger.warning("Vonage Voice provider selected but Vonage credentials are empty.")
+        return VonageVoiceProvider(
+            application_id=application_id,
+            private_key_pem=private_key,
             from_number=from_number,
         )
 
@@ -257,6 +285,20 @@ def _resolve_whatsapp_provider(settings: object) -> WhatsAppProvider:
         if not access_token:
             logger.warning("WhatsApp Cloud provider selected but WHATSAPP_API_KEY is empty.")
         return WhatsAppCloudProvider(access_token=access_token, phone_number_id=phone_number_id)
+
+    if provider_name == "vonage_whatsapp":
+        from app.adapters.whatsapp.vonage import VonageWhatsAppProvider
+
+        application_id = getattr(settings, "vonage_application_id", "")
+        private_key = getattr(settings, "vonage_application_private_key", "")
+        from_number = getattr(settings, "vonage_number", "")
+        if not application_id or not private_key:
+            logger.warning("Vonage WhatsApp provider selected but Vonage credentials are empty.")
+        return VonageWhatsAppProvider(
+            application_id=application_id,
+            private_key_pem=private_key,
+            from_number=from_number,
+        )
 
     if provider_name not in ("mock", "stub"):
         logger.warning("WhatsApp provider '%s' not recognised. Using stub.", provider_name)

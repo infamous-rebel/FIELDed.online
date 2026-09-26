@@ -999,6 +999,11 @@ class PaymentStatus(StrEnum):
         SUCCEEDED -> REFUNDED (full) or PARTIALLY_REFUNDED
         PARTIALLY_REFUNDED -> REFUNDED (if fully refunded)
 
+    Dispute track (post-SUCCEEDED only):
+        SUCCEEDED -> DISPUTED
+        DISPUTED -> REFUNDED (dispute lost / refund issued)
+        DISPUTED -> SUCCEEDED (dispute won — rare)
+
     The AI never determines payment amount, authorization,
     transaction state, or refund eligibility.
     """
@@ -1015,6 +1020,8 @@ class PaymentStatus(StrEnum):
     # Refund track
     REFUNDED = "refunded"
     PARTIALLY_REFUNDED = "partially_refunded"
+    # Dispute track
+    DISPUTED = "disputed"
 
 
 PAYMENT_TRANSITIONS: dict[PaymentStatus, set[PaymentStatus]] = {
@@ -1030,14 +1037,21 @@ PAYMENT_TRANSITIONS: dict[PaymentStatus, set[PaymentStatus]] = {
         PaymentStatus.EXPIRED,
         PaymentStatus.CANCELLED,
     },
-    # SUCCEEDED can transition to refund states
+    # SUCCEEDED can transition to refund states or dispute
     PaymentStatus.SUCCEEDED: {
         PaymentStatus.REFUNDED,
         PaymentStatus.PARTIALLY_REFUNDED,
+        PaymentStatus.DISPUTED,
     },
     # Partial refund can become full refund
     PaymentStatus.PARTIALLY_REFUNDED: {
         PaymentStatus.REFUNDED,
+        PaymentStatus.DISPUTED,
+    },
+    # Dispute can resolve to refund (lost) or back to succeeded (won)
+    PaymentStatus.DISPUTED: {
+        PaymentStatus.REFUNDED,
+        PaymentStatus.SUCCEEDED,
     },
     # Terminal states — no transitions allowed
     PaymentStatus.FAILED: set(),
@@ -1134,6 +1148,94 @@ class BrainProposalType(StrEnum):
     GENERAL_KNOWLEDGE = "general_knowledge"
 
 
+class StripeConnectAccountStatus(StrEnum):
+    """Stripe Connect connected-account onboarding status.
+
+    Mirrors the key capabilities/charges/payouts state of a Stripe
+    Express/Standard connected account.
+
+    NONE         — No Stripe account created yet.
+    PENDING      — Account created but onboarding not completed.
+    RESTRICTED   — Account restricted (limited functionality).
+    ACTIVE       — Charges and payouts enabled.
+    CHARGES_DISABLED   — Onboarding incomplete; charges not allowed.
+    PAYOUTS_DISABLED   — Payouts suspended (e.g. missing verification).
+    """
+
+    NONE = "none"
+    PENDING = "pending"
+    RESTRICTED = "restricted"
+    ACTIVE = "active"
+    CHARGES_DISABLED = "charges_disabled"
+    PAYOUTS_DISABLED = "payouts_disabled"
+
+
+class CommercialPolicyScope(StrEnum):
+    """Commercial policy scope / precedence tier.
+
+    Precedence (highest → lowest):
+        BUSINESS_SPECIFIC  — Negotiated per-business agreement
+        PROMOTION          — Time-limited promotional offer
+        BUSINESS_PLAN      — Plan-level policy (e.g. premium plan)
+        CATEGORY_DEFAULT   — Service-category / segment default
+        GLOBAL_DEFAULT     — FIELDed platform-wide fallback
+    """
+
+    GLOBAL_DEFAULT = "global_default"
+    CATEGORY_DEFAULT = "category_default"
+    BUSINESS_PLAN = "business_plan"
+    PROMOTION = "promotion"
+    BUSINESS_SPECIFIC = "business_specific"
+
+
+# Numeric precedence — higher value wins.
+COMMERCIAL_POLICY_PRECEDENCE: dict[CommercialPolicyScope, int] = {
+    CommercialPolicyScope.GLOBAL_DEFAULT: 0,
+    CommercialPolicyScope.CATEGORY_DEFAULT: 10,
+    CommercialPolicyScope.BUSINESS_PLAN: 20,
+    CommercialPolicyScope.PROMOTION: 30,
+    CommercialPolicyScope.BUSINESS_SPECIFIC: 40,
+}
+
+
+class CommercialPolicyFeeType(StrEnum):
+    """How the FIELDed platform fee is calculated.
+
+    PERCENTAGE — fee = amount × percent / 100
+    FIXED      — fee = fixed_amount (regardless of transaction value)
+    COMBINED   — fee = (amount × percent / 100) + fixed_amount
+    ZERO       — fee = 0 (launch / onboarding / free-tier)
+    """
+
+    PERCENTAGE = "percentage"
+    FIXED = "fixed"
+    COMBINED = "combined"
+    ZERO = "zero"
+
+
+class CommercialPolicyStatus(StrEnum):
+    """Commercial policy lifecycle.
+
+    DRAFT      — Being configured; not yet effective.
+    ACTIVE     — Currently effective for eligible transactions.
+    INACTIVE   — Manually deactivated (e.g. early retirement).
+    SUPERSEDED — Replaced by a newer version of the same policy.
+    """
+
+    DRAFT = "draft"
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    SUPERSEDED = "superseded"
+
+
+COMMERCIAL_POLICY_TRANSITIONS: dict[CommercialPolicyStatus, set[CommercialPolicyStatus]] = {
+    CommercialPolicyStatus.DRAFT: {CommercialPolicyStatus.ACTIVE, CommercialPolicyStatus.INACTIVE},
+    CommercialPolicyStatus.ACTIVE: {CommercialPolicyStatus.INACTIVE, CommercialPolicyStatus.SUPERSEDED},
+    CommercialPolicyStatus.INACTIVE: {CommercialPolicyStatus.ACTIVE},
+    CommercialPolicyStatus.SUPERSEDED: set(),
+}
+
+
 class BrainKnowledgeStatus(StrEnum):
     """Brain memory classification for learned information.
 
@@ -1149,3 +1251,87 @@ class BrainKnowledgeStatus(StrEnum):
     UNCERTAIN = "uncertain"
     DEPRECATED = "deprecated"
     REJECTED = "rejected"
+
+
+# ---------------------------------------------------------------------------
+# Agent Capability / Delegation Architecture
+# ---------------------------------------------------------------------------
+
+
+class AgentType(StrEnum):
+    """Registered agent types in the FIELDed platform.
+
+    Each agent type has a defined set of capabilities.
+    """
+
+    DISCOVERY = "discovery"
+    BRAIN = "brain"
+    CALL_AGENT = "call_agent"
+    MARKETING = "marketing"
+
+
+class AgentCapabilityType(StrEnum):
+    """Capabilities that agents may be granted.
+
+    Capabilities are atomic permissions — an agent either has the
+    capability or does not.  Capabilities are scoped to a business
+    and a specific agent type.
+    """
+
+    # Discovery capabilities
+    INTERPRET_INTENT = "interpret_intent"
+    MATCH_BUSINESSES = "match_businesses"
+
+    # Brain / Co-Brain capabilities
+    READ_BUSINESS_CONTEXT = "read_business_context"
+    PROPOSE_CHANGES = "propose_changes"
+    ACTIVATE_BRAIN_VERSION = "activate_brain_version"
+    READ_ENQUIRY_CONTEXT = "read_enquiry_context"
+    READ_BOOKING_CONTEXT = "read_booking_context"
+
+    # Call Agent capabilities
+    HANDLE_INBOUND_CALL = "handle_inbound_call"
+    MAKE_OUTBOUND_CALL = "make_outbound_call"
+    CREATE_ENQUIRY_FROM_CALL = "create_enquiry_from_call"
+    COLLECT_CALLER_INFO = "collect_caller_info"
+    SUMMARISE_CALL = "summarise_call"
+    ESCALATE_CALL = "escalate_call"
+
+    # Marketing capabilities
+    DRAFT_CONTENT = "draft_content"
+    SCHEDULE_CAMPAIGN = "schedule_campaign"
+    EXECUTE_CAMPAIGN = "execute_campaign"
+    ANALYTICS_READ = "analytics_read"
+
+    # Communication capabilities
+    SEND_MESSAGE = "send_message"
+    SEND_NOTIFICATION = "send_notification"
+
+
+class AgentAuthorityMode(StrEnum):
+    """How an agent is authorised to act for a given capability.
+
+    DISABLED       — Capability is not available.
+    ASSIST         — Agent may propose / interpret but never execute.
+    APPROVAL       — Agent may execute only after explicit owner approval.
+    DELEGATED      — Agent may execute automatically within deterministic
+                     policy bounds (e.g. price within configured range).
+    """
+
+    DISABLED = "disabled"
+    ASSIST = "assist"
+    APPROVAL = "approval"
+    DELEGATED = "delegated"
+
+
+class AgentDelegationStatus(StrEnum):
+    """Lifecycle of an agent delegation record.
+
+    ACTIVE   — Delegation is currently effective.
+    REVOKED  — Owner explicitly revoked the delegation.
+    EXPIRED  — Time-bounded delegation has expired.
+    """
+
+    ACTIVE = "active"
+    REVOKED = "revoked"
+    EXPIRED = "expired"

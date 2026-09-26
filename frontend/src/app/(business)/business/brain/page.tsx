@@ -624,26 +624,30 @@ export default function BusinessBrainPage() {
         </div>
 
         {/* Input */}
-        <div className="px-5 py-4 border-t border-[var(--border-subtle)]">
-          <div className="flex gap-3 items-end">
-            <textarea
-              ref={textareaRef}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyPress}
-              placeholder="Tell the Brain about your business..."
-              rows={1}
-              disabled={sending || !conversation}
-              className="flex-1 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-3.5 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none disabled:opacity-50 leading-relaxed"
-            />
-            <Button
+        <div className="px-5 py-3 border-t border-[var(--border-subtle)]">
+          <textarea
+            ref={textareaRef}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyPress}
+            placeholder="Tell the Brain about your business..."
+            rows={1}
+            disabled={sending || !conversation}
+            className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] resize-none disabled:opacity-50 leading-relaxed"
+          />
+          <div className="mt-1.5 flex items-center justify-end">
+            <button
               onClick={handleSendMessage}
               disabled={sending || !inputValue.trim() || !conversation}
-              loading={sending}
-              className="shrink-0"
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-[var(--accent)] hover:bg-[var(--accent)]/10 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
             >
-              Send
-            </Button>
+              {sending ? (
+                <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              ) : (
+                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
+              )}
+              {sending ? "Sending…" : "Send"}
+            </button>
           </div>
         </div>
       </div>

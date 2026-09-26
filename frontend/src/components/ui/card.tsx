@@ -8,9 +8,9 @@ interface CardProps {
 }
 
 const paddingClasses: Record<string, string> = {
-  sm: "p-4",
-  md: "p-6",
-  lg: "p-8",
+  sm: "p-3",
+  md: "p-4",
+  lg: "p-5",
 };
 
 export function Card({
@@ -21,8 +21,8 @@ export function Card({
 }: CardProps) {
   return (
     <div
-      className={`rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] ${paddingClasses[padding]} ${
-        hover ? "transition-colors hover:border-[var(--border-default)]" : ""
+      className={`glass rounded-lg ${paddingClasses[padding]} ${
+        hover ? "transition-colors hover:border-white/[0.10]" : ""
       } ${className}`}
     >
       {children}

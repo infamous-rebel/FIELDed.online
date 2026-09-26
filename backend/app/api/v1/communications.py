@@ -675,6 +675,9 @@ async def receive_webhook(
     )
     webhook = await webhook_repo.create(webhook)
 
+    # Process the webhook: update communication status
+    await _process_delivery_webhook(db, provider, event_type, payload, webhook)
+
     return {"status": "accepted", "webhook_id": str(webhook.id)}
 
 
@@ -684,6 +687,13 @@ def _extract_webhook_event_id(provider: str, payload: dict) -> str:
         return payload.get("id", str(uuid.uuid4()))
     if provider in ("twilio_sms", "twilio_voice"):
         return payload.get("MessageSid", payload.get("CallSid", str(uuid.uuid4())))
+    if provider in ("vonage_sms", "vonage_whatsapp"):
+        # Vonage Messages API webhooks carry message_uuid + status
+        msg_uuid = payload.get("message_uuid", "")
+        status = payload.get("status", "")
+        if msg_uuid and status:
+            return f"{msg_uuid}:{status}"
+        return msg_uuid or str(uuid.uuid4())
     # Fallback: hash the entire payload
     raw = str(payload).encode()
     return hashlib.sha256(raw).hexdigest()[:32]
@@ -697,4 +707,171 @@ def _extract_webhook_event_type(provider: str, payload: dict) -> str:
         return payload.get("MessageStatus", "unknown")
     if provider == "twilio_voice":
         return payload.get("CallStatus", "unknown")
+    if provider in ("vonage_sms", "vonage_whatsapp"):
+        return payload.get("status", "unknown")
     return payload.get("event_type", "unknown")
+
+
+async def _process_delivery_webhook(
+    db: AsyncSession,
+    provider: str,
+    event_type: str,
+    payload: dict,
+    webhook: object,
+) -> None:
+    """Process a delivery webhook to update communication status.
+
+    Supports:
+    - Resend: email.delivered / email.bounced / email.failed
+    - Vonage SMS/WhatsApp: delivered / failed / read / rejected
+    """
+    if provider == "resend":
+        await _process_resend_delivery(db, event_type, payload)
+    elif provider in ("vonage_sms", "vonage_whatsapp"):
+        await _process_vonage_delivery(db, provider, event_type, payload)
+
+
+async def _process_resend_delivery(
+    db: AsyncSession,
+    event_type: str,
+    payload: dict,
+) -> None:
+    """Process a Resend delivery webhook."""
+    data = payload.get("data", {})
+    message_id = data.get("email_id", "")
+    if not message_id:
+        return
+
+    from sqlalchemy import select
+
+    from app.domain.communication.models import (
+        Communication,
+        CommunicationAttempt,
+        CommunicationAuditEvent,
+    )
+
+    result = await db.execute(
+        select(CommunicationAttempt).where(
+            CommunicationAttempt.provider_reference == message_id,
+        )
+    )
+    attempt = result.scalar_one_or_none()
+    if not attempt:
+        return
+
+    status_map = {
+        "email.delivered": "DELIVERED",
+        "email.bounced": "BOUNCED",
+        "email.failed": "FAILED",
+        "email.complained": "COMPLAINED",
+    }
+    new_status = status_map.get(event_type)
+    if not new_status:
+        return
+
+    attempt.status = new_status
+
+    comm_result = await db.execute(
+        select(Communication).where(Communication.id == attempt.communication_id)
+    )
+    communication = comm_result.scalar_one_or_none()
+    if communication:
+        comm_status_map = {
+            "DELIVERED": "DELIVERED",
+            "BOUNCED": "BOUNCED",
+            "FAILED": "FAILED",
+            "COMPLAINED": "COMPLAINED",
+        }
+        communication.status = comm_status_map.get(new_status, communication.status)
+
+    audit = CommunicationAuditEvent(
+        event_type=f"EMAIL_{new_status}",
+        business_id=communication.business_id if communication else None,  # type: ignore[arg-type]
+        customer_id=communication.customer_id if communication else None,
+        channel="EMAIL",
+        communication_id=attempt.communication_id,
+        provider_reference=message_id,
+        metadata_={"webhook_event_type": event_type, "payload": data},
+    )
+    db.add(audit)
+    await db.flush()
+
+
+async def _process_vonage_delivery(
+    db: AsyncSession,
+    provider: str,
+    event_type: str,
+    payload: dict,
+) -> None:
+    """Process a Vonage SMS/WhatsApp delivery status webhook.
+
+    Vonage delivery receipts carry:
+    - ``message_uuid``: the original message identifier
+    - ``status``: delivery status (delivered, failed, rejected, submitted)
+    - ``err-code``: error code (0 = no error)
+
+    Inbound messages carry:
+    - ``message_uuid``: unique message identifier
+    - ``text``: message body
+    - ``from``: sender's phone number
+    - ``channel``: "sms" or "whatsapp"
+    """
+    from sqlalchemy import select
+
+    from app.domain.communication.models import (
+        Communication,
+        CommunicationAttempt,
+        CommunicationAuditEvent,
+    )
+
+    message_uuid = payload.get("message_uuid", "")
+    if not message_uuid:
+        return
+
+    # Map Vonage status values to FIELDed attempt statuses
+    vonage_status_map = {
+        "delivered": "DELIVERED",
+        "failed": "FAILED",
+        "rejected": "FAILED",
+        "submitted": "SUCCESS",
+        "read": "DELIVERED",
+    }
+    new_status = vonage_status_map.get(event_type.lower())
+    if not new_status:
+        return
+
+    # Find the attempt by provider reference (message_uuid)
+    result = await db.execute(
+        select(CommunicationAttempt).where(
+            CommunicationAttempt.provider_reference == message_uuid,
+        )
+    )
+    attempt = result.scalar_one_or_none()
+    if not attempt:
+        return
+
+    attempt.status = new_status
+    if event_type.lower() in ("failed", "rejected"):
+        err_code = payload.get("err-code", "")
+        attempt.error = f"Vonage delivery failed: {event_type} (code: {err_code})"
+
+    # Update parent communication status
+    comm_result = await db.execute(
+        select(Communication).where(Communication.id == attempt.communication_id)
+    )
+    communication = comm_result.scalar_one_or_none()
+    if communication:
+        communication.status = new_status
+
+    channel = "SMS" if "sms" in provider else "WHATSAPP"
+    audit = CommunicationAuditEvent(
+        event_type=f"{channel}_{new_status}",
+        business_id=communication.business_id if communication else None,  # type: ignore[arg-type]
+        customer_id=communication.customer_id if communication else None,
+        channel=channel,
+        communication_id=attempt.communication_id,
+        provider_reference=message_uuid,
+        metadata_={"webhook_event_type": event_type, "provider": provider, "payload": payload},
+    )
+    db.add(audit)
+    await db.flush()
