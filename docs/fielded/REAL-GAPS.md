@@ -43,9 +43,9 @@ Each gap is classified as exactly one of:
 |---|---|---|---|---|---|
 | GAP-F001 | Real payment processing not fully tested E2E | `StripePaymentProvider` (343 lines) + sandbox E2E test (601 lines) with mock HTTP transport covering create/webhook/refund/idempotency. No real Stripe credentials tested. | BLOCKED EXTERNAL | Yes (as blocked) | Adapter + tests exist; requires real Stripe sandbox credentials |
 | GAP-F002 | Real email delivery not fully tested E2E | `ResendEmailProvider` (111 lines) with full send implementation. Config supports `EMAIL_PROVIDER=resend`. No real Resend API key tested. | BLOCKED EXTERNAL | Yes (as blocked) | Adapter exists; requires real Resend credentials |
-| GAP-F003 | Real SMS delivery not fully tested E2E | `TwilioSmsProvider` (109 lines) with full send implementation. Config supports `SMS_PROVIDER=twilio`. No real Twilio credentials tested. | BLOCKED EXTERNAL | Yes (as blocked) | Adapter exists; requires real Twilio credentials |
-| GAP-F004 | Real voice calls not fully tested E2E | `TwilioVoiceProvider` (112 lines) + `twilio_security.py` (71 lines) webhook validation. E2E test exists (518 lines). No real Twilio credentials tested. | BLOCKED EXTERNAL | Yes (as blocked) | Adapter + webhook security exist; requires real Twilio credentials |
-| GAP-F005 | WhatsApp integration is stub-only | `StubWhatsAppProvider` (43 lines) logs attempt and returns non-retryable failure. No real WhatsApp provider implementation exists. `ProviderFactory` always resolves stub. | GENUINELY MISSING | Yes | Only stub adapter; no real WhatsApp provider code |
+| GAP-F003 | Real SMS delivery not fully tested E2E | `VonageSmsProvider` (127 lines) with full send implementation. Config supports `SMS_PROVIDER=vonage`. Twilio legacy adapter also exists. No real Vonage credentials tested. | BLOCKED EXTERNAL | Yes (as blocked) | Adapter exists; requires real Vonage credentials |
+| GAP-F004 | Real voice calls not fully tested E2E | `VonageVoiceProvider` (150 lines) + JWT auth. Twilio legacy adapter also exists. No real Vonage credentials tested. | BLOCKED EXTERNAL | Yes (as blocked) | Adapter + webhook security exist; requires real Vonage credentials |
+| GAP-F005 | Real WhatsApp delivery not fully tested E2E | `VonageWhatsappProvider` exists with Vonage Messages API integration. Not verified with real Vonage WhatsApp credentials. | IMPLEMENTED — UNVERIFIED | Yes (as blocked) | Adapter exists; requires real Vonage WhatsApp credentials |
 | GAP-F006 | Push notifications are stub-only | `StubPushProvider` (34 lines) logs attempt and returns non-retryable failure. No real push provider implementation exists. | GENUINELY MISSING | Yes | Only stub adapter; no real push provider code |
 | GAP-F007 | Platform admin dashboard not implemented | `PLATFORM_ADMIN` role exists in `common/enums.py`. No admin UI, admin API routes, or admin pages exist. `authorization-model.md` marks `platform_admin` as "FUTURE". | GENUINELY MISSING | Yes | No admin UI or API routes exist |
 | GAP-F008 | Advanced search filters not implemented | Search page has text input + category dropdown. Backend `GET /public/businesses` supports `city`, `country`, `category` query params. No price range, rating, delivery mode, or availability filters. | PARTIALLY MISSING | Yes | Basic filters exist (text, category, city, country); advanced filters absent |
@@ -65,7 +65,7 @@ Each gap is classified as exactly one of:
 | GAP-A007 | No CQRS/Event sourcing | Traditional CRUD with SQLAlchemy. | OPTIONAL/FUTURE | No | Enterprise-scale enhancement not needed at current scale |
 | GAP-A008 | No read replicas | Single Neon PostgreSQL database. | OPTIONAL/FUTURE | No | Scalability enhancement not needed at current scale |
 | GAP-A009 | No database sharding | Single database. | OPTIONAL/FUTURE | No | Enterprise-scale enhancement |
-| GAP-A010 | No CDN for static assets | Frontend deployed on Vercel, which provides automatic edge caching for Next.js static assets (`_next/static/`). | STALE/INCORRECT | No | Vercel provides CDN-like edge caching by default for Next.js |
+| GAP-A010 | No CDN for static assets | Frontend deployed on Cloudflare Workers, which provides automatic edge caching. | STALE/INCORRECT | No | Cloudflare Workers provides CDN-like edge caching by default |
 
 ### Security/Auth Gaps
 
@@ -78,7 +78,7 @@ Each gap is classified as exactly one of:
 | GAP-S005 | No IP whitelisting | No IP whitelisting implementation. | OPTIONAL/FUTURE | No | Not required for current product architecture |
 | GAP-S006 | No audit log retention policy | Audit events stored indefinitely. No retention/purge mechanism. | OPTIONAL/FUTURE | No | Compliance enhancement; not required at current stage |
 | GAP-S007 | No data encryption at rest | No explicit database encryption configuration. However, production uses Neon PostgreSQL which provides encryption at rest by default (AES-256). | STALE/INCORRECT | No | Neon provides encryption at rest by default |
-| GAP-S008 | No data encryption in transit | `database.py` enforces `ssl='require'` for Neon connections. Cloud Run serves HTTPS. Vercel enforces HTTPS. | STALE/INCORRECT | No | TLS enforced by Neon (SSL required), Cloud Run (HTTPS), Vercel (HTTPS) |
+| GAP-S008 | No data encryption in transit | `database.py` enforces `ssl='require'` for Neon connections. Cloud Run serves HTTPS. Cloudflare enforces HTTPS. | STALE/INCORRECT | No | TLS enforced by Neon (SSL required), Cloud Run (HTTPS), Cloudflare (HTTPS) |
 
 ### External Integration Gaps
 
@@ -86,11 +86,11 @@ Each gap is classified as exactly one of:
 |---|---|---|---|---|---|
 | GAP-E001 | Stripe not fully tested E2E | Same as GAP-F001. | DUPLICATE | No | Duplicate of GAP-F001 |
 | GAP-E002 | Resend not fully tested E2E | Same as GAP-F002. | DUPLICATE | No | Duplicate of GAP-F002 |
-| GAP-E003 | Twilio SMS not fully tested E2E | Same as GAP-F003. | DUPLICATE | No | Duplicate of GAP-F003 |
-| GAP-E004 | Twilio Voice not fully tested E2E | Same as GAP-F004. | DUPLICATE | No | Duplicate of GAP-F004 |
+| GAP-E003 | Vonage SMS not fully tested E2E | Same as GAP-F003. | DUPLICATE | No | Duplicate of GAP-F003 |
+| GAP-E004 | Vonage Voice not fully tested E2E | Same as GAP-F004. | DUPLICATE | No | Duplicate of GAP-F004 |
 | GAP-E005 | Groq not fully tested E2E | `GroqProvider` (185 lines) implements full AI provider interface. Production `cloudrun-env.yaml` configures `AI_PROVIDER: groq`. Workload resolver tests exist (264 lines). No direct Groq API integration test. | IMPLEMENTED — UNVERIFIED | Yes | Provider implemented + deployed; no E2E test hitting real Groq API |
 | GAP-E006 | OpenAI not fully tested E2E | `OpenAIProvider` (148 lines) implements full AI provider interface. Voice call agent E2E test uses `OpenAIProvider` with mock. Workload resolver tests exist. | IMPLEMENTED — UNVERIFIED | Yes | Provider implemented; no E2E test hitting real OpenAI API |
-| GAP-E007 | No calendar integration | `CalendarProvider` ABC exists (100 lines) with `create_event`, `update_event`, `delete_event`, `get_availability`. No concrete implementation (no Google Calendar, Outlook, CalDAV adapter). | GENUINELY MISSING | Yes | Abstract base exists but no concrete provider implementation |
+| GAP-E007 | Calendar integration not fully tested E2E | `GoogleCalendarProvider` (186 lines) + `CalendarSyncService` (469 lines) + OAuth flow (239 lines) + `booking_automation` module. Not verified with live Google OAuth. | IMPLEMENTED — UNVERIFIED | Yes (as blocked) | Adapter + sync service exist; requires real Google OAuth credentials |
 | GAP-E008 | No accounting integration | No accounting adapter exists. No integration with Xero, QuickBooks, etc. | GENUINELY MISSING | Yes | No adapter code exists |
 | GAP-E009 | No CRM integration | No CRM adapter exists. No integration with Salesforce, HubSpot, etc. | GENUINELY MISSING | Yes | No adapter code exists |
 
@@ -175,7 +175,7 @@ Each gap is classified as exactly one of:
 | ID | Original Gap | Why Stale |
 |---|---|---|
 | GAP-S007 | No data encryption at rest | Neon PostgreSQL provides AES-256 encryption at rest by default |
-| GAP-S008 | No data encryption in transit | TLS enforced by Neon (SSL), Cloud Run (HTTPS), Vercel (HTTPS) |
+| GAP-S008 | No data encryption in transit | TLS enforced by Neon (SSL), Cloud Run (HTTPS), Cloudflare (HTTPS) |
 | GAP-O010 | No secrets management | GCP Secret Manager is implemented and in production use |
 
 ### Duplicates (7)
@@ -201,7 +201,7 @@ Each gap is classified as exactly one of:
 - **Missing**: No real WhatsApp provider implementation. Only `StubWhatsAppProvider` exists (returns failure).
 - **Evidence**: `backend/app/adapters/whatsapp/stub.py` — always returns `ProviderResult.failure()`.
 - **Affected feature**: FEAT-113 (WhatsApp Communication) — Status E (STUB/MOCK)
-- **Required to complete**: Implement a WhatsApp Business API provider (e.g., Twilio WhatsApp, Meta WhatsApp Cloud API) behind the existing `WhatsAppProvider` ABC.
+- **Required to complete**: Configure real Vonage WhatsApp credentials and verify delivery E2E. The Vonage Messages API adapter (`VonageWhatsappProvider`) already exists.
 - **Extension point**: `WhatsAppProvider` ABC in `backend/app/adapters/whatsapp/base.py` — implement `send()` method.
 - **Blocks core E2E**: No — WhatsApp is an additional channel, not required for core transaction flow.
 
@@ -279,22 +279,22 @@ Each gap is classified as exactly one of:
 - **Extension point**: `ResendEmailProvider` is production-ready; only needs real credentials.
 - **Blocks core E2E**: No — email is a notification channel, not core transaction.
 
-#### RG-011: Twilio SMS Verification
-- **Capability**: Real SMS delivery through Twilio
-- **Missing**: Twilio SMS adapter implemented (109 lines). Not verified with real Twilio credentials.
-- **Evidence**: `backend/app/adapters/sms/twilio.py`.
+#### RG-011: Vonage SMS Verification
+- **Capability**: Real SMS delivery through Vonage
+- **Missing**: Vonage SMS adapter implemented (127 lines). Not verified with real Vonage credentials. Twilio legacy adapter (109 lines) also exists.
+- **Evidence**: `backend/app/adapters/sms/vonage.py`.
 - **Affected feature**: FEAT-112 (SMS Communication) — Status C (PARTIAL)
-- **Required to complete**: Configure real Twilio credentials and verify SMS delivery E2E.
-- **Extension point**: `TwilioSmsProvider` is production-ready; only needs real credentials.
+- **Required to complete**: Configure real Vonage credentials and verify SMS delivery E2E.
+- **Extension point**: `VonageSmsProvider` is production-ready; only needs real credentials.
 - **Blocks core E2E**: No — SMS is a notification channel.
 
-#### RG-012: Twilio Voice Verification
-- **Capability**: Real voice calls through Twilio
-- **Missing**: Twilio Voice adapter implemented (112 lines) with webhook security (71 lines). E2E test exists (518 lines). Not verified with real Twilio credentials.
-- **Evidence**: `backend/app/adapters/voice/twilio.py`, `backend/app/adapters/voice/twilio_security.py`, `backend/tests/integration/test_phase14c1_real_voice_e2e.py`.
+#### RG-012: Vonage Voice Verification
+- **Capability**: Real voice calls through Vonage
+- **Missing**: Vonage Voice adapter implemented (150 lines) with JWT auth. Twilio legacy adapter also exists. Not verified with real Vonage credentials.
+- **Evidence**: `backend/app/adapters/voice/vonage.py`, `backend/app/adapters/vonage/auth.py`.
 - **Affected feature**: FEAT-123 to FEAT-133 (Voice/Call Agent) — Status C (PARTIAL)
-- **Required to complete**: Configure real Twilio credentials and verify voice call E2E.
-- **Extension point**: `TwilioVoiceProvider` is production-ready; only needs real credentials.
+- **Required to complete**: Configure real Vonage credentials and verify voice call E2E.
+- **Extension point**: `VonageVoiceProvider` is production-ready; only needs real credentials.
 - **Blocks core E2E**: No — voice is an additional channel.
 
 #### RG-013: AI Provider E2E Verification
@@ -362,7 +362,7 @@ All operations gaps from the original list are either:
 - Stale/incorrect (encryption at rest/in transit provided by infrastructure)
 - Optional/future (staging, blue-green, canary, rollback, monitoring, APM, error tracking, feature flags)
 
-The deployment infrastructure (Cloud Run + Vercel + Neon + GCP Secret Manager) addresses the essential operational needs at the current product stage.
+The deployment infrastructure (Cloud Run + Cloudflare Workers + Neon + GCP Secret Manager) addresses the essential operational needs at the current product stage.
 
 ---
 
@@ -417,7 +417,7 @@ These are legitimate possible improvements but not required for the current prod
 | GAP-A007 | CQRS/Event sourcing | Architecture |
 | GAP-A008 | Read replicas | Architecture |
 | GAP-A009 | Database sharding | Architecture |
-| GAP-A010 | CDN for static assets (Vercel provides edge caching) | Architecture |
+| GAP-A010 | CDN for static assets (Cloudflare Workers provides edge caching) | Architecture |
 | GAP-S001 | 2FA/MFA | Security |
 | GAP-S002 | OAuth/social login | Security |
 | GAP-S003 | API key authentication | Security |

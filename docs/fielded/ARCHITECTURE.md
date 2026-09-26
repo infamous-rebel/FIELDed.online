@@ -1,7 +1,7 @@
 # FIELDed — System Architecture
 
 **Status**: Current State Baseline  
-**Last Updated**: 2026-09-24
+**Last Updated**: 2026-09-26
 
 ---
 
@@ -32,7 +32,7 @@ FIELDed follows a **monorepo architecture** with separate frontend and backend a
 ### Infrastructure
 - **Database**: PostgreSQL 16
 - **Cache**: Redis 7+ (optional for development)
-- **Deployment**: Vercel (frontend), Docker/Cloud Run (backend)
+- **Deployment**: Cloudflare Workers (frontend, vinext), Docker/Cloud Run (backend)
 - **CI/CD**: GitHub Actions
 - **Containerization**: Docker + Docker Compose
 
@@ -112,7 +112,7 @@ The backend follows a **layered architecture** pattern:
 
 ### Domain Modules
 
-The backend is organized into **15 domain modules**:
+The backend is organized into **22 domain modules**:
 
 | Module | Purpose | Key Entities |
 |--------|---------|--------------|
@@ -131,7 +131,13 @@ The backend is organized into **15 domain modules**:
 | `voice` | Voice call agent | Call, CallSession, CallAttempt, Escalation, Campaign |
 | `notification` | In-app notifications | Notification |
 | `outbox` | Transactional outbox pattern | OutboxEvent |
+| `calendar` | Google Calendar sync | CalendarConnection, CalendarEventSyncRecord |
+| `booking_automation` | Post-booking automation | BookingAutomationStatus |
+| `agent` | Agent capabilities & delegation | AgentCapability, AgentDelegation, AgentExecutionLog |
+| `commercial_policy` | Platform fee policies | CommercialPolicy |
 | `services` | Service offers and categories | ServiceOffer, ServiceCategory |
+| `stripe_connect` | Stripe Connect integration | (schemas, service) |
+| `common` | Shared base models and enums | BaseModel, domain enums |
 
 ### Middleware Stack
 
@@ -154,7 +160,8 @@ ProviderFactory
 ├── voice_provider (VoiceProvider)
 ├── whatsapp_provider (WhatsAppProvider)
 ├── push_provider (PushProvider)
-└── payment_provider (PaymentProvider)
+├── payment_provider (PaymentProvider)
+└── calendar_provider (CalendarProvider)
 ```
 
 Providers are selected via environment variables and injected into domain services.
@@ -267,8 +274,8 @@ The database schema is organized by domain:
 
 Database schema is managed through **Alembic migrations**:
 
-- 16 migrations total
-- Sequential numbering (001-016)
+- 22 migrations total
+- Sequential numbering (001-022)
 - Each migration is idempotent
 - Migrations are reversible (up/down)
 
@@ -418,9 +425,9 @@ BrainConversation
 FIELDed supports multiple communication channels:
 
 - **EMAIL**: Resend adapter
-- **SMS**: Twilio adapter
-- **VOICE**: Twilio adapter
-- **WHATSAPP**: Stub (not yet implemented)
+- **SMS**: Vonage adapter (Twilio legacy adapter also available)
+- **VOICE**: Vonage adapter (Twilio legacy adapter also available)
+- **WHATSAPP**: Vonage adapter (Messages API, WhatsApp channel)
 - **PUSH**: Stub (not yet implemented)
 - **IN_APP**: Internal notification system
 
@@ -440,7 +447,7 @@ The voice call agent provides AI-powered voice calls:
 1. Call requested
 2. Call authorized (policy check)
 3. Call queued
-4. Call initiated via Twilio
+4. Call initiated via Vonage Voice API
 5. AI agent conducts conversation
 6. Call outcome recorded
 7. Escalation to human if needed
@@ -498,10 +505,10 @@ npm run dev
 
 ### Production
 
-- **Frontend**: Vercel (automatic deployments from Git)
-- **Backend**: Docker container on Cloud Run (or similar)
-- **Database**: Managed PostgreSQL (Neon, Supabase, or similar)
-- **Cache**: Managed Redis (optional)
+- **Frontend**: Cloudflare Workers (vinext, `https://fielded.online`)
+- **Backend**: Docker container on Google Cloud Run
+- **Database**: Neon PostgreSQL (managed, serverless)
+- **Cache**: Redis 7+ (optional for development)
 
 ### CI/CD
 
@@ -557,6 +564,9 @@ The architecture supports extension in these areas:
 - **New AI Workloads**: Add workload-specific resolvers
 - **New Brain Rules**: Extend BusinessRule model
 - **New Audit Events**: Add to AuditEventType enum
+- **New Calendar Providers**: Implement CalendarProvider interface
+- **New Agent Capabilities**: Add to agent_capabilities table
+- **New Booking Automation Operations**: Extend BookingAutomationService
 
 See [EXTENSIBILITY.md](EXTENSIBILITY.md) for detailed extension point documentation.
 

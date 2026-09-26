@@ -1,7 +1,7 @@
 # FIELDed — Architecture & Implementation Gaps
 
 **Status**: Current State Baseline  
-**Last Updated**: 2026-09-24
+**Last Updated**: 2026-09-26
 
 ---
 
@@ -11,9 +11,9 @@
 |--------|-------------|----------|------------------|-------------|-----------------|------------|
 | GAP-F001 | Real payment processing not fully tested E2E | Stripe adapter exists but not verified with real credentials | Payments | Cannot process real payments | Payment provider adapter | Use mock provider for testing |
 | GAP-F002 | Real email delivery not fully tested E2E | Resend adapter exists but not verified with real credentials | Email communications | Cannot send real emails | Email provider adapter | Use mock provider for testing |
-| GAP-F003 | Real SMS delivery not fully tested E2E | Twilio adapter exists but not verified with real credentials | SMS communications | Cannot send real SMS | SMS provider adapter | Use mock provider for testing |
-| GAP-F004 | Real voice calls not fully tested E2E | Twilio adapter exists but not verified with real credentials | Voice calls | Cannot make real voice calls | Voice provider adapter | Use mock provider for testing |
-| GAP-F005 | WhatsApp integration is stub-only | Only stub provider exists | WhatsApp communications | Cannot send WhatsApp messages | WhatsApp provider adapter | No workaround |
+| GAP-F003 | Real SMS delivery not fully tested E2E | Vonage adapter exists but not verified with real credentials | SMS communications | Cannot send real SMS | SMS provider adapter | Use mock provider for testing |
+| GAP-F004 | Real voice calls not fully tested E2E | Vonage adapter exists but not verified with real credentials | Voice calls | Cannot make real voice calls | Voice provider adapter | Use mock provider for testing |
+| GAP-F005 | Real WhatsApp delivery not fully tested E2E | Vonage adapter exists but not verified with real credentials | WhatsApp communications | Cannot send real WhatsApp messages | WhatsApp provider adapter | Use mock provider for testing |
 | GAP-F006 | Push notifications are stub-only | Only stub provider exists | Push notifications | Cannot send push notifications | Push provider adapter | No workaround |
 | GAP-F007 | Platform admin dashboard not implemented | No admin UI exists | Platform administration | Cannot manage platform administratively | New admin module | Direct database access |
 | GAP-F008 | Advanced search filters not implemented | Only basic text search exists | Discovery | Limited search capabilities | Discovery service enhancement | Basic text search |
@@ -60,11 +60,11 @@
 |--------|-------------|----------|---------------------|-------------|-----------------|------------|
 | GAP-E001 | Stripe not fully tested E2E | Adapter exists, not verified | Stripe payments | Cannot process real payments | Stripe adapter | Mock provider |
 | GAP-E002 | Resend not fully tested E2E | Adapter exists, not verified | Resend email | Cannot send real emails | Resend adapter | Mock provider |
-| GAP-E003 | Twilio SMS not fully tested E2E | Adapter exists, not verified | Twilio SMS | Cannot send real SMS | Twilio adapter | Mock provider |
-| GAP-E004 | Twilio Voice not fully tested E2E | Adapter exists, not verified | Twilio voice | Cannot make real calls | Twilio adapter | Mock provider |
+| GAP-E003 | Vonage SMS not fully tested E2E | Adapter exists, not verified | Vonage SMS | Cannot send real SMS | Vonage adapter | Mock provider |
+| GAP-E004 | Vonage Voice not fully tested E2E | Adapter exists, not verified | Vonage voice | Cannot make real calls | Vonage adapter | Mock provider |
 | GAP-E005 | Groq not fully tested E2E | Adapter exists, not verified | Groq AI | AI features not verified | Groq adapter | Mock provider |
 | GAP-E006 | OpenAI not fully tested E2E | Adapter exists, not verified | OpenAI AI | AI features not verified | OpenAI adapter | Mock provider |
-| GAP-E007 | No calendar integration | Calendar adapter is stub | Calendar | Cannot sync with external calendars | Calendar adapter | Stub provider |
+| GAP-E007 | Calendar integration not fully tested E2E | Google Calendar adapter exists, not verified with live OAuth | Calendar | Cannot verify real calendar sync | Calendar adapter | Mock provider |
 | GAP-E008 | No accounting integration | No accounting adapter | Accounting | Cannot sync with accounting systems | Accounting adapter | Manual export |
 | GAP-E009 | No CRM integration | No CRM adapter | CRM | Cannot sync with CRM systems | CRM adapter | Manual export |
 
@@ -104,7 +104,7 @@
 |--------|-------------|----------|---------------|-------------|-----------------|------------|
 | GAP-D001 | No API documentation (OpenAPI/Swagger) | No auto-generated API docs | API usability | Developers must read code | Add OpenAPI spec | Code reading |
 | GAP-D002 | No contribution guidelines | No CONTRIBUTING.md | Community | Unclear contribution process | Add CONTRIBUTING.md | Direct contact |
-| GAP-D003 | No deployment runbook | No deployment documentation | Operations | Unclear deployment process | Add runbook | Manual process |
+| GAP-D003 | Deployment runbook partially complete | Deployment docs exist but not comprehensive | Operations | Some deployment steps unclear | docs/deployment.md | Manual process |
 | GAP-D004 | No incident response plan | No incident documentation | Operations | Unclear incident response | Add incident plan | Ad-hoc response |
 | GAP-D005 | No changelog | No CHANGELOG.md | Release management | Unclear release changes | Add changelog | Git log |
 

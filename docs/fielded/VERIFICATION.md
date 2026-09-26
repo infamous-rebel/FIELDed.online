@@ -1,7 +1,7 @@
 # FIELDed — Verification & Test Coverage
 
 **Status**: Current State Baseline  
-**Last Updated**: 2026-09-24
+**Last Updated**: 2026-09-26
 
 ---
 
@@ -21,11 +21,12 @@
 
 | Category | Count |
 |----------|-------|
-| Unit Test Files | 25 |
+| Unit Test Files | 33 |
 | Integration Test Files | 27 |
 | Security Test Files | 4 |
 | Frontend Test Files | 2 |
-| **Total Test Files** | **60** |
+| **Total Test Files** | **66** |
+| **Total Unit Tests** | **818** |
 
 ---
 
@@ -392,11 +393,12 @@ DATABASE_URL=postgresql+asyncpg://fielded:fielded@localhost:5432/fielded_test
 
 FIELDed has **comprehensive test coverage** across:
 
-- ✅ 25 unit test files
+- ✅ 33 unit test files
 - ✅ 27 integration test files
 - ✅ 4 security test files
-- ✅ 2 frontend test files
-- ✅ 1 E2E transaction test
-- ✅ **60 total test files**
+- ✅ 1 frontend test file
+- ✅ 3 E2E test files (browser, journey, visual regression)
+- ✅ 1 performance test file
+- ✅ **69 total test files**
 
 All core domain logic is tested. External provider integrations are tested with mock providers. Real provider E2E testing is still needed.

@@ -1,7 +1,7 @@
 # FIELDed — Data Model
 
 **Status**: Current State Baseline  
-**Last Updated**: 2026-09-24
+**Last Updated**: 2026-09-26
 
 ---
 
@@ -10,8 +10,8 @@
 - **Database**: PostgreSQL 16
 - **ORM**: SQLAlchemy 2.0 (async)
 - **Migrations**: Alembic
-- **Total Tables**: ~35
-- **Total Migrations**: 16
+- **Total Tables**: 56
+- **Total Migrations**: 22
 
 ---
 
@@ -125,6 +125,33 @@
 |--------|-------|------------|---------------|
 | BusinessInvitation | `business_invitations` | id, business_id, email, role, token, status, invited_by_id, accepted_by_id | N:1 Business, N:1 User (invited_by), N:1 User (accepted_by) |
 
+### Calendar Domain
+
+| Entity | Table | Key Fields | Relationships |
+|--------|-------|------------|---------------|
+| CalendarConnection | `calendar_connections` | id, business_id, provider, access_token_encrypted, refresh_token_encrypted, token_expiry, status | N:1 Business |
+| CalendarEventSyncRecord | `calendar_event_sync_records` | id, connection_id, booking_id, calendar_event_id, status, last_synced_at, error | N:1 CalendarConnection, N:1 Booking |
+
+### Booking Automation Domain
+
+| Entity | Table | Key Fields | Relationships |
+|--------|-------|------------|---------------|
+| BookingAutomationStatus | `booking_automation_status` | id, business_id, booking_id, operation_type, triggering_event, status, attempt_count, last_error, next_retry_at, result_evidence | N:1 Business, N:1 Booking |
+
+### Agent Domain
+
+| Entity | Table | Key Fields | Relationships |
+|--------|-------|------------|---------------|
+| AgentCapability | `agent_capabilities` | id, business_id, name, description, handler, requires_approval | N:1 Business |
+| AgentDelegation | `agent_delegations` | id, capability_id, business_id, delegate_user_id, status, granted_at, expires_at | N:1 AgentCapability, N:1 Business, N:1 User |
+| AgentExecutionLog | `agent_execution_logs` | id, delegation_id, capability_id, business_id, status, input_data, output_data, error | N:1 AgentDelegation, N:1 AgentCapability, N:1 Business |
+
+### Commercial Policy Domain
+
+| Entity | Table | Key Fields | Relationships |
+|--------|-------|------------|---------------|
+| CommercialPolicy | `commercial_policies` | id, business_id, policy_type, configuration, is_active | N:1 Business |
+
 ---
 
 ## Migrations
@@ -147,6 +174,12 @@
 | 014_phase17_reviews | Reviews |
 | 015_phase17_member_invitations | Business member invitations |
 | 016_phase18_brain_conversation | Brain conversations, messages, proposals |
+| 017_stripe_connect | Stripe Connect for business onboarding |
+| 018_commercial_policy | Commercial policies for platform fees |
+| 019_stripe_webhook | Stripe webhook event tracking |
+| 020_agent_capabilities | Agent capabilities, delegations, execution logs |
+| 021_calendar_connections | Google Calendar OAuth connections, sync records |
+| 022_booking_automation_status | Booking automation operation tracking |
 
 ---
 
@@ -224,4 +257,4 @@ Several entities use JSONB for flexible configuration:
 
 ## Summary
 
-The FIELDed data model consists of **~35 tables** organized into **15 domain modules**, with **16 migrations**, comprehensive constraints, indexes, and tenant isolation. The model supports the complete customer-to-business transaction flow with full traceability and evidence tracking.
+The FIELDed data model consists of **56 tables** organized into **22 domain modules**, with **22 migrations**, comprehensive constraints, indexes, and tenant isolation. The model supports the complete customer-to-business transaction flow with full traceability and evidence tracking.

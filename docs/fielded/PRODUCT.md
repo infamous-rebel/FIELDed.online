@@ -1,7 +1,7 @@
 # FIELDed — Product Definition
 
 **Status**: Current State Baseline  
-**Last Updated**: 2026-09-24
+**Last Updated**: 2026-09-26
 
 ---
 
@@ -333,11 +333,16 @@ Reviews require:
 
 #### Channels
 - **EMAIL**: Email communications (Resend adapter)
-- **SMS**: SMS communications (Twilio adapter)
-- **WHATSAPP**: WhatsApp communications (stub)
+- **SMS**: SMS communications (Vonage adapter; Twilio legacy adapter also available)
+- **WHATSAPP**: WhatsApp communications (Vonage Messages API adapter)
 - **PUSH**: Push notifications (stub)
 - **IN_APP**: In-app notifications
-- **VOICE**: Voice calls (Twilio adapter)
+- **VOICE**: Voice calls (Vonage Voice API adapter; Twilio legacy adapter also available)
+
+#### Calendar Integration
+- **Google Calendar**: Per-business OAuth connection, automatic booking sync
+- **Booking Automation**: Confirmed bookings trigger calendar sync, service execution auto-creation, payment prep tracking
+- Each operation independently tracked, retryable, and idempotent
 
 #### Notification Types
 - Transactional notifications
@@ -398,9 +403,11 @@ All external services use adapter interfaces:
 Providers are selected via environment variables:
 - `AI_PROVIDER`: mock, openai, groq
 - `EMAIL_PROVIDER`: mock, resend
-- `SMS_PROVIDER`: mock, twilio
-- `VOICE_PROVIDER`: mock, twilio
+- `SMS_PROVIDER`: mock, vonage, twilio
+- `VOICE_PROVIDER`: mock, vonage, twilio
+- `WHATSAPP_PROVIDER`: mock, vonage_whatsapp
 - `PAYMENT_PROVIDER`: mock, stripe
+- `CALENDAR_PROVIDER`: mock, google
 
 #### Workload-Specific AI Providers
 Different AI workloads can use different providers/keys:
@@ -455,9 +462,9 @@ The following capabilities are specified or intended but not fully implemented:
 ### Not Yet Fully Implemented
 - Real payment processing (Stripe adapter exists but not fully tested E2E)
 - Real email delivery (Resend adapter exists but not fully tested E2E)
-- Real SMS delivery (Twilio adapter exists but not fully tested E2E)
-- Real voice calls (Twilio adapter exists but not fully tested E2E)
-- Real WhatsApp integration (stub only)
+- Real SMS/WhatsApp/Voice delivery (Vonage adapters exist but not fully tested E2E)
+- Real calendar sync (Google Calendar adapter exists but not fully tested E2E with live OAuth)
+- Real AI processing (Groq adapter exists but not fully tested E2E with live API calls)
 - Real push notifications (stub only)
 - Advanced availability scheduling
 - Complex pricing rules (tiered, volume-based)

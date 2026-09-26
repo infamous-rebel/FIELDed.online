@@ -2,7 +2,7 @@
 
 **Purpose**: Canonical current-state baseline for the FIELDed platform.
 
-**Last Updated**: 2026-09-24
+**Last Updated**: 2026-09-26
 
 **Scope**: Evidence-based documentation of what FIELDed currently is, how it works, what exists, what works E2E, what is partial, and what is not yet implemented.
 
@@ -27,6 +27,7 @@
 | [GAPS.md](GAPS.md) | Architecture and implementation gaps |
 | [VERIFICATION.md](VERIFICATION.md) | Test coverage and verification status |
 | [SPECIFICATIONS.md](SPECIFICATIONS.md) | Specification implementation status |
+| [PRODUCTION-CONFIGURATION.md](PRODUCTION-CONFIGURATION.md) | Production readiness checklist and configuration guide |
 | [E2E-READINESS.md](E2E-READINESS.md) | E2E testing readiness assessment |
 
 ---
@@ -54,28 +55,30 @@ Every feature and specification is classified using these exact states:
 - **Frontend**: Next.js 15 + TypeScript
 - **Database**: PostgreSQL 16
 - **ORM**: SQLAlchemy 2.0 (async)
-- **Migrations**: Alembic (16 migrations)
+- **Migrations**: Alembic (22 migrations)
 - **Auth**: bcrypt + PyJWT
 - **AI Providers**: Groq (OpenAI-compatible), OpenAI, Mock/Stub
-- **Payments**: Stripe adapter (stub for dev/test)
-- **Communications**: Twilio (SMS/Voice), Resend (Email), Stub providers
-- **Deployment**: Vercel (frontend), Docker/Cloud Run (backend)
+- **Payments**: Stripe Connect adapter (stub for dev/test)
+- **Communications**: Vonage (SMS/WhatsApp/Voice), Resend (Email), Twilio (legacy), Stub providers
+- **Calendar**: Google Calendar API (OAuth, per-business)
+- **Deployment**: Cloudflare Workers (frontend, vinext), Docker/Cloud Run (backend)
 - **CI/CD**: GitHub Actions
 
 ### Repository Statistics
-- **Backend Python files**: ~175
-- **Frontend TypeScript files**: ~49
-- **Database migrations**: 16
-- **Domain modules**: 15
-- **API route modules**: 21
-- **Test files**: 60 (unit, integration, security)
+- **Backend Python files**: ~222
+- **Frontend TypeScript files**: ~62
+- **Database migrations**: 22
+- **Domain modules**: 22 (+ `common` shared utilities)
+- **API route modules**: 26
+- **Test files**: 69 (unit, integration, security, e2e, performance, frontend)
 
 ### Key Numbers
-- **Backend routes**: ~75 endpoints
+- **Backend routes**: ~80 endpoints
 - **Frontend pages**: ~30 routes
-- **Database models**: ~35 tables
-- **Domain services**: ~25
-- **Repositories**: ~20
+- **Database models**: 56 tables
+- **Domain services**: ~30
+- **Repositories**: ~25
+- **Total unit tests**: 818 (0 failures)
 
 ---
 

@@ -301,7 +301,7 @@ All AI proposals flow through:
 ### Secret Storage
 
 - **Development**: `.env` file (never committed)
-- **Production**: Environment variables (Vercel, Cloud Run, etc.)
+- **Production**: Environment variables (Cloudflare Workers, Cloud Run, etc.)
 - **CI/CD**: GitHub Secrets
 
 ### Secret Rotation

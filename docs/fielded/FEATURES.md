@@ -226,8 +226,8 @@
 |----|---------|-------------|---------|----------|----------|----------|--------------|--------|
 | FEAT-110 | Communication Orchestration | Orchestrate communications | Yes | N/A | communications | No | Verified | A |
 | FEAT-111 | Email Communication | Send email communications | Yes | N/A | communications | Resend | Verified | C |
-| FEAT-112 | SMS Communication | Send SMS communications | Yes | N/A | communications | Twilio | Verified | C |
-| FEAT-113 | WhatsApp Communication | Send WhatsApp communications | Yes | N/A | communications | Stub | Verified | E |
+| FEAT-112 | SMS Communication | Send SMS communications | Yes | N/A | communications | Vonage | Verified | C |
+| FEAT-113 | WhatsApp Communication | Send WhatsApp communications | Yes | N/A | communications | Vonage | Verified | C |
 | FEAT-114 | Push Notification | Send push notifications | Yes | N/A | communications | Stub | Verified | E |
 | FEAT-115 | In-App Notification | Create in-app notifications | Yes | Yes | notifications | No | Verified | B |
 | FEAT-116 | Communication Policy | Policy-based communication control | Yes | N/A | N/A | No | Verified | A |
@@ -247,17 +247,17 @@
 
 | ID | Feature | Description | Backend | Frontend | Database | External | Verification | Status |
 |----|---------|-------------|---------|----------|----------|----------|--------------|--------|
-| FEAT-123 | Call Request | Request voice call | Yes | N/A | calls | Twilio | Verified | C |
+| FEAT-123 | Call Request | Request voice call | Yes | N/A | calls | Vonage | Adapter exists, not E2E verified | C |
 | FEAT-124 | Call Lifecycle | Full call state machine | Yes | N/A | calls | No | Verified | A |
 | FEAT-125 | Call Authorization | Authorize call before initiation | Yes | N/A | calls | No | Verified | A |
-| FEAT-126 | Call Initiation | Initiate voice call | Yes | N/A | calls | Twilio | Verified | C |
+| FEAT-126 | Call Initiation | Initiate voice call | Yes | N/A | calls | Vonage | Adapter exists, not E2E verified | C |
 | FEAT-127 | Call Session Management | Manage call sessions | Yes | N/A | call_sessions | No | Verified | A |
 | FEAT-128 | Call Agent AI | AI-powered call agent | Yes | N/A | N/A | AI Provider | Verified | C |
 | FEAT-129 | Call Escalation | Escalate call to human | Yes | N/A | escalations | No | Verified | A |
 | FEAT-130 | Call Outcome Recording | Record call outcomes | Yes | N/A | call_sessions | No | Verified | A |
 | FEAT-131 | Call Campaigns | Communication campaigns | Yes | N/A | campaigns, campaign_recipients | No | Verified | B |
-| FEAT-132 | Twilio Voice Integration | Twilio voice provider | Yes | N/A | N/A | Twilio | Verified | C |
-| FEAT-133 | Twilio Webhook Handling | Handle Twilio webhooks | Yes | N/A | N/A | Twilio | Verified | C |
+| FEAT-132 | Vonage Voice Integration | Vonage voice provider | Yes | N/A | N/A | Vonage | Adapter exists, not E2E verified | C |
+| FEAT-133 | Vonage Webhook Handling | Handle Vonage webhooks | Yes | N/A | N/A | Vonage | Adapter exists, not E2E verified | C |
 
 ### 22. Business Brain
 
@@ -399,7 +399,7 @@
 | ID | Feature | Description | Backend | Frontend | Database | External | Verification | Status |
 |----|---------|-------------|---------|----------|----------|----------|--------------|--------|
 | FEAT-209 | Docker Configuration | Docker Compose setup | Yes | N/A | N/A | No | Verified | A |
-| FEAT-210 | Vercel Deployment | Frontend deployment | N/A | Yes | N/A | Vercel | Verified | B |
+| FEAT-210 | Cloudflare Workers Deployment | Frontend deployment | N/A | Yes | N/A | Cloudflare | Verified | B |
 | FEAT-211 | GitHub Actions CI | CI/CD pipeline | Yes | Yes | N/A | GitHub | Verified | A |
 | FEAT-212 | Database Migrations | Alembic migrations | Yes | N/A | N/A | No | Verified | A |
 | FEAT-213 | Environment Configuration | Environment-based configuration | Yes | N/A | N/A | No | Verified | A |
@@ -477,7 +477,7 @@
 1. **Strong Backend Foundation**: Most backend features are FULLY WORKING (A) or WORKING — TARGETED (B)
 2. **Frontend Integration**: Frontend features are mostly WORKING — TARGETED (B) — verified for specific operations
 3. **External Integrations**: Payment, Email, SMS, Voice integrations are PARTIAL (C) — adapters exist but not fully tested E2E with real providers
-4. **Stub Providers**: WhatsApp and Push notifications are STUB/MOCK (E)
+4. **Stub Providers**: Push notifications are STUB/MOCK (E). WhatsApp has a Vonage adapter but is not E2E verified.
 5. **Business Brain**: Brain features are mostly FULLY WORKING (A) — strong deterministic foundation
 6. **State Machines**: All state machines are FULLY WORKING (A) — comprehensive validation
 7. **Audit/Evidence**: Audit and evidence tracking is FULLY WORKING (A) — comprehensive coverage

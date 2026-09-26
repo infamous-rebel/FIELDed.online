@@ -9,7 +9,7 @@ FIELDed is a customer-to-business service network built as a monorepo with clear
 | Layer | Technology | Justification |
 |-------|-----------|---------------|
 | Backend | Python 3.12 + FastAPI | Async, typed, OpenAPI, mature ecosystem |
-| Frontend | Next.js 15 + TypeScript | SSR/SSG for SEO, App Router, Vercel-ready |
+| Frontend | Next.js 15 + TypeScript | SSR/SSG for SEO, App Router, Cloudflare Workers-ready |
 | Database | PostgreSQL 16 | Relational integrity, constraints, JSONB |
 | ORM | SQLAlchemy 2.0 (async) | Mature, typed, complex relationship support |
 | Migrations | Alembic | Standard Python migration tool |

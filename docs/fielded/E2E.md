@@ -834,7 +834,7 @@ After complete transaction:
 | Twilio SMS | ⚠️ PARTIAL | Adapter exists, not fully tested E2E |
 | Twilio Voice | ⚠️ PARTIAL | Adapter exists, not fully tested E2E |
 | Resend Email | ⚠️ PARTIAL | Adapter exists, not fully tested E2E |
-| WhatsApp | ❌ STUB | Stub provider only |
+| WhatsApp | ⚠️ PARTIAL | Vonage adapter exists, not E2E tested |
 | Push Notifications | ❌ STUB | Stub provider only |
 
 ---

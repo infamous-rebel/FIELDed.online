@@ -29,24 +29,24 @@
 - **Health endpoint**: Returns 404 (no `/health` route — only `/api/v1/*` routes exist)
 
 ### Frontend Deployment
-- **Platform**: Vercel
-- **Project**: `fielded-frontend` (`prj_CnbAtzbQ8lIf7cVQR0hlAW52Jn7a`)
-- **Status**: Deployed and verified (Phase 18 commit `13313db`)
-- **Preview URL**: `https://fielded-37tj12ec1-infamous2s-projects.vercel.app` — **returns 404** (deployment expired or removed)
-- **Production URL**: Not configured — no custom domain on Vercel project
+- **Platform**: Cloudflare Workers (vinext)
+- **Project**: `fielded-frontend`
+- **Production URL**: `https://fielded.online`
+- **Status**: Deployment configuration ready (wrangler.jsonc + CI pipeline)
+- **Deploy**: `npx @vinext/cloudflare deploy`
 
 ### Domain: fielded.online
 - **Current state**: **Parked domain page** on Hostinger DNS
 - **NOT configured** for the current product
 - Shows Hostinger's default "Parked Domain name" page with generic hosting ads
-- DNS points to Hostinger, not Vercel or Cloud Run
+- DNS points to Hostinger, not Cloudflare or Cloud Run
 - **This is the most critical deployment gap** — the product has no public-facing domain
 
 ### Frontend ↔ Backend Connection
 - Frontend correctly configured: `NEXT_PUBLIC_API_URL="https://fielded-api-23149731375.us-central1.run.app"`
 - API client (`api-client.ts`) is comprehensive (~2000+ lines)
 - Auth helpers (`auth.ts`) functional
-- CORS properly configured on backend for `fielded.online`, Vercel preview URLs, and `localhost:3000`
+- CORS properly configured on backend for `fielded.online` and `localhost:3000`
 - **Connection works** but is only accessible via direct API URL or local dev server
 
 ### Business Brain in Deployed Application
@@ -57,7 +57,7 @@
 
 ### Authoritative Configuration
 - Backend: `.env.cloudrun` (Cloud Run environment)
-- Frontend: `.env.local` (Vercel environment)
+- Frontend: `.env.local` (Cloudflare Workers environment)
 - Deploy: `deploy/cloudrun-env.yaml` (deployment variables)
 - No secrets in code — all environment variables
 
@@ -759,7 +759,7 @@ The page should NOT show:
 - Update all examples to be service-agnostic and global
 
 ### Phase 9: Deployment (Week 8-9)
-- Configure fielded.online domain to point to Vercel frontend
+- Configure fielded.online domain to point to Cloudflare Workers frontend
 - Verify all pages work in production
 - Test all workflows end-to-end
 - Monitor for errors and performance issues

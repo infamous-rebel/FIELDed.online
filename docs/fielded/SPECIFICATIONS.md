@@ -75,9 +75,9 @@
 | Spec ID | Requirement | Evidence | Current Implementation | Status | Missing Piece |
 |---------|-------------|----------|----------------------|--------|---------------|
 | SPEC-COM001 | Email notifications | Code, tests | Resend adapter | SPEC-PARTIAL | Real provider E2E testing |
-| SPEC-COM002 | SMS notifications | Code, tests | Twilio adapter | SPEC-PARTIAL | Real provider E2E testing |
-| SPEC-COM003 | Voice calls | Code, tests | Twilio adapter, call agent | SPEC-PARTIAL | Real provider E2E testing |
-| SPEC-COM004 | WhatsApp messaging | Code | Stub provider | SPEC-STUB/MOCK | Real WhatsApp integration |
+| SPEC-COM002 | SMS notifications | Code, tests | Vonage adapter | SPEC-PARTIAL | Real provider E2E testing |
+| SPEC-COM003 | Voice calls | Code, tests | Vonage adapter, call agent | SPEC-PARTIAL | Real provider E2E testing |
+| SPEC-COM004 | WhatsApp messaging | Code | Vonage adapter | SPEC-PARTIAL | Real provider E2E testing |
 | SPEC-COM005 | Push notifications | Code | Stub provider | SPEC-STUB/MOCK | Real push integration |
 | SPEC-COM006 | In-app notifications | Code, tests | Notification system | SPEC-IMPLEMENTED | None |
 | SPEC-COM007 | Communication policy | Code, tests | Policy engine | SPEC-IMPLEMENTED | None |
@@ -165,8 +165,8 @@
 
 - ⚠️ Real payment processing (Stripe adapter exists, not fully tested E2E)
 - ⚠️ Real email delivery (Resend adapter exists, not fully tested E2E)
-- ⚠️ Real SMS delivery (Twilio adapter exists, not fully tested E2E)
-- ⚠️ Real voice calls (Twilio adapter exists, not fully tested E2E)
+- ⚠️ Real SMS/WhatsApp/Voice delivery (Vonage adapters exist, not fully tested E2E)
+- ⚠️ Real calendar sync (Google Calendar adapter exists, not fully tested E2E)
 
 ### Not Implemented Specifications
 

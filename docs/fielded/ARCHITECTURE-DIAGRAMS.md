@@ -26,8 +26,9 @@ graph TB
         Groq[Groq AI]
         OpenAI[OpenAI]
         Stripe[Stripe Payments]
-        Twilio[Twilio SMS/Voice]
+        Vonage[Vonage SMS/WhatsApp/Voice]
         Resend[Resend Email]
+        GoogleCal[Google Calendar]
     end
     
     Customer --> Frontend
@@ -41,8 +42,9 @@ graph TB
     Backend -->|AI Services| Groq
     Backend -->|AI Services| OpenAI
     Backend -->|Payments| Stripe
-    Backend -->|SMS/Voice| Twilio
+    Backend -->|SMS/WhatsApp/Voice| Vonage
     Backend -->|Email| Resend
+    Backend -->|Calendar Sync| GoogleCal
 ```
 
 ---
@@ -779,8 +781,9 @@ graph TB
     
     subgraph "Communication Channels"
         EmailChannel[Email<br/>Resend]
-        SMSChannel[SMS<br/>Twilio]
-        VoiceChannel[Voice<br/>Twilio]
+        SMSChannel[SMS<br/>Vonage]
+        VoiceChannel[Voice<br/>Vonage]
+        WhatsAppChannel[WhatsApp<br/>Vonage]
         InAppChannel[In-App<br/>Notifications]
     end
     
@@ -875,7 +878,7 @@ graph TB
     end
     
     subgraph "Production - Frontend"
-        Vercel[Vercel<br/>Next.js 15<br/>Edge Network]
+        CFWorkers[Cloudflare Workers<br/>vinext / Next.js 15<br/>fielded.online]
     end
     
     subgraph "Production - Backend"
@@ -887,7 +890,7 @@ graph TB
     subgraph "External Services"
         Groq[Groq AI]
         Stripe[Stripe]
-        Twilio[Twilio]
+        Vonage[Vonage]
         Resend[Resend]
     end
     
@@ -901,17 +904,17 @@ graph TB
     DevBackend --> DevDB
     DevBackend --> DevRedis
     
-    Vercel -->|REST API| CloudRun
+    CFWorkers -->|REST API| CloudRun
     CloudRun --> ManagedDB
     CloudRun --> ManagedRedis
     
     CloudRun --> Groq
     CloudRun --> Stripe
-    CloudRun --> Twilio
+    CloudRun --> Vonage
     CloudRun --> Resend
     
     GitHub --> GitHubActions
-    GitHubActions --> Vercel
+    GitHubActions --> CFWorkers
     GitHubActions --> CloudRun
 ```
 
@@ -933,9 +936,9 @@ graph TB
     
     subgraph "Communication Providers"
         ResendAdapter[Resend Adapter<br/>Email]
-        TwilioSMSAdapter[Twilio Adapter<br/>SMS]
-        TwilioVoiceAdapter[Twilio Adapter<br/>Voice]
-        StubWhatsAppAdapter[Stub Adapter<br/>WhatsApp]
+        VonageSMSAdapter[Vonage Adapter<br/>SMS]
+        VonageVoiceAdapter[Vonage Adapter<br/>Voice]
+        VonageWhatsAppAdapter[Vonage Adapter<br/>WhatsApp]
         StubPushAdapter[Stub Adapter<br/>Push]
     end
     
@@ -944,12 +947,17 @@ graph TB
         StubPaymentAdapter[Stub Payment Adapter]
     end
     
+    subgraph "Calendar Providers"
+        GoogleCalendarAdapter[Google Calendar Adapter]
+    end
+    
     subgraph "External Services"
         Groq[Groq API]
         OpenAI[OpenAI API]
         Resend[Resend API]
-        Twilio[Twilio API]
+        Vonage[Vonage API]
         Stripe[Stripe API]
+        GoogleCalendar[Google Calendar API]
     end
     
     ProviderFactory --> GroqAdapter
@@ -957,10 +965,11 @@ graph TB
     ProviderFactory --> StubAIAdapter
     
     ProviderFactory --> ResendAdapter
-    ProviderFactory --> TwilioSMSAdapter
-    ProviderFactory --> TwilioVoiceAdapter
-    ProviderFactory --> StubWhatsAppAdapter
+    ProviderFactory --> VonageSMSAdapter
+    ProviderFactory --> VonageVoiceAdapter
+    ProviderFactory --> VonageWhatsAppAdapter
     ProviderFactory --> StubPushAdapter
+    ProviderFactory --> GoogleCalendarAdapter
     
     ProviderFactory --> StripeAdapter
     ProviderFactory --> StubPaymentAdapter
@@ -968,8 +977,10 @@ graph TB
     GroqAdapter --> Groq
     OpenAIAdapter --> OpenAI
     ResendAdapter --> Resend
-    TwilioSMSAdapter --> Twilio
-    TwilioVoiceAdapter --> Twilio
+    VonageSMSAdapter --> Vonage
+    VonageVoiceAdapter --> Vonage
+    VonageWhatsAppAdapter --> Vonage
+    GoogleCalendarAdapter --> GoogleCalendar
     StripeAdapter --> Stripe
 ```
 
