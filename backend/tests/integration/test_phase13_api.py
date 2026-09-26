@@ -151,7 +151,7 @@ class TestServiceExecutionAPI:
         )
         assert response.status_code == 201
         data = response.json()
-        assert data["status"] == "scheduled"
+        assert data["status"] == "in_progress"
         assert data["booking_id"] == str(booking_for_api.id)
 
     async def test_list_executions(

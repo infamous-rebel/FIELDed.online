@@ -592,22 +592,27 @@ class TestCustomerPaymentProviderResolution:
         )
         assert cust_resp.status_code == 200
 
-        # Use the API to find the booking
-        with patch("app.api.v1.bookings.ProviderFactory") as mock_factory:
+        # Verify the provider factory is used when creating a payment
+        with patch("app.api.v1.payments.ProviderFactory") as mock_factory:
             mock_factory.from_settings.return_value.payment_provider = realistic_stripe_provider
 
-            # Direct approach: use the business bookings list endpoint
-            with patch("app.api.v1.payments._payment_provider", return_value=realistic_stripe_provider):
-                biz_login = await client.post(
-                    "/api/v1/auth/login",
-                    json={"email": biz_for_rg009[0].email, "password": "testpassword123"},
-                )
-                biz_headers = {"Authorization": f"Bearer {biz_login.json()['access_token']}"}
-                await client.get(
-                    f"/api/v1/businesses/{biz.id}/bookings",
-                    headers=biz_headers,
-                )
+            biz_login = await client.post(
+                "/api/v1/auth/login",
+                json={"email": biz_for_rg009[0].email, "password": "testpassword123"},
+            )
+            biz_headers = {"Authorization": f"Bearer {biz_login.json()['access_token']}"}
+            create_resp = await client.post(
+                f"/api/v1/businesses/{biz.id}/payments",
+                json={
+                    "invoice_id": str(invoice_for_rg009.id),
+                    "amount": "150.00",
+                    "currency": "GBP",
+                    "payment_method": "card",
+                    "idempotency_key": f"rg009-provider-{uuid.uuid4().hex[:16]}",
+                },
+                headers=biz_headers,
+            )
+            assert create_resp.status_code == 201
 
         # Verify the provider factory was used (not hardcoded stub)
-        # The mock confirms ProviderFactory.from_settings was called
         assert mock_factory.from_settings.called  # Provider resolution verified by design

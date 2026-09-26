@@ -183,12 +183,7 @@ async def _drive_to_completed_execution(
     execution_id = resp.json()["id"]
 
     # Start + complete (business)
-    resp = await client.post(
-        f"/api/v1/businesses/{business_id}/service-executions/{execution_id}/transition",
-        headers=biz_auth,
-        json={"target_status": "in_progress"},
-    )
-    assert resp.status_code == 200, resp.text
+    # Execution is created in IN_PROGRESS state — transition directly to completed.
     resp = await client.post(
         f"/api/v1/businesses/{business_id}/service-executions/{execution_id}/complete",
         headers=biz_auth,
