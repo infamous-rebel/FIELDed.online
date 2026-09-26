@@ -66,7 +66,9 @@ class CommercialPolicy(BaseModel):
         Index("ix_commercial_policies_effective", "effective_from", "effective_until"),
         # Unique version per scope + name
         UniqueConstraint(
-            "scope", "name", "version",
+            "scope",
+            "name",
+            "version",
             name="uq_commercial_policy_scope_name_version",
         ),
     )
@@ -74,9 +76,7 @@ class CommercialPolicy(BaseModel):
     # ── Identity ──────────────────────────────────────────────────
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    scope: Mapped[str] = mapped_column(
-        String(50), nullable=False
-    )  # CommercialPolicyScope enum value
+    scope: Mapped[str] = mapped_column(String(50), nullable=False)  # CommercialPolicyScope enum value
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
     # ── Scope target (which business / category / plan this applies to) ──
@@ -94,35 +94,21 @@ class CommercialPolicy(BaseModel):
     # Business plan identifier (free-form string key, e.g. "premium", "enterprise")
     plan_key: Mapped[str | None] = mapped_column(String(100), nullable=True)
     # Promotion code (for promotion scope)
-    promotion_code: Mapped[str | None] = mapped_column(
-        String(100), nullable=True, index=True
-    )
+    promotion_code: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
 
     # ── Fee structure ─────────────────────────────────────────────
-    fee_type: Mapped[str] = mapped_column(
-        String(50), nullable=False
-    )  # CommercialPolicyFeeType enum value
+    fee_type: Mapped[str] = mapped_column(String(50), nullable=False)  # CommercialPolicyFeeType enum value
 
     # Percentage component (0–100).  Used for PERCENTAGE and COMBINED.
-    percentage: Mapped[str] = mapped_column(
-        Numeric(precision=7, scale=4), nullable=False, default="0.0000"
-    )
+    percentage: Mapped[str] = mapped_column(Numeric(precision=7, scale=4), nullable=False, default="0.0000")
     # Fixed component (absolute currency amount).  Used for FIXED and COMBINED.
-    fixed_amount: Mapped[str] = mapped_column(
-        Numeric(precision=12, scale=2), nullable=False, default="0.00"
-    )
+    fixed_amount: Mapped[str] = mapped_column(Numeric(precision=12, scale=2), nullable=False, default="0.00")
     # Currency for the fixed component (ISO 4217).
-    fixed_currency: Mapped[str] = mapped_column(
-        String(3), nullable=False, default="GBP"
-    )
+    fixed_currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GBP")
 
     # ── Time bounds ───────────────────────────────────────────────
-    effective_from: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    effective_until: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    effective_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    effective_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # ── Lifecycle ─────────────────────────────────────────────────
     status: Mapped[str] = mapped_column(

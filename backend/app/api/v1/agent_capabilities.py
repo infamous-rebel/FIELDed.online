@@ -18,10 +18,10 @@ import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, require_business_member
+from app.api.deps import require_business_member
 from app.database import get_db_session
 from app.domain.agent.service import AgentCapabilityService
 from app.domain.common.enums import (

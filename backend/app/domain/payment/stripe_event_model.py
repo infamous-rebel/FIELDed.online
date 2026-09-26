@@ -50,23 +50,17 @@ class StripeEvent(BaseModel):
     )
 
     # Stripe's event ID (evt_xxx) — the idempotency key
-    stripe_event_id: Mapped[str] = mapped_column(
-        String(255), nullable=False, unique=True
-    )
+    stripe_event_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
 
     # Stripe event type (e.g. payment_intent.succeeded)
     event_type: Mapped[str] = mapped_column(String(100), nullable=False)
 
     # The PaymentIntent this event relates to (pi_xxx)
-    payment_intent_id: Mapped[str | None] = mapped_column(
-        String(255), nullable=True
-    )
+    payment_intent_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Stripe connected account that sent the event (acct_xxx)
     # Used for tenant isolation verification
-    stripe_account_id: Mapped[str | None] = mapped_column(
-        String(255), nullable=True
-    )
+    stripe_account_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # FIELDed business (resolved from the payment, not from Stripe)
     business_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -83,9 +77,7 @@ class StripeEvent(BaseModel):
     )
 
     # Processing outcome
-    status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="processed"
-    )
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="processed")
     # "processed" — successfully reconciled
     # "duplicate" — already seen, acknowledged
     # "unknown_payment" — no matching FIELDed payment found
@@ -100,9 +92,7 @@ class StripeEvent(BaseModel):
     raw_payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     # When the event was created in Stripe
-    stripe_created_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    stripe_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     business: Mapped[Business | None] = relationship(foreign_keys=[business_id])

@@ -156,9 +156,17 @@ def _build_pricing_summary(offer: ServiceOffer, currency: str | None = None) -> 
 
     return PublicPricingSummary(
         pricing_model=offer.pricing_model,
-        starting_price=str(config["starting_price"]) if config.get("starting_price") else (str(config["starting_at"]) if config.get("starting_at") else None),
-        hourly_rate=str(config["hourly_rate"]) if config.get("hourly_rate") else (str(config["rate"]) if config.get("rate") else None),
-        fixed_price=str(config["fixed_price"]) if config.get("fixed_price") else (str(config["price"]) if config.get("price") else (str(config["amount"]) if config.get("amount") else None)),
+        starting_price=str(config["starting_price"])
+        if config.get("starting_price")
+        else (str(config["starting_at"]) if config.get("starting_at") else None),
+        hourly_rate=str(config["hourly_rate"])
+        if config.get("hourly_rate")
+        else (str(config["rate"]) if config.get("rate") else None),
+        fixed_price=str(config["fixed_price"])
+        if config.get("fixed_price")
+        else (
+            str(config["price"]) if config.get("price") else (str(config["amount"]) if config.get("amount") else None)
+        ),
         currency=currency,
     )
 

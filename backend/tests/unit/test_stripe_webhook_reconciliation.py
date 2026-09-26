@@ -372,9 +372,7 @@ class TestReconciliationWithPayment:
     """Test reconciliation against actual Payment records in DB."""
 
     @pytest.mark.asyncio
-    async def test_payment_intent_succeeded_transitions_payment(
-        self, db_session, test_user
-    ):
+    async def test_payment_intent_succeeded_transitions_payment(self, db_session, test_user):
         """A payment_intent.succeeded webhook transitions PROCESSING → SUCCEEDED."""
         from app.adapters.payment.base import WebhookEvent
         from app.domain.common.enums import PaymentStatus
@@ -449,9 +447,7 @@ class TestReconciliationWithPayment:
         assert payment.paid_at is not None
 
     @pytest.mark.asyncio
-    async def test_payment_intent_failed_transitions_payment(
-        self, db_session, test_user
-    ):
+    async def test_payment_intent_failed_transitions_payment(self, db_session, test_user):
         """A payment_intent.payment_failed webhook transitions to FAILED."""
         from app.adapters.payment.base import WebhookEvent
         from app.domain.common.enums import PaymentStatus
@@ -515,9 +511,7 @@ class TestReconciliationWithPayment:
         assert payment.failure_message == "Your card was declined."
 
     @pytest.mark.asyncio
-    async def test_refund_event_transitions_to_refunded(
-        self, db_session, test_user
-    ):
+    async def test_refund_event_transitions_to_refunded(self, db_session, test_user):
         """A charge.refund.updated event transitions SUCCEEDED → REFUNDED."""
         from app.adapters.payment.base import WebhookEvent
         from app.domain.common.enums import PaymentStatus
@@ -579,9 +573,7 @@ class TestReconciliationWithPayment:
         assert Decimal(payment.refunded_amount) == Decimal("75.00")
 
     @pytest.mark.asyncio
-    async def test_dispute_created_transitions_to_disputed(
-        self, db_session, test_user
-    ):
+    async def test_dispute_created_transitions_to_disputed(self, db_session, test_user):
         """A charge.dispute.created event transitions SUCCEEDED → DISPUTED."""
         from app.adapters.payment.base import WebhookEvent
         from app.domain.common.enums import PaymentStatus
@@ -649,9 +641,7 @@ class TestReconciliationWithPayment:
         assert payment.dispute_status == "needs_response"
 
     @pytest.mark.asyncio
-    async def test_out_of_order_succeeded_after_processing(
-        self, db_session, test_user
-    ):
+    async def test_out_of_order_succeeded_after_processing(self, db_session, test_user):
         """Webhook arriving out of order still reconciles correctly."""
         from app.adapters.payment.base import WebhookEvent
         from app.domain.common.enums import PaymentStatus

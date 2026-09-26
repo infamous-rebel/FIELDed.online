@@ -296,9 +296,7 @@ async def payment_webhook(
             )
 
         payment_prov = _payment_provider(request)
-        is_valid = await payment_prov.verify_webhook_signature(
-            body, signature, webhook_secret
-        )
+        is_valid = await payment_prov.verify_webhook_signature(body, signature, webhook_secret)
         if not is_valid:
             return JSONResponse(
                 status_code=401,

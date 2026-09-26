@@ -37,6 +37,7 @@ from app.domain.services.models import ServiceOffer
 def _make_enquiry(*, business_id, customer_id, service_offer_id, subject="Need service", message="I need this service"):
     """Create an Enquiry with all required fields."""
     from app.domain.enquiry.models import Enquiry
+
     return Enquiry(
         reference=f"ENQ-{uuid.uuid4().hex[:8]}",
         business_id=business_id,
@@ -372,9 +373,7 @@ class TestInvoiceLedgerFeeEvidence:
         assert entries[0].fee_evidence["policy_id"] == original_evidence["policy_id"]
 
     @pytest.mark.asyncio
-    async def test_historical_evidence_preserved_after_policy_change(
-        self, db_session, test_user
-    ):
+    async def test_historical_evidence_preserved_after_policy_change(self, db_session, test_user):
         """Changing the policy after a Quote does NOT alter existing fee_evidence."""
         from app.domain.quote.service import QuoteService
 
@@ -473,6 +472,7 @@ async def _build_full_chain_to_invoice(db_session, business_owner, customer, *, 
 
     # Retrieve the invoice
     from app.domain.invoice.repository import InvoiceRepository
+
     invoice_repo = InvoiceRepository(db_session)
     invoice = await invoice_repo.get_by_service_execution_id(execution.id)
     return invoice, quote, business

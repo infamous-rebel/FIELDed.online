@@ -13,27 +13,25 @@ Tests cover:
 from __future__ import annotations
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from app.adapters.common import ProviderResult
 from app.adapters.email.base import EmailMessage
+from app.domain.notification.email_service import (
+    EmailNotificationService,
+    _parse_uuid,
+    _render,
+)
 from app.domain.notification.email_templates import (
     ALL_EMAIL_EVENTS,
     BUSINESS_EMAIL_EVENTS,
     BUSINESS_TEMPLATES,
     CUSTOMER_EMAIL_EVENTS,
     CUSTOMER_TEMPLATES,
-    EmailTemplate,
     resolve_event_type,
 )
-from app.domain.notification.email_service import (
-    EmailNotificationService,
-    _render,
-    _parse_uuid,
-)
-
 
 # ── Template Registry ─────────────────────────────────────────────────────
 

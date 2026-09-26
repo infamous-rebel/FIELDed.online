@@ -224,10 +224,7 @@ class TestFeeCalculatorDeterminism:
         calc = FeeCalculator()
         policy = _make_policy(fee_type="combined", percentage="3.5000", fixed_amount="0.50")
 
-        results = [
-            calc.calculate(policy, amount=Decimal("123.45"), currency="GBP")
-            for _ in range(100)
-        ]
+        results = [calc.calculate(policy, amount=Decimal("123.45"), currency="GBP") for _ in range(100)]
 
         first = results[0]
         for r in results[1:]:
@@ -696,9 +693,7 @@ class TestTenantIsolation:
     """Business-specific policies are tenant-isolated."""
 
     @pytest.mark.asyncio
-    async def test_business_specific_not_visible_to_other_business(
-        self, db_session, test_user, second_user
-    ):
+    async def test_business_specific_not_visible_to_other_business(self, db_session, test_user, second_user):
         """A negotiated policy for business A does not affect business B."""
         service = CommercialPolicyService(db_session)
         business_a = await _create_business(db_session, test_user, "Biz A")
@@ -1046,9 +1041,7 @@ class TestCommercialPolicyAPI:
         assert resp.json()["status"] == "active"
 
     @pytest.mark.asyncio
-    async def test_effective_policy_endpoint(
-        self, client: AsyncClient, auth_headers, test_user, db_session
-    ):
+    async def test_effective_policy_endpoint(self, client: AsyncClient, auth_headers, test_user, db_session):
         business = await _create_business(db_session, test_user)
 
         # Create and activate global default
@@ -1085,9 +1078,7 @@ class TestCommercialPolicyAPI:
         assert "Stripe" in data["fee_summary"]
 
     @pytest.mark.asyncio
-    async def test_business_effective_endpoint(
-        self, client: AsyncClient, test_user, auth_headers, db_session
-    ):
+    async def test_business_effective_endpoint(self, client: AsyncClient, test_user, auth_headers, db_session):
         business = await _create_business(db_session, test_user)
 
         # Create and activate

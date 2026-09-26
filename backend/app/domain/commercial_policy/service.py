@@ -117,8 +117,7 @@ class CommercialPolicyService:
 
         if policy is None:
             raise ValidationError(
-                "No commercial policy is configured for this transaction. "
-                "A global default policy must exist."
+                "No commercial policy is configured for this transaction. A global default policy must exist."
             )
 
         try:
@@ -260,8 +259,7 @@ class CommercialPolicyService:
         """Update a DRAFT policy.  Active policies cannot be edited."""
         if CommercialPolicyStatus(policy.status) != CommercialPolicyStatus.DRAFT:
             raise ValidationError(
-                "Only draft policies can be edited. "
-                "Create a new version to supersede an active policy."
+                "Only draft policies can be edited. Create a new version to supersede an active policy."
             )
 
         if description is not None:

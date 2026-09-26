@@ -45,24 +45,26 @@ from app.logging import get_logger
 logger = get_logger(__name__)
 
 # Event types that the reconciliation service handles
-_HANDLED_EVENT_TYPES: frozenset[str] = frozenset({
-    # PaymentIntent lifecycle
-    "payment_intent.succeeded",
-    "payment_intent.payment_failed",
-    "payment_intent.canceled",
-    "payment_intent.requires_action",
-    "payment_intent.processing",
-    "payment_intent.amount_capturable_updated",
-    # Refund lifecycle
-    "charge.refund.updated",
-    "charge.refunded",
-    # Dispute lifecycle
-    "charge.dispute.created",
-    "charge.dispute.updated",
-    "charge.dispute.closed",
-    "charge.dispute.funds_reinstated",
-    "charge.dispute.funds_withdrawn",
-})
+_HANDLED_EVENT_TYPES: frozenset[str] = frozenset(
+    {
+        # PaymentIntent lifecycle
+        "payment_intent.succeeded",
+        "payment_intent.payment_failed",
+        "payment_intent.canceled",
+        "payment_intent.requires_action",
+        "payment_intent.processing",
+        "payment_intent.amount_capturable_updated",
+        # Refund lifecycle
+        "charge.refund.updated",
+        "charge.refunded",
+        # Dispute lifecycle
+        "charge.dispute.created",
+        "charge.dispute.updated",
+        "charge.dispute.closed",
+        "charge.dispute.funds_reinstated",
+        "charge.dispute.funds_withdrawn",
+    }
+)
 
 
 class StripeWebhookReconciliationService:
@@ -116,9 +118,7 @@ class StripeWebhookReconciliationService:
         # ── 3. Find the FIELDed payment ────────────────────────────
         payment = None
         if event.provider_payment_reference:
-            payment = await self.payment_repo.get_by_provider_reference(
-                event.provider_payment_reference
-            )
+            payment = await self.payment_repo.get_by_provider_reference(event.provider_payment_reference)
 
         # If no payment found by provider_reference, try to find by
         # looking at the PaymentIntent metadata (for events that arrive
@@ -137,9 +137,7 @@ class StripeWebhookReconciliationService:
                     event=event,
                     status="tenant_mismatch",
                     payment=payment,
-                    error_message=(
-                        f"Stripe account mismatch for payment {payment.id}"
-                    ),
+                    error_message=(f"Stripe account mismatch for payment {payment.id}"),
                 )
                 self.session.add(stripe_event)
                 await self.session.flush()
@@ -154,10 +152,7 @@ class StripeWebhookReconciliationService:
             stripe_event = self._create_stripe_event(
                 event=event,
                 status="unknown_payment",
-                error_message=(
-                    f"No FIELDed payment found for "
-                    f"provider_reference={event.provider_payment_reference}"
-                ),
+                error_message=(f"No FIELDed payment found for provider_reference={event.provider_payment_reference}"),
             )
             self.session.add(stripe_event)
             await self.session.flush()
@@ -191,9 +186,7 @@ class StripeWebhookReconciliationService:
 
     # ── Event routing ──────────────────────────────────────────────
 
-    async def _route_event(
-        self, event: WebhookEvent, payment: Payment
-    ) -> StripeEvent:
+    async def _route_event(self, event: WebhookEvent, payment: Payment) -> StripeEvent:
         """Route a verified event to the appropriate handler."""
         event_type = event.event_type
 
@@ -215,9 +208,7 @@ class StripeWebhookReconciliationService:
 
     # ── PaymentIntent handlers ─────────────────────────────────────
 
-    async def _handle_payment_intent(
-        self, event: WebhookEvent, payment: Payment
-    ) -> StripeEvent:
+    async def _handle_payment_intent(self, event: WebhookEvent, payment: Payment) -> StripeEvent:
         """Handle payment_intent.* events."""
         event_type = event.event_type
         current_status = PaymentStatus(payment.status)
@@ -250,8 +241,7 @@ class StripeWebhookReconciliationService:
                     status="processed",
                     payment=payment,
                     error_message=(
-                        f"Ignored intermediate event {event_type} "
-                        f"for payment in status {current_status.value}"
+                        f"Ignored intermediate event {event_type} for payment in status {current_status.value}"
                     ),
                 )
 
@@ -259,24 +249,20 @@ class StripeWebhookReconciliationService:
             payment.provider_evidence = event.raw_payload
             await self.payment_repo.update(payment)
 
-            return self._create_stripe_event(
-                event=event, status="processed", payment=payment
-            )
+            return self._create_stripe_event(event=event, status="processed", payment=payment)
 
-        return self._create_stripe_event(
-            event=event, status="ignored", payment=payment
-        )
+        return self._create_stripe_event(event=event, status="ignored", payment=payment)
 
-    async def _apply_payment_success(
-        self, event: WebhookEvent, payment: Payment
-    ) -> StripeEvent:
+    async def _apply_payment_success(self, event: WebhookEvent, payment: Payment) -> StripeEvent:
         """Transition payment to SUCCEEDED and update financial records."""
         current_status = PaymentStatus(payment.status)
 
         # Already succeeded — idempotent
         if current_status == PaymentStatus.SUCCEEDED:
             return self._create_stripe_event(
-                event=event, status="processed", payment=payment,
+                event=event,
+                status="processed",
+                payment=payment,
                 error_message="Payment already succeeded (idempotent)",
             )
 
@@ -285,10 +271,10 @@ class StripeWebhookReconciliationService:
             self._validate_transition(current_status, PaymentStatus.SUCCEEDED)
         except StateTransitionError:
             return self._create_stripe_event(
-                event=event, status="error", payment=payment,
-                error_message=(
-                    f"Invalid transition {current_status.value} -> succeeded"
-                ),
+                event=event,
+                status="error",
+                payment=payment,
+                error_message=(f"Invalid transition {current_status.value} -> succeeded"),
             )
 
         now = datetime.now(UTC)
@@ -326,10 +312,7 @@ class StripeWebhookReconciliationService:
                 "status": PaymentStatus.SUCCEEDED,
                 "stripe_event_id": event.provider_event_id,
                 "notification_title": "Payment received",
-                "notification_body": (
-                    f"Payment of {payment.currency} {payment.amount} "
-                    f"received successfully."
-                ),
+                "notification_body": (f"Payment of {payment.currency} {payment.amount} received successfully."),
             },
         )
 
@@ -339,19 +322,17 @@ class StripeWebhookReconciliationService:
             stripe_event_id=event.provider_event_id,
         )
 
-        return self._create_stripe_event(
-            event=event, status="processed", payment=payment
-        )
+        return self._create_stripe_event(event=event, status="processed", payment=payment)
 
-    async def _apply_payment_failed(
-        self, event: WebhookEvent, payment: Payment
-    ) -> StripeEvent:
+    async def _apply_payment_failed(self, event: WebhookEvent, payment: Payment) -> StripeEvent:
         """Transition payment to FAILED."""
         current_status = PaymentStatus(payment.status)
 
         if current_status == PaymentStatus.FAILED:
             return self._create_stripe_event(
-                event=event, status="processed", payment=payment,
+                event=event,
+                status="processed",
+                payment=payment,
                 error_message="Payment already failed (idempotent)",
             )
 
@@ -359,10 +340,10 @@ class StripeWebhookReconciliationService:
             self._validate_transition(current_status, PaymentStatus.FAILED)
         except StateTransitionError:
             return self._create_stripe_event(
-                event=event, status="error", payment=payment,
-                error_message=(
-                    f"Invalid transition {current_status.value} -> failed"
-                ),
+                event=event,
+                status="error",
+                payment=payment,
+                error_message=(f"Invalid transition {current_status.value} -> failed"),
             )
 
         payment.status = PaymentStatus.FAILED
@@ -373,11 +354,7 @@ class StripeWebhookReconciliationService:
         data_object = event.raw_payload.get("data", {}).get("object", {})
         last_error = data_object.get("last_payment_error", {})
         if last_error:
-            payment.failure_message = (
-                last_error.get("message")
-                or last_error.get("decline_code")
-                or "Payment failed"
-            )
+            payment.failure_message = last_error.get("message") or last_error.get("decline_code") or "Payment failed"
 
         await self.payment_repo.update(payment)
 
@@ -408,19 +385,17 @@ class StripeWebhookReconciliationService:
             stripe_event_id=event.provider_event_id,
         )
 
-        return self._create_stripe_event(
-            event=event, status="processed", payment=payment
-        )
+        return self._create_stripe_event(event=event, status="processed", payment=payment)
 
-    async def _apply_payment_cancelled(
-        self, event: WebhookEvent, payment: Payment
-    ) -> StripeEvent:
+    async def _apply_payment_cancelled(self, event: WebhookEvent, payment: Payment) -> StripeEvent:
         """Transition payment to CANCELLED."""
         current_status = PaymentStatus(payment.status)
 
         if current_status == PaymentStatus.CANCELLED:
             return self._create_stripe_event(
-                event=event, status="processed", payment=payment,
+                event=event,
+                status="processed",
+                payment=payment,
                 error_message="Payment already cancelled (idempotent)",
             )
 
@@ -428,25 +403,21 @@ class StripeWebhookReconciliationService:
             self._validate_transition(current_status, PaymentStatus.CANCELLED)
         except StateTransitionError:
             return self._create_stripe_event(
-                event=event, status="error", payment=payment,
-                error_message=(
-                    f"Invalid transition {current_status.value} -> cancelled"
-                ),
+                event=event,
+                status="error",
+                payment=payment,
+                error_message=(f"Invalid transition {current_status.value} -> cancelled"),
             )
 
         payment.status = PaymentStatus.CANCELLED
         payment.provider_evidence = event.raw_payload
         await self.payment_repo.update(payment)
 
-        return self._create_stripe_event(
-            event=event, status="processed", payment=payment
-        )
+        return self._create_stripe_event(event=event, status="processed", payment=payment)
 
     # ── Refund handlers ────────────────────────────────────────────
 
-    async def _handle_refund(
-        self, event: WebhookEvent, payment: Payment
-    ) -> StripeEvent:
+    async def _handle_refund(self, event: WebhookEvent, payment: Payment) -> StripeEvent:
         """Handle charge.refund.updated and charge.refunded events.
 
         Reconciles the refund against the FIELDed payment's
@@ -461,11 +432,10 @@ class StripeWebhookReconciliationService:
             PaymentStatus.PARTIALLY_REFUNDED,
         ):
             return self._create_stripe_event(
-                event=event, status="error", payment=payment,
-                error_message=(
-                    f"Refund event for payment in status "
-                    f"{current_status.value} — cannot process refund"
-                ),
+                event=event,
+                status="error",
+                payment=payment,
+                error_message=(f"Refund event for payment in status {current_status.value} — cannot process refund"),
             )
 
         # Extract refund details from the event
@@ -493,24 +463,21 @@ class StripeWebhookReconciliationService:
                 self._validate_transition(current_status, PaymentStatus.REFUNDED)
             except StateTransitionError:
                 return self._create_stripe_event(
-                    event=event, status="error", payment=payment,
-                    error_message=(
-                        f"Invalid transition {current_status.value} -> refunded"
-                    ),
+                    event=event,
+                    status="error",
+                    payment=payment,
+                    error_message=(f"Invalid transition {current_status.value} -> refunded"),
                 )
             payment.status = PaymentStatus.REFUNDED
         else:
             try:
-                self._validate_transition(
-                    current_status, PaymentStatus.PARTIALLY_REFUNDED
-                )
+                self._validate_transition(current_status, PaymentStatus.PARTIALLY_REFUNDED)
             except StateTransitionError:
                 return self._create_stripe_event(
-                    event=event, status="error", payment=payment,
-                    error_message=(
-                        f"Invalid transition {current_status.value} "
-                        f"-> partially_refunded"
-                    ),
+                    event=event,
+                    status="error",
+                    payment=payment,
+                    error_message=(f"Invalid transition {current_status.value} -> partially_refunded"),
                 )
             payment.status = PaymentStatus.PARTIALLY_REFUNDED
 
@@ -533,10 +500,7 @@ class StripeWebhookReconciliationService:
                 "status": payment.status,
                 "stripe_event_id": event.provider_event_id,
                 "notification_title": "Refund processed",
-                "notification_body": (
-                    f"Refund of {payment.currency} {total_refunded} "
-                    f"has been processed."
-                ),
+                "notification_body": (f"Refund of {payment.currency} {total_refunded} has been processed."),
             },
         )
 
@@ -548,15 +512,11 @@ class StripeWebhookReconciliationService:
             stripe_event_id=event.provider_event_id,
         )
 
-        return self._create_stripe_event(
-            event=event, status="processed", payment=payment
-        )
+        return self._create_stripe_event(event=event, status="processed", payment=payment)
 
     # ── Dispute handlers ───────────────────────────────────────────
 
-    async def _handle_dispute(
-        self, event: WebhookEvent, payment: Payment
-    ) -> StripeEvent:
+    async def _handle_dispute(self, event: WebhookEvent, payment: Payment) -> StripeEvent:
         """Handle charge.dispute.* events.
 
         Tracks the dispute on the payment record and transitions
@@ -576,24 +536,20 @@ class StripeWebhookReconciliationService:
                 PaymentStatus.PARTIALLY_REFUNDED,
             ):
                 return self._create_stripe_event(
-                    event=event, status="error", payment=payment,
-                    error_message=(
-                        f"Dispute created for payment in status "
-                        f"{current_status.value}"
-                    ),
+                    event=event,
+                    status="error",
+                    payment=payment,
+                    error_message=(f"Dispute created for payment in status {current_status.value}"),
                 )
 
             try:
-                self._validate_transition(
-                    current_status, PaymentStatus.DISPUTED
-                )
+                self._validate_transition(current_status, PaymentStatus.DISPUTED)
             except StateTransitionError:
                 return self._create_stripe_event(
-                    event=event, status="error", payment=payment,
-                    error_message=(
-                        f"Invalid transition {current_status.value} "
-                        f"-> disputed"
-                    ),
+                    event=event,
+                    status="error",
+                    payment=payment,
+                    error_message=(f"Invalid transition {current_status.value} -> disputed"),
                 )
 
             payment.status = PaymentStatus.DISPUTED
@@ -624,8 +580,7 @@ class StripeWebhookReconciliationService:
                     "stripe_event_id": event.provider_event_id,
                     "notification_title": "Payment disputed",
                     "notification_body": (
-                        f"Payment of {payment.currency} {payment.amount} "
-                        f"has been disputed. Reason: {dispute_reason}"
+                        f"Payment of {payment.currency} {payment.amount} has been disputed. Reason: {dispute_reason}"
                     ),
                 },
             )
@@ -644,16 +599,13 @@ class StripeWebhookReconciliationService:
             if dispute_outcome in ("lost", "expired") and current_status == PaymentStatus.DISPUTED:
                 # Business lost the dispute — funds are gone
                 try:
-                    self._validate_transition(
-                        current_status, PaymentStatus.REFUNDED
-                    )
+                    self._validate_transition(current_status, PaymentStatus.REFUNDED)
                 except StateTransitionError:
                     return self._create_stripe_event(
-                        event=event, status="error", payment=payment,
-                        error_message=(
-                            f"Cannot transition {current_status.value} "
-                            f"-> refunded on dispute lost"
-                        ),
+                        event=event,
+                        status="error",
+                        payment=payment,
+                        error_message=(f"Cannot transition {current_status.value} -> refunded on dispute lost"),
                     )
                 payment.status = PaymentStatus.REFUNDED
                 payment.dispute_status = dispute_outcome
@@ -664,16 +616,13 @@ class StripeWebhookReconciliationService:
             elif dispute_outcome == "won" and current_status == PaymentStatus.DISPUTED:
                 # Business won the dispute — funds reinstated
                 try:
-                    self._validate_transition(
-                        current_status, PaymentStatus.SUCCEEDED
-                    )
+                    self._validate_transition(current_status, PaymentStatus.SUCCEEDED)
                 except StateTransitionError:
                     return self._create_stripe_event(
-                        event=event, status="error", payment=payment,
-                        error_message=(
-                            f"Cannot transition {current_status.value} "
-                            f"-> succeeded on dispute won"
-                        ),
+                        event=event,
+                        status="error",
+                        payment=payment,
+                        error_message=(f"Cannot transition {current_status.value} -> succeeded on dispute won"),
                     )
                 payment.status = PaymentStatus.SUCCEEDED
                 payment.dispute_status = dispute_outcome
@@ -699,15 +648,11 @@ class StripeWebhookReconciliationService:
             dispute_id=dispute_id,
         )
 
-        return self._create_stripe_event(
-            event=event, status="processed", payment=payment
-        )
+        return self._create_stripe_event(event=event, status="processed", payment=payment)
 
     # ── Tenant isolation ───────────────────────────────────────────
 
-    async def _verify_tenant_isolation(
-        self, payment: Payment, event: WebhookEvent
-    ) -> bool:
+    async def _verify_tenant_isolation(self, payment: Payment, event: WebhookEvent) -> bool:
         """Verify the Stripe event belongs to the payment's business.
 
         For Direct Charges, the PaymentIntent's on_behalf_of / account
@@ -718,11 +663,7 @@ class StripeWebhookReconciliationService:
         """
         # Extract the connected account from the event
         data_object = event.raw_payload.get("data", {}).get("object", {})
-        event_account = (
-            data_object.get("on_behalf_of")
-            or data_object.get("account")
-            or ""
-        )
+        event_account = data_object.get("on_behalf_of") or data_object.get("account") or ""
 
         if not event_account:
             # No connected account in the event — this could be a
@@ -779,9 +720,7 @@ class StripeWebhookReconciliationService:
 
     # ── Invoice / Ledger update ────────────────────────────────────
 
-    async def _update_invoice_payment_status(
-        self, payment: Payment
-    ) -> None:
+    async def _update_invoice_payment_status(self, payment: Payment) -> None:
         """Update invoice and ledger payment status from payment aggregate.
 
         Deterministic: derives status from all successful payments
@@ -798,16 +737,8 @@ class StripeWebhookReconciliationService:
         if InvoicePaymentStatus(invoice.payment_status) == InvoicePaymentStatus.VOID:
             return
 
-        paid_amount = Decimal(
-            await self.payment_repo.get_successful_total_for_invoice(
-                payment.invoice_id
-            )
-        )
-        refunded_amount = Decimal(
-            await self.payment_repo.get_refunded_total_for_invoice(
-                payment.invoice_id
-            )
-        )
+        paid_amount = Decimal(await self.payment_repo.get_successful_total_for_invoice(payment.invoice_id))
+        refunded_amount = Decimal(await self.payment_repo.get_refunded_total_for_invoice(payment.invoice_id))
         net_paid = paid_amount - refunded_amount
         invoice_total = Decimal(str(invoice.total))
 
@@ -830,10 +761,7 @@ class StripeWebhookReconciliationService:
 
         # Check if any payment is disputed
         payments = await self.payment_repo.get_by_invoice(payment.invoice_id)
-        has_disputed = any(
-            PaymentStatus(p.status) == PaymentStatus.DISPUTED
-            for p in payments
-        )
+        has_disputed = any(PaymentStatus(p.status) == PaymentStatus.DISPUTED for p in payments)
         if has_disputed and new_status not in (
             InvoicePaymentStatus.REFUNDED,
             InvoicePaymentStatus.PARTIALLY_REFUNDED,
@@ -861,9 +789,7 @@ class StripeWebhookReconciliationService:
 
     # ── Helpers ────────────────────────────────────────────────────
 
-    async def _get_event_by_stripe_id(
-        self, stripe_event_id: str
-    ) -> StripeEvent | None:
+    async def _get_event_by_stripe_id(self, stripe_event_id: str) -> StripeEvent | None:
         """Look up a previously processed Stripe event."""
         result = await self.session.execute(
             select(StripeEvent).where(
@@ -873,9 +799,7 @@ class StripeWebhookReconciliationService:
         )
         return result.scalar_one_or_none()
 
-    async def _find_payment_by_metadata(
-        self, event: WebhookEvent
-    ) -> Payment | None:
+    async def _find_payment_by_metadata(self, event: WebhookEvent) -> Payment | None:
         """Try to find a payment from Stripe event metadata.
 
         When a PaymentIntent is created, FIELDed stores the payment_id
@@ -895,18 +819,13 @@ class StripeWebhookReconciliationService:
 
         return None
 
-    def _validate_transition(
-        self, from_status: PaymentStatus, to_status: PaymentStatus
-    ) -> None:
+    def _validate_transition(self, from_status: PaymentStatus, to_status: PaymentStatus) -> None:
         """Validate a payment state transition."""
         from app.domain.common.enums import PAYMENT_TRANSITIONS
 
         allowed = PAYMENT_TRANSITIONS.get(from_status, set())
         if to_status not in allowed:
-            raise StateTransitionError(
-                f"Invalid payment transition from "
-                f"{from_status.value} to {to_status.value}"
-            )
+            raise StateTransitionError(f"Invalid payment transition from {from_status.value} to {to_status.value}")
 
     def _create_stripe_event(
         self,
@@ -921,19 +840,13 @@ class StripeWebhookReconciliationService:
         stripe_created = data_object.get("created")
         stripe_created_dt = None
         if stripe_created:
-            stripe_created_dt = datetime.fromtimestamp(
-                stripe_created, tz=UTC
-            )
+            stripe_created_dt = datetime.fromtimestamp(stripe_created, tz=UTC)
 
         return StripeEvent(
             stripe_event_id=event.provider_event_id,
             event_type=event.event_type,
             payment_intent_id=event.provider_payment_reference or None,
-            stripe_account_id=(
-                data_object.get("on_behalf_of")
-                or data_object.get("account")
-                or None
-            ),
+            stripe_account_id=(data_object.get("on_behalf_of") or data_object.get("account") or None),
             business_id=payment.business_id if payment else None,
             payment_id=payment.id if payment else None,
             status=status,

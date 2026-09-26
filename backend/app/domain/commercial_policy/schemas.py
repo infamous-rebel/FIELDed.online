@@ -171,12 +171,8 @@ class FeeBreakdownRead(BaseModel):
 class EffectivePolicyRead(BaseModel):
     """Effective policy for a business/context — for frontend disclosure."""
 
-    policy: CommercialPolicyRead | None = Field(
-        description="The resolved policy, or null if none matched."
-    )
-    fee_summary: str = Field(
-        description="Concise human-readable fee summary for display."
-    )
+    policy: CommercialPolicyRead | None = Field(description="The resolved policy, or null if none matched.")
+    fee_summary: str = Field(description="Concise human-readable fee summary for display.")
     stripe_note: str = Field(
         default="Stripe processing fees apply separately.",
     )

@@ -15,7 +15,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -42,12 +42,8 @@ class AgentCapability(BaseModel):
         ForeignKey("businesses.id", ondelete="CASCADE"),
         nullable=False,
     )
-    agent_type: Mapped[str] = mapped_column(
-        String(50), nullable=False
-    )  # AgentType enum value
-    capability_type: Mapped[str] = mapped_column(
-        String(100), nullable=False
-    )  # AgentCapabilityType enum value
+    agent_type: Mapped[str] = mapped_column(String(50), nullable=False)  # AgentType enum value
+    capability_type: Mapped[str] = mapped_column(String(100), nullable=False)  # AgentCapabilityType enum value
     authority_mode: Mapped[str] = mapped_column(
         String(50), nullable=False, default="disabled"
     )  # AgentAuthorityMode enum value
@@ -97,15 +93,9 @@ class AgentDelegation(BaseModel):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
-    granted_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    revoked_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
@@ -172,12 +162,8 @@ class AgentExecutionLog(BaseModel):
 
     # Correlation
     correlation_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    related_enquiry_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
-    related_booking_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    related_enquiry_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    related_booking_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
 
     # Relationships
     delegation: Mapped[AgentDelegation | None] = relationship(

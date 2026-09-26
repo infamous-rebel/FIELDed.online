@@ -130,15 +130,11 @@ class FeeCalculator:
         fix_component = Decimal("0")
 
         if fee_type == "percentage":
-            pct_component = (amount * percentage / Decimal("100")).quantize(
-                TWO_PLACES, rounding=ROUND_HALF_UP
-            )
+            pct_component = (amount * percentage / Decimal("100")).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
         elif fee_type == "fixed":
             fix_component = fixed.quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
         elif fee_type == "combined":
-            pct_component = (amount * percentage / Decimal("100")).quantize(
-                TWO_PLACES, rounding=ROUND_HALF_UP
-            )
+            pct_component = (amount * percentage / Decimal("100")).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
             fix_component = fixed.quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
         elif fee_type == "zero":
             # Launch / onboarding / free-tier — fee = 0
@@ -147,17 +143,13 @@ class FeeCalculator:
         else:
             raise ValueError(f"Unknown fee type: {fee_type}")
 
-        platform_fee = (pct_component + fix_component).quantize(
-            TWO_PLACES, rounding=ROUND_HALF_UP
-        )
+        platform_fee = (pct_component + fix_component).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
 
         # Fee cannot exceed the transaction amount
         if platform_fee > amount:
             platform_fee = amount.quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
 
-        business_proceeds = (amount - platform_fee).quantize(
-            TWO_PLACES, rounding=ROUND_HALF_UP
-        )
+        business_proceeds = (amount - platform_fee).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
 
         return FeeResult(
             customer_amount=amount.quantize(TWO_PLACES, rounding=ROUND_HALF_UP),

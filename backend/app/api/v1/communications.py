@@ -771,9 +771,7 @@ async def _process_resend_delivery(
 
     attempt.status = new_status
 
-    comm_result = await db.execute(
-        select(Communication).where(Communication.id == attempt.communication_id)
-    )
+    comm_result = await db.execute(select(Communication).where(Communication.id == attempt.communication_id))
     communication = comm_result.scalar_one_or_none()
     if communication:
         comm_status_map = {
@@ -856,9 +854,7 @@ async def _process_vonage_delivery(
         attempt.error = f"Vonage delivery failed: {event_type} (code: {err_code})"
 
     # Update parent communication status
-    comm_result = await db.execute(
-        select(Communication).where(Communication.id == attempt.communication_id)
-    )
+    comm_result = await db.execute(select(Communication).where(Communication.id == attempt.communication_id))
     communication = comm_result.scalar_one_or_none()
     if communication:
         communication.status = new_status

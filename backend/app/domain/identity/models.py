@@ -112,9 +112,7 @@ class Business(BaseModel):
 
     # Platform application fee percentage (0–100).  Applied as
     # application_fee_amount on Direct Charges.
-    platform_fee_percent: Mapped[str] = mapped_column(
-        Numeric(precision=5, scale=2), nullable=False, default="0.00"
-    )
+    platform_fee_percent: Mapped[str] = mapped_column(Numeric(precision=5, scale=2), nullable=False, default="0.00")
 
     # Relationships
     members: Mapped[list[BusinessMember]] = relationship(back_populates="business", cascade="all, delete-orphan")

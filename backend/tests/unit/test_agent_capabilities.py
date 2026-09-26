@@ -10,23 +10,21 @@ Tests cover:
 from __future__ import annotations
 
 import uuid
-from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.domain.agent.service import (
+    AgentAuthorizationResult,
+    AgentCapabilityService,
+    _validate_policy_constraints,
+)
 from app.domain.common.enums import (
     AgentAuthorityMode,
     AgentCapabilityType,
     AgentDelegationStatus,
     AgentType,
 )
-from app.domain.agent.service import (
-    AgentAuthorizationResult,
-    AgentCapabilityService,
-    _validate_policy_constraints,
-)
-
 
 # ── Enum tests ────────────────────────────────────────────────────
 
@@ -242,7 +240,9 @@ class TestAgentCapabilityServiceUnit:
         service = AgentCapabilityService(session)
         biz_id = uuid.uuid4()
         result = await service.check_authorization(
-            biz_id, AgentType.BRAIN, AgentCapabilityType.PROPOSE_CHANGES,
+            biz_id,
+            AgentType.BRAIN,
+            AgentCapabilityType.PROPOSE_CHANGES,
         )
 
         assert result.authorized is False
@@ -263,7 +263,9 @@ class TestAgentCapabilityServiceUnit:
         service = AgentCapabilityService(session)
         biz_id = uuid.uuid4()
         result = await service.check_authorization(
-            biz_id, AgentType.BRAIN, AgentCapabilityType.PROPOSE_CHANGES,
+            biz_id,
+            AgentType.BRAIN,
+            AgentCapabilityType.PROPOSE_CHANGES,
         )
 
         assert result.authorized is False
@@ -284,7 +286,9 @@ class TestAgentCapabilityServiceUnit:
         service = AgentCapabilityService(session)
         biz_id = uuid.uuid4()
         result = await service.check_authorization(
-            biz_id, AgentType.BRAIN, AgentCapabilityType.PROPOSE_CHANGES,
+            biz_id,
+            AgentType.BRAIN,
+            AgentCapabilityType.PROPOSE_CHANGES,
         )
 
         assert result.authorized is True
@@ -304,7 +308,9 @@ class TestAgentCapabilityServiceUnit:
         service = AgentCapabilityService(session)
         biz_id = uuid.uuid4()
         result = await service.check_authorization(
-            biz_id, AgentType.CALL_AGENT, AgentCapabilityType.HANDLE_INBOUND_CALL,
+            biz_id,
+            AgentType.CALL_AGENT,
+            AgentCapabilityType.HANDLE_INBOUND_CALL,
         )
 
         assert result.authorized is True
@@ -330,7 +336,9 @@ class TestAgentCapabilityServiceUnit:
         service = AgentCapabilityService(session)
         biz_id = uuid.uuid4()
         result = await service.check_authorization(
-            biz_id, AgentType.CALL_AGENT, AgentCapabilityType.MAKE_OUTBOUND_CALL,
+            biz_id,
+            AgentType.CALL_AGENT,
+            AgentCapabilityType.MAKE_OUTBOUND_CALL,
         )
 
         assert result.authorized is False

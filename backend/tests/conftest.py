@@ -34,10 +34,10 @@ from app.config import Settings
 from app.database import get_db_session
 from app.domain.booking.models import Booking  # noqa: F401
 from app.domain.business.models import BrainVersion, BusinessBrain, BusinessRule  # noqa: F401
-from app.domain.common.base_model import Base
 
 # Commercial Policy
 from app.domain.commercial_policy.models import CommercialPolicy  # noqa: F401
+from app.domain.common.base_model import Base
 
 # Phase 14A — Communication, Notification, Outbox
 from app.domain.communication.models import (  # noqa: F401

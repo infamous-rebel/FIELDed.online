@@ -694,14 +694,11 @@ class PaymentService:
             StripeConnectAccountStatus.CHARGES_DISABLED,
         ):
             raise ValidationError(
-                f"Business {business_id} Stripe account cannot accept charges "
-                f"(status={status.value})."
+                f"Business {business_id} Stripe account cannot accept charges (status={status.value})."
             )
 
         if not business.stripe_charges_enabled:
-            raise ValidationError(
-                f"Business {business_id} Stripe charges are not enabled."
-            )
+            raise ValidationError(f"Business {business_id} Stripe charges are not enabled.")
 
         # Compute application fee.
         # Prefer the authoritative Commercial Policy fee_evidence
@@ -735,9 +732,7 @@ class PaymentService:
 
         return stripe_account_id, application_fee
 
-    async def _resolve_business_stripe_account(
-        self, business_id: uuid.UUID
-    ) -> str | None:
+    async def _resolve_business_stripe_account(self, business_id: uuid.UUID) -> str | None:
         """Return the business's stripe_account_id if the provider is Stripe."""
         if self.payment_provider is None:
             return None

@@ -1246,16 +1246,18 @@ async def vonage_input_webhook(
 
     # Empty / failed speech input — deterministic retry
     if not speech_result:
-        return _ncco_response([
-            {"action": "talk", "text": "Sorry, I didn't catch that. Please try again."},
-            {
-                "action": "input",
-                "type": ["speech"],
-                "speech": {"language": "en-US", "endOnSilence": 2},
-                "eventUrl": [input_url],
-                "eventMethod": "POST",
-            },
-        ])
+        return _ncco_response(
+            [
+                {"action": "talk", "text": "Sorry, I didn't catch that. Please try again."},
+                {
+                    "action": "input",
+                    "type": ["speech"],
+                    "speech": {"language": "en-US", "endOnSilence": 2},
+                    "eventUrl": [input_url],
+                    "eventMethod": "POST",
+                },
+            ]
+        )
 
     # Pass transcript to the existing governed Call Agent
     from app.adapters import _resolve_call_agent_ai_provider
@@ -1285,16 +1287,18 @@ async def vonage_input_webhook(
         return _ncco_response([{"action": "talk", "text": reply}, {"action": "hangup"}])
 
     # Normal continuation: talk + input
-    return _ncco_response([
-        {"action": "talk", "text": reply, "language": "en-US"},
-        {
-            "action": "input",
-            "type": ["speech"],
-            "speech": {"language": "en-US", "endOnSilence": 2},
-            "eventUrl": [input_url],
-            "eventMethod": "POST",
-        },
-    ])
+    return _ncco_response(
+        [
+            {"action": "talk", "text": reply, "language": "en-US"},
+            {
+                "action": "input",
+                "type": ["speech"],
+                "speech": {"language": "en-US", "endOnSilence": 2},
+                "eventUrl": [input_url],
+                "eventMethod": "POST",
+            },
+        ]
+    )
 
 
 @router.post("/webhooks/voice/vonage/event/{call_id}")

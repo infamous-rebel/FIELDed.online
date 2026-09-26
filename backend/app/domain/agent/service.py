@@ -30,7 +30,7 @@ from app.domain.common.enums import (
     AgentDelegationStatus,
     AgentType,
 )
-from app.exceptions import AuthorizationError, DomainError
+from app.exceptions import DomainError
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +96,10 @@ class AgentCapabilityService:
     ) -> AgentCapability:
         """Set the authority mode for a capability. Owner-only operation."""
         capability = await self.get_or_create_capability(
-            business_id, agent_type, capability_type, default_mode=mode,
+            business_id,
+            agent_type,
+            capability_type,
+            default_mode=mode,
         )
         capability.authority_mode = str(mode)
         if policy_constraints is not None:
@@ -256,7 +259,9 @@ class AgentCapabilityService:
 
         if mode == AgentAuthorityMode.DELEGATED:
             delegation = await self.get_active_delegation(
-                business_id, agent_type, capability_type,
+                business_id,
+                agent_type,
+                capability_type,
             )
             if delegation is None:
                 return AgentAuthorizationResult(
@@ -269,7 +274,8 @@ class AgentCapabilityService:
             # Validate policy constraints
             if capability.policy_constraints and action_context:
                 valid, reason = _validate_policy_constraints(
-                    capability.policy_constraints, action_context,
+                    capability.policy_constraints,
+                    action_context,
                 )
                 if not valid:
                     return AgentAuthorizationResult(
@@ -418,6 +424,7 @@ def _validate_policy_constraints(
         action_amount = context.get("amount")
         if action_amount is not None:
             from decimal import Decimal
+
             try:
                 if Decimal(str(action_amount)) > Decimal(str(constraints["max_amount"])):
                     return False, f"Amount {action_amount} exceeds max {constraints['max_amount']}"
