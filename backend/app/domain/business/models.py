@@ -161,6 +161,11 @@ class BrainMessage(BaseModel):
 
     Messages can be from the Brain (AI-generated), the owner (user input),
     or the system (contextual events, notifications).
+
+    For Brain responses, ``structured_response`` may contain a validated
+    semantic block representation alongside the plain-text ``content``.
+    The renderer should prefer structured_response when available, falling
+    back to content for historical or plain-text messages.
     """
 
     __tablename__ = "brain_messages"
@@ -175,6 +180,9 @@ class BrainMessage(BaseModel):
     metadata_: Mapped[dict | None] = mapped_column(
         "metadata", JSONB, nullable=True
     )  # Additional context (e.g., proposal references, confidence scores)
+    structured_response: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True
+    )  # Validated BrainStructuredResponse blocks (Brain messages only)
 
     # Relationships
     conversation: Mapped[BrainConversation] = relationship(

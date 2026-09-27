@@ -234,7 +234,11 @@ export default function FloatingCoBrain({ businessId, context }: FloatingCoBrain
   }, [handleSend]);
 
   // Handle proposal action
+  const [decidingProposalId, setDecidingProposalId] = useState<string | null>(null);
   const handleProposalAction = useCallback(async (proposalId: string, action: "approve" | "reject") => {
+    if (decidingProposalId === proposalId) return;
+    setDecidingProposalId(proposalId);
+    setError("");
     try {
       if (action === "approve") {
         await brainConversation.approveProposal(businessId, proposalId);
@@ -247,10 +251,13 @@ export default function FloatingCoBrain({ businessId, context }: FloatingCoBrain
           : m
       ));
       setStatus("ready");
-    } catch {
-      setError(`Failed to ${action} proposal`);
+    } catch (err) {
+      const msg = err instanceof FieldedApiError ? err.error.message : `Failed to ${action} proposal`;
+      setError(msg);
+    } finally {
+      setDecidingProposalId(null);
     }
-  }, [businessId]);
+  }, [businessId, decidingProposalId]);
 
   // Don't render if not in browser
   if (typeof window === "undefined") return null;
@@ -398,6 +405,7 @@ export default function FloatingCoBrain({ businessId, context }: FloatingCoBrain
                   <ProposalCard
                     proposal={msg.metadata.proposal}
                     onAction={handleProposalAction}
+                    isDeciding={decidingProposalId === msg.metadata.proposal.id}
                   />
                 ) : (
                   <div className="text-center">
@@ -485,9 +493,11 @@ export default function FloatingCoBrain({ businessId, context }: FloatingCoBrain
 function ProposalCard({
   proposal,
   onAction,
+  isDeciding,
 }: {
   proposal: BrainProposalData;
   onAction: (id: string, action: "approve" | "reject") => void;
+  isDeciding?: boolean;
 }) {
   const typeLabels: Record<string, string> = {
     new_service: "New Service",
@@ -519,15 +529,17 @@ function ProposalCard({
         <div className="flex items-center gap-2">
           <button
             onClick={() => onAction(proposal.id, "approve")}
-            className="text-[10px] font-medium px-2.5 py-1 rounded bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/20 hover:bg-[var(--accent)]/25 transition-colors"
+            disabled={isDeciding}
+            className="text-[10px] font-medium px-2.5 py-1 rounded bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/20 hover:bg-[var(--accent)]/25 transition-colors disabled:opacity-50"
           >
-            Approve
+            {isDeciding ? "Approving…" : "Approve"}
           </button>
           <button
             onClick={() => onAction(proposal.id, "reject")}
-            className="text-[10px] font-medium px-2.5 py-1 rounded bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20 hover:bg-[var(--danger)]/20 transition-colors"
+            disabled={isDeciding}
+            className="text-[10px] font-medium px-2.5 py-1 rounded bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20 hover:bg-[var(--danger)]/20 transition-colors disabled:opacity-50"
           >
-            Reject
+            {isDeciding ? "Rejecting…" : "Reject"}
           </button>
         </div>
       ) : (

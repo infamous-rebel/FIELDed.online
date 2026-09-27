@@ -22,6 +22,10 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.ai.base import AIProvider
+from app.domain.business.brain_response import (
+    BrainStructuredResponse,
+    ProposalBlock,
+)
 from app.domain.business.models import (
     BrainConversation,
     BrainMessage,
@@ -48,7 +52,7 @@ from app.domain.common.enums import (
     BrainProposalType,
     BrainVersionStatus,
 )
-from app.exceptions import DomainError, NotFoundError
+from app.exceptions import ConflictError, DomainError, NotFoundError, TenantIsolationError
 from app.logging import get_logger
 
 logger = get_logger(__name__)
@@ -96,8 +100,18 @@ MUST follow these rules in order:
    budget, budget_estimate, service_agreement, address, tax_id, license_number.
 4. When in doubt, use fewer fields, not more. Never exceed 6 required_fields.
 
+SEMANTIC RESPONSE FORMAT:
+Wrap your response in semantic tags so the frontend renders styled blocks:
+<observation title="...">evidence or facts</observation>
+<reasoning title="...">analysis or explanation</reasoning>
+<recommendation title="...">suggestion<action>next step</action></recommendation>
+<question>What would you like to do?</question>
+<missing_information title="...">what's still needed</missing_information>
+<text>plain conversational content</text>
+Use the tags that fit. Plain text without tags is shown as-is. Never use markdown formatting (**bold**, ### headings, --- rules) — the semantic tags provide all structure.
+
 PROPOSAL FORMAT:
-When the owner provides information that should become a business rule, output a proposal block:
+When the owner provides information that should become a business rule, ALSO output a proposal block (this is separate from the semantic tags above):
 
 [PROPOSAL]
 ```json
@@ -274,25 +288,33 @@ class BrainConversationService:
         # Generate Brain response with proposal extraction
         brain_response_content, proposal_data = await self._generate_brain_response(conversation, content)
 
-        brain_message = await self.message_repo.create(
-            BrainMessage(
-                conversation_id=conversation_id,
-                role=BrainMessageRole.BRAIN,
-                content=brain_response_content,
-                metadata_={
-                    "has_proposal": proposal_data is not None,
-                    "proposal_type": proposal_data.get("proposal_type") if proposal_data else None,
-                },
-            )
-        )
-
-        # Create proposal if Brain identified one
+        # Create proposal first so we have its ID for the structured block
+        proposal = None
         if proposal_data is not None:
-            await self._create_proposal_from_conversation(
+            proposal = await self._create_proposal_from_conversation(
                 conversation=conversation,
                 source_message=owner_message,
                 proposal_data=proposal_data,
             )
+
+        # Build structured response with real proposal reference
+        structured = self._build_structured_response(brain_response_content, proposal_data, proposal)
+
+        # Store clean content (no semantic tags, no markdown) as plain-text fallback
+        clean_content = _strip_markdown(_strip_semantic_tags(brain_response_content))
+
+        brain_message = await self.message_repo.create(
+            BrainMessage(
+                conversation_id=conversation_id,
+                role=BrainMessageRole.BRAIN,
+                content=clean_content or brain_response_content,
+                metadata_={
+                    "has_proposal": proposal_data is not None,
+                    "proposal_type": proposal_data.get("proposal_type") if proposal_data else None,
+                },
+                structured_response=structured.model_dump() if structured else None,
+            )
+        )
 
         return owner_message, brain_message
 
@@ -323,19 +345,34 @@ class BrainConversationService:
         self,
         proposal_id: uuid.UUID,
         edited_change: dict | None = None,
+        *,
+        brain_id: uuid.UUID | None = None,
     ) -> BrainProposal:
         """Approve a proposal and apply it to the governed Brain state.
 
         If edited_change is provided, the proposal is approved with edits.
         The approved change is applied to a DRAFT BrainVersion as either
         a config update or a new BusinessRule, using the existing governance.
+
+        Args:
+            proposal_id: The proposal to approve.
+            edited_change: Optional edited proposed_change.
+            brain_id: If provided, verify the proposal belongs to this brain
+                      (tenant isolation).
         """
         proposal = await self.proposal_repo.get_by_id(proposal_id)
         if proposal is None:
             raise NotFoundError(f"Proposal {proposal_id} not found")
 
+        # Tenant isolation: verify proposal belongs to the expected brain
+        if brain_id is not None and proposal.brain_id != brain_id:
+            raise TenantIsolationError("Proposal does not belong to this business's brain")
+
         if proposal.status != BrainProposalStatus.PENDING:
-            raise DomainError(f"Cannot approve proposal in status {proposal.status}")
+            raise ConflictError(
+                f"Cannot approve proposal in status '{proposal.status.value}'",
+                details={"proposal_status": proposal.status.value},
+            )
 
         # Apply edits if provided
         final_change = edited_change if edited_change is not None else proposal.proposed_change
@@ -363,13 +400,32 @@ class BrainConversationService:
 
         return proposal
 
-    async def reject_proposal(self, proposal_id: uuid.UUID) -> BrainProposal:
+    async def reject_proposal(
+        self,
+        proposal_id: uuid.UUID,
+        *,
+        brain_id: uuid.UUID | None = None,
+    ) -> BrainProposal:
+        """Reject a proposal.
+
+        Args:
+            proposal_id: The proposal to reject.
+            brain_id: If provided, verify the proposal belongs to this brain
+                      (tenant isolation).
+        """
         proposal = await self.proposal_repo.get_by_id(proposal_id)
         if proposal is None:
             raise NotFoundError(f"Proposal {proposal_id} not found")
 
+        # Tenant isolation: verify proposal belongs to the expected brain
+        if brain_id is not None and proposal.brain_id != brain_id:
+            raise TenantIsolationError("Proposal does not belong to this business's brain")
+
         if proposal.status != BrainProposalStatus.PENDING:
-            raise DomainError(f"Cannot reject proposal in status {proposal.status}")
+            raise ConflictError(
+                f"Cannot reject proposal in status '{proposal.status.value}'",
+                details={"proposal_status": proposal.status.value},
+            )
 
         proposal.status = BrainProposalStatus.REJECTED
         proposal.resolved_at = datetime.now(UTC)
@@ -589,6 +645,56 @@ class BrainConversationService:
                     "count": len(unpaid_invoices),
                 }
             )
+
+    # ------------------------------------------------------------------
+    # Private: Structured response generation
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _build_structured_response(
+        brain_response_content: str,
+        proposal_data: dict | None,
+        proposal: BrainProposal | None = None,
+    ) -> BrainStructuredResponse | None:
+        """Build a validated structured response from Brain output.
+
+        Parses semantic tags from the AI response to produce typed blocks.
+        If a proposal was extracted, adds a ProposalBlock referencing the
+        real governed proposal (created separately).
+        Falls back to a cleaned TextBlock when no semantic tags are found.
+        Returns None only if the content is empty.
+
+        The structured response is a rendering aid — it does NOT replace
+        the plain-text content and cannot mutate authoritative state.
+        """
+        if not brain_response_content or not brain_response_content.strip():
+            return None
+
+        blocks = _parse_semantic_blocks(brain_response_content)
+
+        # Add proposal block referencing the real governed proposal
+        if proposal is not None and proposal_data is not None:
+            try:
+                blocks.append(
+                    ProposalBlock(
+                        proposal_id=str(proposal.id),
+                        title=proposal_data.get("rule_name", proposal_data.get("summary", "Proposal"))[:200],
+                        summary=proposal_data.get("summary", "")[:5000],
+                        why=proposal_data.get("reasoning", "")[:5000],
+                        scope=proposal_data.get("affected_area", "")[:200],
+                        status=proposal.status.value if hasattr(proposal.status, "value") else str(proposal.status),
+                    )
+                )
+            except Exception:
+                pass  # Skip malformed proposal block — governance is authoritative
+
+        if not blocks:
+            # No semantic tags found — wrap cleaned plain text
+            from app.domain.business.brain_response import TextBlock
+
+            blocks.append(TextBlock(content=_strip_markdown(brain_response_content)[:5000]))
+
+        return BrainStructuredResponse(version=1, blocks=blocks)
 
     # ------------------------------------------------------------------
     # Private: Context building
@@ -1256,3 +1362,210 @@ class BrainConversationService:
                 base_config = {k: v for k, v in base_config.items() if v is not None}
 
         return await brain_service.create_version(brain.id, config=base_config)
+
+    # ------------------------------------------------------------------
+    # Private: Semantic block parsing & markdown cleanup
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _strip_markdown(text: str) -> str:
+        """Remove raw markdown syntax from display text.
+
+        The frontend renders semantic blocks with CSS styling, so raw
+        markdown (**, ###, ---, etc.) must never reach the user.
+        """
+        return _strip_markdown(text)
+
+
+def _strip_markdown(text: str) -> str:
+    """Remove raw markdown syntax from Brain display text.
+
+    Strips bold, italic, headings, horizontal rules, inline code,
+    code fences, blockquotes, and list markers while preserving
+    the readable content.
+    """
+    import re
+
+    # Code fences first (before other transforms touch backticks)
+    result = re.sub(r"```\w*\n?", "", text)
+    result = result.replace("```", "")
+
+    # Horizontal rules (---, ***, ___)
+    result = re.sub(r"^\s*[-*_]{3,}\s*$", "", result, flags=re.MULTILINE)
+
+    # Headings
+    result = re.sub(r"^#{1,6}\s+", "", result, flags=re.MULTILINE)
+
+    # Bold (**text** or __text__)
+    result = re.sub(r"\*\*(.+?)\*\*", r"\1", result)
+    result = re.sub(r"__(.+?)__", r"\1", result)
+
+    # Italic (*text* or _text_) — careful not to strip mid-word underscores
+    result = re.sub(r"\*(.+?)\*", r"\1", result)
+    result = re.sub(r"(?<!\w)_(.+?)_(?!\w)", r"\1", result)
+
+    # Inline code
+    result = re.sub(r"`(.+?)`", r"\1", result)
+
+    # Blockquotes
+    result = re.sub(r"^>\s?", "", result, flags=re.MULTILINE)
+
+    # Unordered list markers
+    result = re.sub(r"^\s*[-*+]\s+", "", result, flags=re.MULTILINE)
+
+    # Ordered list markers
+    result = re.sub(r"^\s*\d+\.\s+", "", result, flags=re.MULTILINE)
+
+    # Stray asterisks / underscores at word boundaries
+    result = re.sub(r"(?<!\w)[*_]+(?!\w)", "", result)
+
+    # Collapse excessive blank lines
+    result = re.sub(r"\n{3,}", "\n\n", result)
+
+    return result.strip()
+
+
+def _parse_semantic_blocks(text: str) -> list:
+    """Parse semantic XML-like tags from Brain AI response text.
+
+    Recognises tags: observation, reasoning, recommendation, question,
+    missing_information, initiative, navigation, decision, text.
+    [PROPOSAL] tags are NOT parsed here — proposals are created through
+    the governance pipeline and added separately.
+
+    All output is validated through the existing Pydantic block models.
+    Malformed or out-of-bounds blocks are silently skipped.
+    """
+    import re
+
+    from app.domain.business.brain_response import (
+        PERMITTED_NAVIGATION_DESTINATIONS,
+        DecisionBlock,
+        InitiativeBlock,
+        MissingInformationBlock,
+        NavigationBlock,
+        ObservationBlock,
+        QuestionBlock,
+        ReasoningBlock,
+        RecommendationBlock,
+        TextBlock,
+    )
+
+    blocks: list = []
+
+    tag_patterns = [
+        ("observation", r"<observation[^>]*>(.*?)</observation>"),
+        ("reasoning", r"<reasoning[^>]*>(.*?)</reasoning>"),
+        ("recommendation", r"<recommendation[^>]*>(.*?)</recommendation>"),
+        ("question", r"<question>(.*?)</question>"),
+        ("missing_information", r"<missing_information[^>]*>(.*?)</missing_information>"),
+        ("initiative", r"<initiative[^>]*>(.*?)</initiative>"),
+        ("navigation", r"<navigation[^>]*>(.*?)</navigation>"),
+        ("decision", r"<decision[^>]*>(.*?)</decision>"),
+        ("text", r"<text>(.*?)</text>"),
+    ]
+
+    matched_spans: list[tuple[int, int]] = []
+
+    for tag_name, pattern in tag_patterns:
+        for match in re.finditer(pattern, text, re.DOTALL | re.IGNORECASE):
+            content = match.group(1).strip()
+            if not content:
+                continue
+
+            # Extract title attribute if present
+            tag_open = text[match.start() : match.start() + match.group(0).index(">") + 1]
+            title_match = re.search(r'title=["\']([^"\']+)["\']', tag_open)
+            title = title_match.group(1) if title_match else ""
+
+            try:
+                if tag_name == "text":
+                    blocks.append(TextBlock(content=_strip_markdown(content)[:5000]))
+                elif tag_name == "observation":
+                    blocks.append(
+                        ObservationBlock(
+                            title=title or "Observation",
+                            content=_strip_markdown(content)[:5000],
+                        )
+                    )
+                elif tag_name == "reasoning":
+                    blocks.append(
+                        ReasoningBlock(
+                            title=title or "Analysis",
+                            content=_strip_markdown(content)[:5000],
+                        )
+                    )
+                elif tag_name == "recommendation":
+                    actions = re.findall(r"<action>(.*?)</action>", content, re.IGNORECASE)
+                    clean_content = re.sub(r"<action>.*?</action>", "", content, flags=re.IGNORECASE).strip()
+                    blocks.append(
+                        RecommendationBlock(
+                            title=title or "Recommendation",
+                            content=_strip_markdown(clean_content)[:5000],
+                            actions=[_strip_markdown(a) for a in actions[:20]],
+                        )
+                    )
+                elif tag_name == "question":
+                    blocks.append(
+                        QuestionBlock(
+                            question=_strip_markdown(content)[:5000],
+                        )
+                    )
+                elif tag_name == "missing_information":
+                    blocks.append(
+                        MissingInformationBlock(
+                            title=title or "Missing Information",
+                            content=_strip_markdown(content)[:5000],
+                        )
+                    )
+                elif tag_name == "initiative":
+                    blocks.append(
+                        InitiativeBlock(
+                            title=title or "Initiative",
+                            content=_strip_markdown(content)[:5000],
+                        )
+                    )
+                elif tag_name == "navigation":
+                    dest_match = re.search(r'destination=["\']([^"\']+)["\']', tag_open)
+                    destination = dest_match.group(1) if dest_match else ""
+                    if destination in PERMITTED_NAVIGATION_DESTINATIONS:
+                        blocks.append(
+                            NavigationBlock(
+                                label=title or "View",
+                                destination=destination,
+                            )
+                        )
+                elif tag_name == "decision":
+                    status_match = re.search(r'status=["\']([^"\']+)["\']', tag_open)
+                    blocks.append(
+                        DecisionBlock(
+                            title=title or "Decision",
+                            content=_strip_markdown(content)[:5000],
+                            status=status_match.group(1) if status_match else "",
+                        )
+                    )
+            except Exception:
+                continue  # Skip malformed block — validation rejected it
+
+            matched_spans.append((match.start(), match.end()))
+
+    return blocks
+
+
+def _strip_semantic_tags(text: str) -> str:
+    """Remove semantic XML-like tags from text, keeping inner content.
+
+    Used to produce a clean plain-text fallback for storage. The structured
+    blocks are parsed separately from the raw response.
+    """
+    import re
+
+    result = re.sub(
+        r"</?(?:observation|reasoning|recommendation|question|missing_information|initiative|navigation|decision|text)[^>]*>",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+    # Also remove <action>...</action> inner tags (keep content)
+    result = re.sub(r"</?action>", "", result, flags=re.IGNORECASE)
+    return result.strip()

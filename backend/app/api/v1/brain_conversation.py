@@ -48,6 +48,7 @@ class BrainMessageRead(BaseModel):
     role: str
     content: str
     metadata: dict | None = Field(None, alias="metadata_")
+    structured_response: dict | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True, "populate_by_name": True}
@@ -141,6 +142,14 @@ class ApproveProposalRequest(BaseModel):
     model_config = {"extra": "ignore"}
 
 
+class ProposalDecisionError(BaseModel):
+    """Structured error for proposal decision failures."""
+
+    code: str
+    message: str
+    proposal_status: str | None = None
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -163,6 +172,7 @@ def _message_to_read(message: BrainMessage) -> BrainMessageRead:
         role=message.role,
         content=message.content,
         metadata_=message.metadata_,
+        structured_response=message.structured_response,
         created_at=message.created_at,
     )
 
@@ -374,20 +384,25 @@ async def list_pending_proposals(
 )
 async def approve_proposal(
     proposal_id: uuid.UUID,
+    body: ApproveProposalRequest | None,
     brain: Annotated[BusinessBrain, Depends(require_brain_approve)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     current_user: Annotated[User, Depends(get_current_user)],
-    body: ApproveProposalRequest | None = None,
 ) -> BrainProposalRead:
     """Approve a Brain proposal.
 
     Optionally provide edited_change to approve with modifications.
     The approved proposal becomes eligible for application to the
     governed Brain state.
+
+    Returns truthful structured errors for:
+    - Proposal not found (404)
+    - Proposal belongs to a different brain / cross-tenant (403)
+    - Proposal not in PENDING status (409 with current status)
     """
     service = _get_brain_conversation_service(db)
     edited_change = body.edited_change if body else None
-    proposal = await service.approve_proposal(proposal_id, edited_change)
+    proposal = await service.approve_proposal(proposal_id, edited_change, brain_id=brain.id)
     return _proposal_to_read(proposal)
 
 
@@ -401,9 +416,15 @@ async def reject_proposal(
     db: Annotated[AsyncSession, Depends(get_db_session)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> BrainProposalRead:
-    """Reject a Brain proposal."""
+    """Reject a Brain proposal.
+
+    Returns truthful structured errors for:
+    - Proposal not found (404)
+    - Proposal belongs to a different brain / cross-tenant (403)
+    - Proposal not in PENDING status (409 with current status)
+    """
     service = _get_brain_conversation_service(db)
-    proposal = await service.reject_proposal(proposal_id)
+    proposal = await service.reject_proposal(proposal_id, brain_id=brain.id)
     return _proposal_to_read(proposal)
 
 

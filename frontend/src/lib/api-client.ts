@@ -974,7 +974,117 @@ export interface BrainMessageData {
   role: "brain" | "owner" | "system";
   content: string;
   metadata: Record<string, unknown> | null;
+  structured_response: BrainStructuredResponseData | null;
   created_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Brain Structured Response types
+// ---------------------------------------------------------------------------
+
+export type BrainBlockType =
+  | "text"
+  | "observation"
+  | "reasoning"
+  | "recommendation"
+  | "question"
+  | "missing_information"
+  | "proposal"
+  | "initiative"
+  | "navigation"
+  | "decision";
+
+export interface BrainTextBlock {
+  type: "text";
+  content: string;
+}
+
+export interface BrainObservationBlock {
+  type: "observation";
+  title: string;
+  content: string;
+  evidence: string[];
+}
+
+export interface BrainReasonINGBlock {
+  type: "reasoning";
+  title: string;
+  content: string;
+}
+
+export interface BrainRecommendationBlock {
+  type: "recommendation";
+  title: string;
+  content: string;
+  actions: string[];
+}
+
+export interface BrainQuestionBlock {
+  type: "question";
+  question: string;
+  options: string[];
+  allow_custom: boolean;
+}
+
+export interface BrainMissingInformationBlock {
+  type: "missing_information";
+  title: string;
+  content: string;
+  field: string;
+  options: string[];
+}
+
+export interface BrainProposalBlock {
+  type: "proposal";
+  proposal_id: string;
+  title: string;
+  summary: string;
+  why: string;
+  change: string;
+  scope: string;
+  expected_effect: string;
+  evidence: string[];
+  status: string;
+}
+
+export interface BrainInitiativeBlock {
+  type: "initiative";
+  initiative_id: string;
+  title: string;
+  summary: string;
+  priority: string;
+  actions: string[];
+}
+
+export interface BrainNavigationBlock {
+  type: "navigation";
+  label: string;
+  destination: string;
+  context: Record<string, unknown>;
+}
+
+export interface BrainDecisionBlock {
+  type: "decision";
+  title: string;
+  content: string;
+  status: string;
+}
+
+export type BrainBlock =
+  | BrainTextBlock
+  | BrainObservationBlock
+  | BrainReasonINGBlock
+  | BrainRecommendationBlock
+  | BrainQuestionBlock
+  | BrainMissingInformationBlock
+  | BrainProposalBlock
+  | BrainInitiativeBlock
+  | BrainNavigationBlock
+  | BrainDecisionBlock;
+
+export interface BrainStructuredResponseData {
+  version: number;
+  blocks: BrainBlock[];
 }
 
 export interface BrainConversationSummary {

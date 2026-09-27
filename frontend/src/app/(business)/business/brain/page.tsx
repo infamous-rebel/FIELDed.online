@@ -8,6 +8,7 @@ import {
   type BrainContext,
   type BrainConversationDetail,
   type BrainProposalData,
+  type BrainStructuredResponseData,
   type BusinessBrainDetail,
   type BusinessSummary,
   type NeedsAttentionItem,
@@ -18,6 +19,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
+import { BrainStructuredRenderer } from "@/components/brain/brain-structured-renderer";
 
 // --- Types ---
 
@@ -27,6 +29,7 @@ interface Message {
   content: string;
   created_at?: string;
   isPending?: boolean;
+  structured_response?: BrainStructuredResponseData | null;
 }
 
 // --- Helpers ---
@@ -136,6 +139,7 @@ export default function BusinessBrainPage() {
   const [editingProposal, setEditingProposal] = useState<BrainProposalData | null>(null);
   const [editValue, setEditValue] = useState("");
   const [dismissingAttention, setDismissingAttention] = useState<Set<string>>(new Set());
+  const [decidingProposalId, setDecidingProposalId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -174,6 +178,7 @@ export default function BusinessBrainPage() {
             role: m.role as "brain" | "owner" | "system",
             content: m.content,
             created_at: m.created_at,
+            structured_response: m.structured_response,
           }))
         );
       }
@@ -228,7 +233,11 @@ export default function BusinessBrainPage() {
         );
         return [
           ...updated,
-          { ...response.brain_message, role: "brain" as const },
+          {
+            ...response.brain_message,
+            role: "brain" as const,
+            structured_response: response.brain_message.structured_response,
+          },
         ];
       });
 
@@ -254,16 +263,38 @@ export default function BusinessBrainPage() {
   };
 
   const handleApproveProposal = async (proposal: BrainProposalData) => {
-    if (!business) return;
+    if (!business || decidingProposalId === proposal.id) return;
+    setDecidingProposalId(proposal.id);
+    setError("");
     try {
       await brainConversation.approveProposal(business.id, proposal.id);
-      setPendingProposals((prev) => prev.filter((p) => p.id !== proposal.id));
+      // Refresh pending proposals from backend to reconcile state
+      const proposals = await brainConversation.listPendingProposals(business.id);
+      setPendingProposals(proposals);
       if (business) {
         const context = await brainConversation.getContext(business.id).catch(() => null);
         if (context) setBrainContext(context);
       }
     } catch (err) {
-      setError(err instanceof FieldedApiError ? err.error.message : "Failed to approve");
+      if (err instanceof FieldedApiError) {
+        const code = err.error.code;
+        if (code === "CONFLICT") {
+          // Stale state — refresh to reconcile
+          const proposals = await brainConversation.listPendingProposals(business!.id).catch(() => []);
+          setPendingProposals(proposals);
+          setError(`This proposal is no longer pending (status: ${err.error.details?.proposal_status || "unknown"}).`);
+        } else if (code === "NOT_FOUND") {
+          // Proposal no longer exists — remove from list
+          setPendingProposals((prev) => prev.filter((p) => p.id !== proposal.id));
+          setError("This proposal no longer exists.");
+        } else {
+          setError(err.error.message || "Failed to approve proposal");
+        }
+      } else {
+        setError("Failed to approve proposal. Please try again.");
+      }
+    } finally {
+      setDecidingProposalId(null);
     }
   };
 
@@ -288,12 +319,32 @@ export default function BusinessBrainPage() {
   };
 
   const handleRejectProposal = async (proposalId: string) => {
-    if (!business) return;
+    if (!business || decidingProposalId === proposalId) return;
+    setDecidingProposalId(proposalId);
+    setError("");
     try {
       await brainConversation.rejectProposal(business.id, proposalId);
-      setPendingProposals((prev) => prev.filter((p) => p.id !== proposalId));
+      // Refresh pending proposals from backend to reconcile state
+      const proposals = await brainConversation.listPendingProposals(business.id);
+      setPendingProposals(proposals);
     } catch (err) {
-      setError(err instanceof FieldedApiError ? err.error.message : "Failed to reject");
+      if (err instanceof FieldedApiError) {
+        const code = err.error.code;
+        if (code === "CONFLICT") {
+          const proposals = await brainConversation.listPendingProposals(business!.id).catch(() => []);
+          setPendingProposals(proposals);
+          setError(`This proposal is no longer pending (status: ${err.error.details?.proposal_status || "unknown"}).`);
+        } else if (code === "NOT_FOUND") {
+          setPendingProposals((prev) => prev.filter((p) => p.id !== proposalId));
+          setError("This proposal no longer exists.");
+        } else {
+          setError(err.error.message || "Failed to reject proposal");
+        }
+      } else {
+        setError("Failed to reject proposal. Please try again.");
+      }
+    } finally {
+      setDecidingProposalId(null);
     }
   };
 
@@ -509,8 +560,9 @@ export default function BusinessBrainPage() {
                     <Button
                       size="sm"
                       onClick={() => handleApproveProposal(proposal)}
+                      disabled={decidingProposalId === proposal.id}
                     >
-                      Approve
+                      {decidingProposalId === proposal.id ? "Approving…" : "Approve"}
                     </Button>
                     <Button
                       size="sm"
@@ -519,6 +571,7 @@ export default function BusinessBrainPage() {
                         setEditingProposal(proposal);
                         setEditValue("");
                       }}
+                      disabled={decidingProposalId === proposal.id}
                     >
                       Adjust &amp; approve
                     </Button>
@@ -526,8 +579,9 @@ export default function BusinessBrainPage() {
                       size="sm"
                       variant="ghost"
                       onClick={() => handleRejectProposal(proposal.id)}
+                      disabled={decidingProposalId === proposal.id}
                     >
-                      Dismiss
+                      {decidingProposalId === proposal.id ? "Rejecting…" : "Dismiss"}
                     </Button>
                   </div>
                 </div>
@@ -604,7 +658,15 @@ export default function BusinessBrainPage() {
                       Brain
                     </p>
                   )}
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                  {/* Use structured renderer for brain messages when available */}
+                  {message.role === "brain" && message.structured_response ? (
+                    <BrainStructuredRenderer
+                      structured={message.structured_response}
+                      fallbackContent={message.content}
+                    />
+                  ) : (
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                  )}
                   {(message.created_at || message.isPending) && (
                     <p
                       className={`text-[10px] mt-1 ${
