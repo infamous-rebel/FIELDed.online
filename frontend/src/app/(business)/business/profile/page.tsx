@@ -16,6 +16,7 @@ export default function BusinessProfilePage() {
   const [business, setBusiness] = useState<BusinessDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [activating, setActivating] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -83,6 +84,22 @@ export default function BusinessProfilePage() {
   useEffect(() => {
     if (authed) loadBusiness();
   }, [authed, loadBusiness]);
+
+  const handleActivate = async () => {
+    if (!business) return;
+    try {
+      setActivating(true);
+      setError("");
+      setSuccess("");
+      await businesses.transition(business.id, "active");
+      setSuccess("Business activated successfully! You can now receive enquiries and appear in search results.");
+      await loadBusiness();
+    } catch (err) {
+      setError(err instanceof FieldedApiError ? err.error.message : "Failed to activate business");
+    } finally {
+      setActivating(false);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -201,6 +218,31 @@ export default function BusinessProfilePage() {
       )}
       {success && (
         <div className="mt-4 rounded-md bg-emerald-500/10 p-3 text-sm text-emerald-400">{success}</div>
+      )}
+
+      {/* Business activation banner — shown when business status is pending */}
+      {business && business.status === "pending" && (
+        <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/5 p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">
+                Activate Your Business
+              </h2>
+              <p className="mt-1 text-sm text-[var(--text-secondary)] leading-relaxed">
+                Your business is currently pending. Activate it to start receiving enquiries,
+                appear in search results, and operate through your Business Brain.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleActivate}
+              disabled={activating}
+              className="shrink-0 rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+            >
+              {activating ? "Activating..." : "Activate Business"}
+            </button>
+          </div>
+        </div>
       )}
 
       <form onSubmit={handleSave} className="mt-6 space-y-8">

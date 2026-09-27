@@ -2,13 +2,22 @@
 
 import { useState, useEffect } from "react";
 import { isAuthenticated } from "@/lib/auth";
+import { businesses } from "@/lib/api-client";
 
 export default function PublicHeader() {
   const [authed, setAuthed] = useState(false);
+  const [dashboardHref, setDashboardHref] = useState("/customer/dashboard");
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    setAuthed(isAuthenticated());
+    if (!isAuthenticated()) return;
+    setAuthed(true);
+    // Resolve the correct dashboard destination based on business membership.
+    businesses.list().then((bizList) => {
+      setDashboardHref(bizList.length > 0 ? "/business/dashboard" : "/customer/dashboard");
+    }).catch(() => {
+      setDashboardHref("/customer/dashboard");
+    });
   }, []);
 
   return (
@@ -46,7 +55,7 @@ export default function PublicHeader() {
           <span className="mx-1 h-3 w-px bg-[var(--border-default)]" aria-hidden="true" />
           {authed ? (
             <a
-              href="/customer/dashboard"
+              href={dashboardHref}
               className="px-3 py-1.5 text-xs font-medium text-[var(--accent)] border border-[var(--accent)]/30 rounded-md hover:bg-[var(--accent)]/10 transition-colors"
             >
               Dashboard
@@ -96,7 +105,7 @@ export default function PublicHeader() {
             <a href="/industries" className="py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" onClick={() => setMobileOpen(false)}>Industries</a>
             <div className="my-1 h-px bg-[var(--border-subtle)]" />
             {authed ? (
-              <a href="/customer/dashboard" className="py-2 text-sm font-medium text-[var(--accent)]" onClick={() => setMobileOpen(false)}>Dashboard</a>
+              <a href={dashboardHref} className="py-2 text-sm font-medium text-[var(--accent)]" onClick={() => setMobileOpen(false)}>Dashboard</a>
             ) : (
               <>
                 <a href="/login" className="py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" onClick={() => setMobileOpen(false)}>Sign In</a>

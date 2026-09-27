@@ -331,6 +331,17 @@ export const businesses = {
       method: "POST",
     });
   },
+
+  /**
+   * Transition the business lifecycle status.
+   * Requires owner role. Valid: pending → active, active → suspended, etc.
+   */
+  transition(businessId: string, targetStatus: string): Promise<BusinessDetail> {
+    return request(`/businesses/${businessId}/transition`, {
+      method: "POST",
+      body: JSON.stringify({ target_status: targetStatus }),
+    });
+  },
 };
 
 // --- Service Categories ---

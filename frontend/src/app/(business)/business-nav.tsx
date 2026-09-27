@@ -141,16 +141,6 @@ export default function BusinessNav({
             {userMenuOpen && (
               <div className="absolute bottom-full left-0 right-0 mb-1 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] py-1 shadow-lg z-50">
                 <a
-                  href="/customer/dashboard"
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
-                  onClick={() => setUserMenuOpen(false)}
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                  </svg>
-                  Switch to Customer
-                </a>
-                <a
                   href="/"
                   className="flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
                   onClick={() => setUserMenuOpen(false)}
@@ -230,16 +220,6 @@ export default function BusinessNav({
               );
             })}
             <div className="my-2 border-t border-[var(--border-subtle)]" />
-            <a
-              href="/customer/dashboard"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-              </svg>
-              Switch to Customer
-            </a>
             <button
               onClick={() => { setMobileMenuOpen(false); handleLogout(); }}
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[var(--danger)] hover:bg-[var(--bg-elevated)]"

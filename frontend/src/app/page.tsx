@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { isAuthenticated } from "@/lib/auth";
+import { businesses } from "@/lib/api-client";
 
 /* ── Data ──────────────────────────────────────────────── */
 
@@ -85,7 +87,19 @@ export default function LandingPage() {
   const [query, setQuery] = useState("");
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [activeIndustry, setActiveIndustry] = useState(0);
+  const [authed, setAuthed] = useState(false);
+  const [dashboardHref, setDashboardHref] = useState("/customer/dashboard");
   const sectionRefs = useRef<(HTMLElement | null)[]>([]);
+
+  useEffect(() => {
+    if (!isAuthenticated()) return;
+    setAuthed(true);
+    businesses.list().then((bizList) => {
+      setDashboardHref(bizList.length > 0 ? "/business/dashboard" : "/customer/dashboard");
+    }).catch(() => {
+      setDashboardHref("/customer/dashboard");
+    });
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -160,18 +174,29 @@ export default function LandingPage() {
               Industries
             </a>
             <span className="mx-1 h-3 w-px bg-[var(--border-default)]" aria-hidden="true" />
-            <a
-              href="/login"
-              className="px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-            >
-              Sign In
-            </a>
-            <a
-              href="/signup"
-              className="ml-1 px-3 py-1.5 text-xs font-medium text-[var(--accent)] border border-[var(--accent)]/30 rounded-md hover:bg-[var(--accent)]/10 transition-colors"
-            >
-              Get Started &rarr;
-            </a>
+            {authed ? (
+              <a
+                href={dashboardHref}
+                className="px-3 py-1.5 text-xs font-medium text-[var(--accent)] border border-[var(--accent)]/30 rounded-md hover:bg-[var(--accent)]/10 transition-colors"
+              >
+                Dashboard
+              </a>
+            ) : (
+              <>
+                <a
+                  href="/login"
+                  className="px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                  Sign In
+                </a>
+                <a
+                  href="/signup"
+                  className="ml-1 px-3 py-1.5 text-xs font-medium text-[var(--accent)] border border-[var(--accent)]/30 rounded-md hover:bg-[var(--accent)]/10 transition-colors"
+                >
+                  Get Started &rarr;
+                </a>
+              </>
+            )}
           </nav>
         </div>
       </header>
